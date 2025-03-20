@@ -21,6 +21,7 @@ file(GLOB IMGUI_SRC
 )
 
 # Create the main game engine executable
+# Add .cpp files here to be included in the build
 add_executable(GameEngine src/main.cpp ${IMGUI_SRC})
 
 # Include directories for each library
