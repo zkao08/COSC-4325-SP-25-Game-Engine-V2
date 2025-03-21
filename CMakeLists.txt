@@ -20,9 +20,20 @@ file(GLOB IMGUI_SRC
     "${IMGUI_DIR}/imgui*.cpp"
 )
 
+# Specify the source directory
+set(SRC_DIR "src")
+
+# Gather all the .cpp and .h files in the src directory
+file(GLOB_RECURSE GAME_SRC "${SRC_DIR}/*.cpp" "${SRC_DIR}/*.h")
+
+# Group ImGui files under "ThirdParty/ImGui" in Visual Studio
+source_group("ThirdParty/ImGui" FILES ${IMGUI_SRC})
+
+# Explicitly group the src directory files under "Source Files" in Visual Studio
+source_group("Source Files" FILES ${GAME_SRC})
+
 # Create the main game engine executable
-# Add .cpp files here to be included in the build
-add_executable(GameEngine src/main.cpp ${IMGUI_SRC})
+add_executable(GameEngine ${GAME_SRC} ${IMGUI_SRC})
 
 # Include directories for each library
 target_include_directories(GameEngine PRIVATE
@@ -31,6 +42,7 @@ target_include_directories(GameEngine PRIVATE
     ${IMGUI_DIR}  # Include the ImGui directory
     third_party_libs/box2d
     third_party_libs/sdl/include
+    ${SRC_DIR}  # Include the src directory
 )
 
 # Link libraries to your game engine executable
