@@ -31,5 +31,8 @@
 *.out
 *.app
 
-# Build Directory
+# Directories
 /build/
+.vs/
+/out/
+CMakeSettings.json

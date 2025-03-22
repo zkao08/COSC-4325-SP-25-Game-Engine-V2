@@ -23,17 +23,24 @@ file(GLOB IMGUI_SRC
 # Specify the source directory
 set(SRC_DIR "src")
 
-# Gather all the .cpp and .h files in the src directory
-file(GLOB_RECURSE GAME_SRC "${SRC_DIR}/*.cpp" "${SRC_DIR}/*.h")
+# Gather all .cpp and .h files
+file(GLOB_RECURSE GAME_SRC "${SRC_DIR}/*.cpp")
+file(GLOB_RECURSE GAME_HEADERS "${SRC_DIR}/*.h")
 
 # Group ImGui files under "ThirdParty/ImGui" in Visual Studio
 source_group("ThirdParty/ImGui" FILES ${IMGUI_SRC})
 
-# Explicitly group the src directory files under "Source Files" in Visual Studio
-source_group("Source Files" FILES ${GAME_SRC})
+# Group .cpp files under "Source Files"
+source_group("SourceFiles" FILES ${GAME_SRC})
+
+# Group .h files under "Header Files"
+source_group("HeaderFiles" FILES ${GAME_HEADERS})
 
 # Create the main game engine executable
 add_executable(GameEngine ${GAME_SRC} ${IMGUI_SRC})
+
+# Add header files to the target, just for organizing in Visual Studio (not for compilation)
+target_sources(GameEngine PRIVATE ${GAME_HEADERS})
 
 # Include directories for each library
 target_include_directories(GameEngine PRIVATE
@@ -52,6 +59,8 @@ target_link_libraries(GameEngine PRIVATE
     imgui  # imgui will be included directly as source files, so this isn't necessary anymore
     box2d
     SDL2
+    XAudio2
+    X3DAudio
 )
 
 # If you need to link OpenGL (for bgfx)
