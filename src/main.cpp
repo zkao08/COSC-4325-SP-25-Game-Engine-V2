@@ -1,29 +1,20 @@
 #include <iostream>
+#include "AudioManager.h"
 
 int main()
 {
-	//engine subsystems
-	/**
-	RenderManager renderManager;
-	PhysicsManager physicsManager;
-	etc..
-	**/
-	//AudioManager audioManager;
-	
 	//start up engine subsystems in correct order
-	/**
-	renderManager.startup();
-	etc..
-	**/
-	
+	if (!gAudioManager.startUp())
+	{
+		std::cerr << "Audio system failed to initialize. Exiting..." << std::endl;
+		return -1;
+	}
+
 	//run the game engine
 	std::cout << "Game Engine starting..." << std::endl;
 	
 	//shut down subsystems in reverse order
-	/**
-	etc..
-	renderManager.shutdown();
-	**/
+	gAudioManager.shutDown();
 	
 	return 0;
 }
