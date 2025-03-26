@@ -156,12 +156,12 @@ HRESULT AudioManager::LoadAudioFile(const std::wstring& filePath, XAUDIO2_BUFFER
     hr = FindChunk(hFile, fourccDATA, dwChunkSize, dwChunkDataPosition);
     if (FAILED(hr)) return hr;
 
-    std::unique_ptr<BYTE[]> pDataBuffer = std::make_unique<BYTE[]>(dwChunkSize);
-    hr = ReadChunkData(hFile, pDataBuffer.get(), dwChunkSize, dwChunkDataPosition);
+    BYTE* pDataBuffer = new BYTE[dwChunkSize]; //TODO: POTENTIAL MEMORY LEAK??
+    hr = ReadChunkData(hFile, pDataBuffer, dwChunkSize, dwChunkDataPosition);
     if (FAILED(hr)) return hr;
 
     buffer.AudioBytes = dwChunkSize;
-    buffer.pAudioData = pDataBuffer.get();
+    buffer.pAudioData = pDataBuffer;
     buffer.Flags = XAUDIO2_END_OF_STREAM; // End of stream flag
 
     CloseHandle(hFile);
