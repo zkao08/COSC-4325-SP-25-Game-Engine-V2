@@ -20,12 +20,12 @@
 #include <filesystem>
 
 //little endian
-#define fourccRIFF 'RIFF'
-#define fourccDATA 'data'
-#define fourccFMT 'fmt '
-#define fourccWAVE 'WAVE'
-#define fourccXWMA 'XWMA'
-#define fourccDPDS 'dpds'
+#define fourccRIFF 'FFIR'
+#define fourccDATA 'atad'
+#define fourccFMT ' tmf'
+#define fourccWAVE 'EVAW'
+#define fourccXWMA 'AMWX'
+#define fourccDPDS 'sdpd'
 
 //global singleton
 AudioManager gAudioManager;
