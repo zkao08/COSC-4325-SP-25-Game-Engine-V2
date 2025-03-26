@@ -30,16 +30,26 @@
 //global singleton
 AudioManager gAudioManager;
 
+/// <summary>
+/// Constructor/deconstructor do nothing as per brute-force design
+/// </summary>
 AudioManager::AudioManager() : pXAudio2(nullptr), pMasteringVoice(nullptr)
 {
 	//do nothing
 }
 
+/// <summary>
+/// Constructor/deconstructor do nothing as per brute-force design
+/// </summary>
 AudioManager::~AudioManager()
 {
 	//do nothing
 }
 
+/// <summary>
+/// Start up the audio manager, initialize XAudio2
+/// </summary>
+/// <returns>TRUE if successful</returns>
 bool AudioManager::startUp()
 {
     // Initialize COM
@@ -74,6 +84,9 @@ bool AudioManager::startUp()
     return true;
 }
 
+/// <summary>
+/// Shut down audio manager, clean up resources
+/// </summary>
 void AudioManager::shutDown()
 {
     // Clean up source voices in the pool
@@ -100,6 +113,10 @@ void AudioManager::shutDown()
     std::cout << "AudioManager shut down." << std::endl;
 }
 
+/// <summary>
+/// Helper function to get the root file path of the project
+/// </summary>
+/// <returns></returns>
 std::wstring GetProjectRoot()
 {
     wchar_t path[MAX_PATH];
@@ -119,6 +136,13 @@ std::wstring GetProjectRoot()
     return rootPath.wstring();
 }
 
+/// <summary>
+/// Load an audio file into a buffer
+/// </summary>
+/// <param name="filePath">Filepath to the audio file</param>
+/// <param name="buffer">Buffer to store the audio data in</param>
+/// <param name="wfx"></param>
+/// <returns></returns>
 HRESULT AudioManager::LoadAudioFile(const std::wstring& filePath, XAUDIO2_BUFFER& buffer, WAVEFORMATEXTENSIBLE& wfx)
 {
     // Ensure file path is absolute
@@ -168,6 +192,14 @@ HRESULT AudioManager::LoadAudioFile(const std::wstring& filePath, XAUDIO2_BUFFER
     return S_OK;
 }
 
+/// <summary>
+/// Parse an audio file and locate the chunk of data
+/// </summary>
+/// <param name="hFile"></param>
+/// <param name="fourcc"></param>
+/// <param name="dwChunkSize"></param>
+/// <param name="dwChunkDataPosition"></param>
+/// <returns></returns>
 HRESULT AudioManager::FindChunk(HANDLE hFile, DWORD fourcc, DWORD& dwChunkSize, DWORD& dwChunkDataPosition)
 {
     HRESULT hr = S_OK;
@@ -222,6 +254,14 @@ HRESULT AudioManager::FindChunk(HANDLE hFile, DWORD fourcc, DWORD& dwChunkSize, 
     return S_OK;
 }
 
+/// <summary>
+/// Reads the chunk data from the file
+/// </summary>
+/// <param name="hFile"></param>
+/// <param name="buffer"></param>
+/// <param name="buffersize"></param>
+/// <param name="bufferoffset"></param>
+/// <returns></returns>
 HRESULT AudioManager::ReadChunkData(HANDLE hFile, void* buffer, DWORD buffersize, DWORD bufferoffset)
 {
     HRESULT hr = S_OK;
@@ -234,6 +274,12 @@ HRESULT AudioManager::ReadChunkData(HANDLE hFile, void* buffer, DWORD buffersize
     return hr;
 }
 
+/// <summary>
+/// Public interface to play an audio file.
+/// </summary>
+/// <param name="filePath">Filepath to the audio file</param>
+/// <param name="reuse">TRUE if this sound will be used frequently</param>
+/// <returns></returns>
 HRESULT AudioManager::PlaySound(const std::string& filePath, bool reuse)
 {
     // Convert std::string to std::wstring
@@ -288,6 +334,9 @@ HRESULT AudioManager::PlaySound(const std::string& filePath, bool reuse)
     return S_OK;
 }
 
+/// <summary>
+/// Call to periodically clean up resources
+/// </summary>
 void AudioManager::Update()
 {
     // Periodically check for finished voices and clean them up
@@ -305,6 +354,10 @@ void AudioManager::Update()
     }
 }
 
+/// <summary>
+/// Helper function to clean up resources
+/// </summary>
+/// <param name="pSourceVoice"></param>
 void AudioManager::DestroySourceVoice(IXAudio2SourceVoice* pSourceVoice)
 {
     // Destroy the source voice (free its resources)
