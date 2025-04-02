@@ -7,45 +7,56 @@
 #include <queue>
 #include <string>
 #include <unordered_map>
+#include <memory>
+#include "SoundResource.h"
 
 #ifndef AUDIOMANAGER_H
 #define AUDIOMANAGER_H
 
 class AudioManager
 {
-	public:
-		AudioManager();
-		~AudioManager();
+public:
+    AudioManager();
+    ~AudioManager();
 
-		bool startUp();
-		void shutDown();
+    bool startUp();
+    void shutDown();
 
-        // Plays a sound effect from a loaded buffer, optionally reusing the sound if it's frequently used
-        HRESULT AudioManager::PlaySound(const std::string& filePath, bool reuse);
+    // Plays a sound effect from a file path, optionally reusing the sound if it's frequently used
+    HRESULT PlaySound(const std::string& filePath, bool reuse);
 
-        void Update(); // To manually check for cleanup
-        void DestroySourceVoice(IXAudio2SourceVoice* pSourceVoice);
+    // Load a sound resource without playing it immediately
+    std::shared_ptr<SoundResource> LoadSound(const std::string& filePath, bool cache = true);
 
-    private:
-        // Helper function to find a specific chunk in the audio file
-        HRESULT FindChunk(HANDLE hFile, DWORD fourcc, DWORD& dwChunkSize, DWORD& dwChunkDataPosition);
+    // Play a preloaded sound resource
+    HRESULT PlaySoundResource(std::shared_ptr<SoundResource> soundResource);
 
-        // Helper function to read data from the chunk
-        HRESULT ReadChunkData(HANDLE hFile, void* buffer, DWORD buffersize, DWORD bufferoffset);
+    // Get a sound resource by name (useful for game assets referenced by name)
+    std::shared_ptr<SoundResource> GetSound(const std::string& filePath);
 
-        // Loads an audio file into the buffer
-        HRESULT LoadAudioFile(const std::wstring& filePath, XAUDIO2_BUFFER& buffer, WAVEFORMATEXTENSIBLE& wfx);
+    void Update(); // To manually check for cleanup
+    void DestroySourceVoice(IXAudio2SourceVoice* pSourceVoice);
 
-        IXAudio2* pXAudio2;                     // Pointer to the XAudio2 engine
-        IXAudio2MasteringVoice* pMasteringVoice; // Mastering voice for the audio output
-        std::queue<IXAudio2SourceVoice*> sourceVoicePool; // Pool of available source voices
-        const size_t MAX_POOL_SIZE = 10; // Max number of voices in the pool
+    // Get the XAudio2 engine
+    IXAudio2* GetXAudio2Engine() const { return pXAudio2; }
 
-        // Cached audio data for frequently used sounds
-        std::unordered_map<std::wstring, std::pair<XAUDIO2_BUFFER, WAVEFORMATEXTENSIBLE>> m_cachedAudio;
+private:
+    // Helper function to create a source voice
+    HRESULT CreateSourceVoice(IXAudio2SourceVoice** ppSourceVoice, WAVEFORMATEX* pWaveFormat);
+
+    IXAudio2* pXAudio2;                     // Pointer to the XAudio2 engine
+    IXAudio2MasteringVoice* pMasteringVoice; // Mastering voice for the audio output
+    std::queue<IXAudio2SourceVoice*> sourceVoicePool; // Pool of available source voices
+    const size_t MAX_POOL_SIZE = 10; // Max number of voices in the pool
+
+    // Cached sound resources for frequently used sounds
+    std::unordered_map<std::string, std::shared_ptr<SoundResource>> m_cachedSounds;
 };
 
-//global singleton
+// Global singleton
 extern AudioManager gAudioManager;
+
+// Helper function
+std::wstring GetProjectRoot();
 
 #endif
