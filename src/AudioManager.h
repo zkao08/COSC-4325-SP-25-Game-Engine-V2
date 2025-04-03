@@ -1,62 +1,74 @@
+// AudioManager.h
 #pragma once
 #include <xaudio2.h>
-#include <x3daudio.h>
-#include <iostream>
-#include <comdef.h>
-#include <Windows.h>
-#include <queue>
-#include <string>
+#include <xaudio2fx.h>
+#include <wrl/client.h>
 #include <unordered_map>
+#include <string>
 #include <memory>
+#include <mutex>
 #include "SoundResource.h"
 
-#ifndef AUDIOMANAGER_H
-#define AUDIOMANAGER_H
-
-class AudioManager
-{
+// AudioManager singleton
+class AudioManager {
 public:
     AudioManager();
     ~AudioManager();
 
+    // Singleton access
+    static AudioManager& GetInstance() {
+        static AudioManager instance;
+        return instance;
+    }
+
+    // Initialize the audio system
     bool startUp();
+
+    // Shutdown the audio system
     void shutDown();
 
-    // Plays a sound effect from a file path, optionally reusing the sound if it's frequently used
-    HRESULT PlaySound(const std::string& filePath, bool reuse);
+    // Play a sound with given volume (0.0f to 1.0f)
+    HRESULT PlaySound(const std::string& filePath, bool isSoundEffect = true, float volume = 1.0f);
 
-    // Load a sound resource without playing it immediately
-    std::shared_ptr<SoundResource> LoadSound(const std::string& filePath, bool cache = true);
+    // Stop a specific sound
+    HRESULT StopSound(const std::string& filePath);
 
-    // Play a preloaded sound resource
-    HRESULT PlaySoundResource(std::shared_ptr<SoundResource> soundResource);
+    // Stop all sounds
+    void StopAllSounds();
 
-    // Get a sound resource by name (useful for game assets referenced by name)
-    std::shared_ptr<SoundResource> GetSound(const std::string& filePath);
+    // Set volume for a specific sound (0.0f to 1.0f)
+    HRESULT SetSoundVolume(const std::string& filePath, float volume);
 
-    void Update(); // To manually check for cleanup
-    void DestroySourceVoice(IXAudio2SourceVoice* pSourceVoice);
+    // Set master volume (0.0f to 1.0f)
+    HRESULT SetMasterVolume(float volume);
 
-    // Get the XAudio2 engine
-    IXAudio2* GetXAudio2Engine() const { return pXAudio2; }
+    // Get master volume
+    float GetMasterVolume() const { return masterVolume; }
+
+    // Convert path string from narrow to wide
+    std::wstring ConvertToWideString(const std::string& str);
+
+    // Get project root directory
+    std::wstring GetProjectRoot();
 
 private:
-    // Helper function to create a source voice
-    HRESULT CreateSourceVoice(IXAudio2SourceVoice** ppSourceVoice, WAVEFORMATEX* pWaveFormat);
+    // XAudio2 interfaces
+    Microsoft::WRL::ComPtr<IXAudio2> pXAudio2;
+    IXAudio2MasteringVoice* pMasteringVoice;
 
-    IXAudio2* pXAudio2;                     // Pointer to the XAudio2 engine
-    IXAudio2MasteringVoice* pMasteringVoice; // Mastering voice for the audio output
-    std::queue<IXAudio2SourceVoice*> sourceVoicePool; // Pool of available source voices
-    const size_t MAX_POOL_SIZE = 10; // Max number of voices in the pool
+    // Sound resources and source voices
+    std::unordered_map<std::wstring, std::shared_ptr<SoundResource>> soundResources;
+    std::unordered_map<std::wstring, IXAudio2SourceVoice*> sourceVoices;
 
-    // Cached sound resources for frequently used sounds
-    std::unordered_map<std::string, std::shared_ptr<SoundResource>> m_cachedSounds;
+    // Mutex for thread safety
+    std::mutex resourceMutex;
+
+    // Master volume level
+    float masterVolume;
+
+    // Helper methods
+    std::shared_ptr<SoundResource> GetOrLoadResource(const std::wstring& filePath, bool isSoundEffect);
 };
 
-// Global singleton
-extern AudioManager gAudioManager;
-
-// Helper function
-std::wstring GetProjectRoot();
-
-#endif
+// Global singleton accessor
+extern AudioManager& gAudioManager;
