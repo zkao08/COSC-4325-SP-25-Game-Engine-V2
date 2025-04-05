@@ -57,7 +57,7 @@ Makefile
 *.tmp
 *.bak
 
-# Raylib-generated data (if any screenshots or exports)
+# Raylib-generated data
 *.png
 *.wav
 
@@ -66,5 +66,4 @@ bin/
 obj/
 out/
 
-# Optional: ignore your engine’s executable if you're testing locally
 /GameEngine.exe
