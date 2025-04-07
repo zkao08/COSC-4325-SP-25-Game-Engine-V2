@@ -270,7 +270,7 @@ int main() {
         int otherPanelWidth = 500;
         int gamepadPanelHeight = 700;
         int mousePanelHeight = 200;
-        int fontSize = 18;
+        int fontSize = 22;
 
         // Panel for keyboard
         DrawRectangle(10, 40, keyboardPanelWidth, keyboardPanelHeight, Fade(LIGHTGRAY, 0.5f));
@@ -361,7 +361,7 @@ int main() {
             auto it = keyboardMap.find(i);
             if (it != keyboardMap.end()) {
                 DrawInputStatus(it->second.name, it->second.isPressed,
-                    letterX + charIndex * (charWidth + 10), letterY,
+                    letterX + charIndex * (charWidth + 8), letterY,
                     fontSize);
                 charIndex++;
                 if (charIndex == 6) { // Break after F6
@@ -382,7 +382,7 @@ int main() {
             auto it = keyboardMap.find(navKeys[i]);
             if (it != keyboardMap.end()) {
                 DrawInputStatus(it->second.name, it->second.isPressed,
-                    letterX + charIndex * (charWidth + 10), letterY,
+                    letterX + charIndex * (charWidth + 20), letterY,
                     fontSize);
                 charIndex++;
                 if (charIndex == 5) { // Break after 5 keys
@@ -403,7 +403,7 @@ int main() {
             auto it = keyboardMap.find(modKeys[i]);
             if (it != keyboardMap.end()) {
                 DrawInputStatus(it->second.name, it->second.isPressed,
-                    letterX + charIndex * (charWidth + 10), letterY,
+                    letterX + charIndex * (charWidth + 35), letterY,
                     fontSize);
                 charIndex++;
                 if (charIndex == 4) { // Break after 4 keys
