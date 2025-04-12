@@ -285,63 +285,158 @@ void SoundResource::StopStreaming()
 /// <param name="pSourceVoice"></param>
 void SoundResource::StreamingWorker(IXAudio2SourceVoice* pSourceVoice)
 {
+    if (!pSourceVoice)
+        return;
+
     DWORD bytesRead = 0;
     DWORD totalBytesRead = 0;
-    std::vector<BYTE> streamBuffer(STREAMING_BUFFER_SIZE);
-    XAUDIO2_BUFFER audioBuffer = {};
+
+    // Get the wave format block alignment to ensure proper buffer sizes
+    const WAVEFORMATEX* pFormat = reinterpret_cast<const WAVEFORMATEX*>(&wfx);
+    DWORD blockAlign = pFormat->nBlockAlign;
+
+    // Ensure buffer size is large enough and a multiple of the block alignment
+    // Using a larger buffer size to prevent underruns
+    size_t bufferMultiplier = 4;  // Increased from default
+    size_t bufferSize = ((STREAMING_BUFFER_SIZE * bufferMultiplier) / blockAlign) * blockAlign;
+    if (bufferSize == 0)
+        bufferSize = blockAlign * 4096;  // Larger fallback buffer
+
+    // Create multiple buffers for a proper ring buffer approach
+    const int NUM_BUFFERS = 3;
+    std::vector<std::vector<BYTE>> audioBuffers;
+    for (int i = 0; i < NUM_BUFFERS; i++)
+    {
+        audioBuffers.push_back(std::vector<BYTE>(bufferSize));
+    }
+
+    XAUDIO2_BUFFER xaudioBuffer = {};
     XAUDIO2_VOICE_STATE voiceState = {};
 
-    while (isStreaming && totalBytesRead < dataChunkSize) 
+    // Initialize the ring buffer approach
+    int currentBuffer = 0;
+    int buffersInUse = 0;
+
+    // FIX: Track which buffers have been submitted
+    std::vector<bool> bufferSubmitted(NUM_BUFFERS, false);
+
+    // Pre-load initial buffers
     {
-        // Lock to ensure thread safety when accessing file handle
         std::lock_guard<std::mutex> lock(streamingMutex);
+        SetFilePointer(streamingFileHandle, dataChunkPosition, NULL, FILE_BEGIN);
 
-        // Calculate bytes to read
-        DWORD bytesToRead;
-        if (STREAMING_BUFFER_SIZE < (dataChunkSize - totalBytesRead)) 
+        // Fill only the first buffer initially to prevent overlap/double playback
+        // FIX: Load only one buffer instead of all NUM_BUFFERS
+        if (totalBytesRead >= dataChunkSize)
         {
-            bytesToRead = static_cast<DWORD>(STREAMING_BUFFER_SIZE);
-        }
-        else
-        {
-            bytesToRead = static_cast<DWORD>(dataChunkSize - totalBytesRead);
-        }
-
-        // Read next chunk
-        if (!ReadFile(streamingFileHandle, streamBuffer.data(), bytesToRead, &bytesRead, nullptr) || bytesRead == 0) 
-        {
-            // Error or end of file
-            break;
-        }
-
-        // Update total bytes read
-        totalBytesRead += bytesRead;
-
-        // Set up buffer
-        audioBuffer.AudioBytes = bytesRead;
-        audioBuffer.pAudioData = streamBuffer.data();
-        audioBuffer.Flags = (totalBytesRead >= dataChunkSize) ? XAUDIO2_END_OF_STREAM : 0;
-
-        // Check if we need to wait for buffers to free up
-        pSourceVoice->GetState(&voiceState);
-        while (voiceState.BuffersQueued >= 3) // Maximum of 3 buffers in queue
-        { 
-            if (!isStreaming) return;  // Check if we should exit
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            pSourceVoice->GetState(&voiceState);
-        }
-
-        // Submit buffer
-        if (FAILED(pSourceVoice->SubmitSourceBuffer(&audioBuffer))) {
-            break;
-        }
-
-        // If we've reached the end and we're still streaming, loop back to start
-        if (totalBytesRead >= dataChunkSize && isStreaming) {
+            // Loop back if needed
             totalBytesRead = 0;
             SetFilePointer(streamingFileHandle, dataChunkPosition, NULL, FILE_BEGIN);
         }
+
+        // Calculate bytes to read, ensuring it's a multiple of blockAlign
+        DWORD bytesToRead = static_cast<DWORD>(bufferSize);
+        if (bytesToRead > (dataChunkSize - totalBytesRead))
+            bytesToRead = static_cast<DWORD>((dataChunkSize - totalBytesRead) / blockAlign) * blockAlign;
+
+        if (!ReadFile(streamingFileHandle, audioBuffers[0].data(), bytesToRead, &bytesRead, nullptr) || bytesRead == 0)
+        {
+            return; // Exit if read fails
+        }
+
+        // Adjust to ensure we have complete frames (avoid partial samples)
+        DWORD alignedBytes = (bytesRead / blockAlign) * blockAlign;
+        totalBytesRead += alignedBytes;
+
+        // Submit this buffer
+        xaudioBuffer = {};  // Reset the buffer
+        xaudioBuffer.AudioBytes = alignedBytes;
+        xaudioBuffer.pAudioData = audioBuffers[0].data();
+        xaudioBuffer.Flags = 0;
+        xaudioBuffer.pContext = reinterpret_cast<void*>(static_cast<uintptr_t>(0));  // Store buffer index as context
+
+        if (FAILED(pSourceVoice->SubmitSourceBuffer(&xaudioBuffer)))
+        {
+            return; // Exit if submission fails
+        }
+
+        buffersInUse++;
+        bufferSubmitted[0] = true;
     }
+
+    // Create a HANDLE for an event that will notify us when a buffer finishes
+    HANDLE bufferEndEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+    if (bufferEndEvent == NULL)
+    {
+        std::cerr << "Failed to create buffer end event" << std::endl;
+        return;
+    }
+
+    // Register for buffer end notifications
+    XAUDIO2_VOICE_DETAILS voiceDetails;
+    pSourceVoice->GetVoiceDetails(&voiceDetails);
+
+    // Main streaming loop
+    while (isStreaming)
+    {
+        // Get current buffer state
+        pSourceVoice->GetState(&voiceState);
+
+        // If we have room for another buffer
+        if (voiceState.BuffersQueued < NUM_BUFFERS)
+        {
+            // Calculate which buffer to use next
+            currentBuffer = (currentBuffer + 1) % NUM_BUFFERS;
+
+            // Read the next chunk of data
+            std::lock_guard<std::mutex> lock(streamingMutex);
+
+            // Check if we need to loop back to beginning
+            if (totalBytesRead >= dataChunkSize)
+            {
+                totalBytesRead = 0;
+                SetFilePointer(streamingFileHandle, dataChunkPosition, NULL, FILE_BEGIN);
+            }
+
+            // Calculate bytes to read (ensure it's aligned to block size)
+            DWORD bytesToRead = static_cast<DWORD>(bufferSize);
+            if (bytesToRead > (dataChunkSize - totalBytesRead))
+                bytesToRead = static_cast<DWORD>((dataChunkSize - totalBytesRead) / blockAlign) * blockAlign;
+
+            if (!ReadFile(streamingFileHandle, audioBuffers[currentBuffer].data(), bytesToRead, &bytesRead, nullptr) || bytesRead == 0)
+                break;
+
+            // Ensure we only use complete frames
+            DWORD alignedBytes = (bytesRead / blockAlign) * blockAlign;
+            totalBytesRead += alignedBytes;
+
+            // Submit buffer to XAudio2
+            xaudioBuffer = {};  // Reset the buffer
+            xaudioBuffer.AudioBytes = alignedBytes;
+            xaudioBuffer.pAudioData = audioBuffers[currentBuffer].data();
+            xaudioBuffer.Flags = 0;
+            xaudioBuffer.pContext = reinterpret_cast<void*>(static_cast<uintptr_t>(currentBuffer));
+
+            HRESULT hr = pSourceVoice->SubmitSourceBuffer(&xaudioBuffer);
+            if (FAILED(hr))
+            {
+                std::cerr << "Failed to submit buffer: " << std::hex << hr << std::dec << std::endl;
+                break;
+            }
+
+            buffersInUse++;
+            bufferSubmitted[currentBuffer] = true;
+        }
+        else
+        {
+            // Wait a bit before checking again
+            // Use a shorter wait time to be more responsive
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+    }
+
+    // Clean up
+    CloseHandle(bufferEndEvent);
 }
 
 /// <summary>

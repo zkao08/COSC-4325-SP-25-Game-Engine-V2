@@ -4,16 +4,8 @@
 #include <chrono>
 #include <string>
 
-int main()
+int TestAudio()
 {
-    // 1. Initialize the audio manager
-    if (!gAudioManager.startUp()) {
-        std::cerr << "Audio Manager failed to start." << std::endl;
-        return -1;
-    }
-
-    std::cout << "=== Audio Engine Testing ===\n" << std::endl;
-
     // 2. Set master volume to 70%
     std::cout << "Setting master volume to 70%" << std::endl;
     gAudioManager.SetMasterVolume(0.7f);
@@ -32,23 +24,23 @@ int main()
     std::this_thread::sleep_for(std::chrono::seconds(2));
 
     // 4. Play multiple sound effects concurrently with different volumes
-    std::string sfx1Path = "assets\\audio\\sfx\\test_sfx.wav";
+    std::string sfxPath = "assets\\audio\\sfx\\test_sfx.wav";
 
     std::cout << "\nTesting concurrent sound playback with different volumes:" << std::endl;
 
     for (int i = 0; i < 3; ++i) {
-        std::cout << "Playing sound effect 1 at 100% volume" << std::endl;
-        gAudioManager.PlaySound(sfx1Path, true, 1.0f);
+        std::cout << "Playing sound effect at 100% volume" << std::endl;
+        gAudioManager.PlaySound(sfxPath, true, 1.0f);
 
         // Play second sound after 0.5 seconds
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
-        std::cout << "Playing sound effect 2 at 60% volume" << std::endl;
-        gAudioManager.PlaySound(sfx1Path, true, 0.6f);
+        std::cout << "Playing sound effect at 60% volume" << std::endl;
+        gAudioManager.PlaySound(sfxPath, true, 0.6f);
 
         // Play third sound after another 0.5 seconds
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
-        std::cout << "Playing sound effect 3 at 30% volume" << std::endl;
-        gAudioManager.PlaySound(sfx1Path, true, 0.3f);
+        std::cout << "Playing sound effect at 30% volume" << std::endl;
+        gAudioManager.PlaySound(sfxPath, true, 0.3f);
 
         // Wait 3 seconds before next round
         std::this_thread::sleep_for(std::chrono::seconds(3));
@@ -72,21 +64,98 @@ int main()
     gAudioManager.SetMasterVolume(1.0f);
     std::this_thread::sleep_for(std::chrono::seconds(3));
 
+    std::cout << "\nTesting concurrent sound playback with 100% master volume:" << std::endl;
+
+    for (int i = 0; i < 3; ++i) {
+        std::cout << "Playing sound effect at 100% volume" << std::endl;
+        gAudioManager.PlaySound(sfxPath, true, 1.0f);
+
+        // Play second sound after 0.5 seconds
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        std::cout << "Playing sound effect at 60% volume" << std::endl;
+        gAudioManager.PlaySound(sfxPath, true, 0.6f);
+
+        // Play third sound after another 0.5 seconds
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        std::cout << "Playing sound effect at 30% volume" << std::endl;
+        gAudioManager.PlaySound(sfxPath, true, 0.3f);
+
+        // Wait 3 seconds before next round
+        std::this_thread::sleep_for(std::chrono::seconds(3));
+    }
+
     std::cout << "Changing master volume to 30%" << std::endl;
     gAudioManager.SetMasterVolume(0.3f);
     std::this_thread::sleep_for(std::chrono::seconds(3));
+
+    std::cout << "\nTesting concurrent sound playback with 30% master volume:" << std::endl;
+
+    for (int i = 0; i < 3; ++i) {
+        std::cout << "Playing sound effect at 100% volume" << std::endl;
+        gAudioManager.PlaySound(sfxPath, true, 1.0f);
+
+        // Play second sound after 0.5 seconds
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        std::cout << "Playing sound effect at 60% volume" << std::endl;
+        gAudioManager.PlaySound(sfxPath, true, 0.6f);
+
+        // Play third sound after another 0.5 seconds
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        std::cout << "Playing sound effect at 30% volume" << std::endl;
+        gAudioManager.PlaySound(sfxPath, true, 0.3f);
+
+        // Wait 3 seconds before next round
+        std::this_thread::sleep_for(std::chrono::seconds(3));
+    }
 
     std::cout << "Changing master volume back to 70%" << std::endl;
     gAudioManager.SetMasterVolume(0.7f);
     std::this_thread::sleep_for(std::chrono::seconds(3));
 
+    std::cout << "\nTesting concurrent sound playback with 70% master volume:" << std::endl;
+
+    for (int i = 0; i < 3; ++i) {
+        std::cout << "Playing sound effect at 100% volume" << std::endl;
+        gAudioManager.PlaySound(sfxPath, true, 1.0f);
+
+        // Play second sound after 0.5 seconds
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        std::cout << "Playing sound effect at 60% volume" << std::endl;
+        gAudioManager.PlaySound(sfxPath, true, 0.6f);
+
+        // Play third sound after another 0.5 seconds
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        std::cout << "Playing sound effect at 30% volume" << std::endl;
+        gAudioManager.PlaySound(sfxPath, true, 0.3f);
+
+        // Wait 3 seconds before next round
+        std::this_thread::sleep_for(std::chrono::seconds(3));
+    }
+
+    // 6.b. Test changing environment type
+	std::cout << "\nChanging environment type to CAVE" << std::endl;
+	gAudioManager.SetEnvironment(ENV_CAVE);
+	std::this_thread::sleep_for(std::chrono::seconds(3));
+
+	std::cout << "Changing environment type to UNDERWATER" << std::endl;
+	gAudioManager.SetEnvironment(ENV_UNDERWATER);
+	std::this_thread::sleep_for(std::chrono::seconds(3));
+
+	std::cout << "Changing environment type to LARGE_HALL" << std::endl;
+	gAudioManager.SetEnvironment(ENV_LARGE_HALL);
+	std::this_thread::sleep_for(std::chrono::seconds(3));
+
+    std::cout << "Changing environment type to NORMAL" << std::endl;
+    gAudioManager.SetEnvironment(ENV_NORMAL);
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+
     // 7. Test stopping specific sounds
     std::cout << "\nPlaying sound effect 1" << std::endl;
-    gAudioManager.PlaySound(sfx1Path, true, 1.0f);
+    gAudioManager.PlaySound(sfxPath, true, 1.0f);
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
     std::cout << "Stopping sound effect 1" << std::endl;
-    gAudioManager.StopSound(sfx1Path);
+    gAudioManager.StopSound(sfxPath);
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
     // 8. Test stopping BGM
@@ -102,6 +171,21 @@ int main()
     // 10. Stop all sounds and clean up
     std::cout << "\nStopping all sounds" << std::endl;
     gAudioManager.StopAllSounds();
+
+    return 1;
+}
+
+int main()
+{
+    // 1. Initialize the audio manager
+    if (!gAudioManager.startUp()) {
+        std::cerr << "Audio Manager failed to start." << std::endl;
+        return -1;
+    }
+
+    std::cout << "=== Audio Engine Testing ===\n" << std::endl;
+
+    TestAudio();
 
     std::cout << "\nShutting down AudioManager" << std::endl;
     gAudioManager.shutDown();

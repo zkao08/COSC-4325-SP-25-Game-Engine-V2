@@ -26,7 +26,9 @@ AudioManager& gAudioManager = AudioManager::GetInstance();
 AudioManager::AudioManager()
     : pXAudio2(nullptr),
     pMasteringVoice(nullptr),
-    masterVolume(1.0f)
+    masterVolume(1.0f),
+    channelMask(0),
+    channels(0)
 {
     // do nothing
 }
@@ -44,14 +46,16 @@ bool AudioManager::startUp()
 {
     // Initialize COM (if not already done)
     HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-    if (FAILED(hr) && hr != S_FALSE && hr != RPC_E_CHANGED_MODE) {
+    if (FAILED(hr) && hr != S_FALSE && hr != RPC_E_CHANGED_MODE) 
+    {
         std::cerr << "Failed to initialize COM: " << std::hex << hr << std::dec << std::endl;
         return false;
     }
 
     // Create XAudio2 instance
-    hr = XAudio2Create(&pXAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR);
-    if (FAILED(hr)) {
+    hr = XAudio2Create(&pXAudio2, XAUDIO2_DEBUG_ENGINE, XAUDIO2_DEFAULT_PROCESSOR);
+    if (FAILED(hr)) 
+    {
         std::cerr << "Failed to create XAudio2 instance: " << std::hex << hr << std::dec << std::endl;
         CoUninitialize();
         return false;
@@ -59,11 +63,32 @@ bool AudioManager::startUp()
 
     // Create mastering voice
     hr = pXAudio2->CreateMasteringVoice(&pMasteringVoice);
-    if (FAILED(hr)) {
+    if (FAILED(hr)) 
+    {
         std::cerr << "Failed to create mastering voice: " << std::hex << hr << std::dec << std::endl;
         pXAudio2.Reset();
         CoUninitialize();
         return false;
+    }
+
+    // Get the channel mask from mastering voice
+    hr = pMasteringVoice->GetChannelMask(&channelMask);
+    if (FAILED(hr) || channelMask == 0)
+    {
+        std::cerr << "Failed to get channel mask or invalid mask: " << std::hex << hr << std::dec << std::endl;
+        // Default to stereo if we can't get a valid mask
+        channelMask = SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT;
+    }
+
+    // Get voice details to determine channel count
+    XAUDIO2_VOICE_DETAILS voiceDetails;
+    pMasteringVoice->GetVoiceDetails(&voiceDetails);
+    channels = voiceDetails.InputChannels;
+
+    if (channels == 0)
+    {
+        std::cerr << "Invalid channel count: " << channels << std::endl;
+        channels = 2;  // Default to stereo
     }
 
     // Set initial master volume
@@ -85,8 +110,10 @@ void AudioManager::shutDown()
     {
         std::lock_guard<std::mutex> lock(resourceMutex);
 
-        for (auto& pair : sourceVoices) {
-            if (pair.second) {
+        for (auto& pair : sourceVoices) 
+        {
+            if (pair.second) 
+            {
                 pair.second->DestroyVoice();
                 pair.second = nullptr;
             }
@@ -96,7 +123,8 @@ void AudioManager::shutDown()
     }
 
     // Release XAudio2 resources
-    if (pMasteringVoice) {
+    if (pMasteringVoice) 
+    {
         pMasteringVoice->DestroyVoice();
         pMasteringVoice = nullptr;
     }
@@ -131,9 +159,10 @@ HRESULT AudioManager::PlaySound(const std::string& filePath, bool isSoundEffect,
 
     {
         std::lock_guard<std::mutex> lock(resourceMutex);
-        auto it = sourceVoices.find(wFilePath);
-        if (it != sourceVoices.end()) {
-            pSourceVoice = it->second;
+        auto iter = sourceVoices.find(wFilePath);
+        if (iter != sourceVoices.end()) 
+        {
+            pSourceVoice = iter->second;
 
             // Stop the voice before reusing it
             pSourceVoice->Stop(0);
@@ -170,17 +199,17 @@ HRESULT AudioManager::StopSound(const std::string& filePath)
     std::lock_guard<std::mutex> lock(resourceMutex);
 
     // Find the resource
-    auto resourceIt = soundResources.find(wFilePath);
-    if (resourceIt == soundResources.end())
+    auto resourceIter = soundResources.find(wFilePath);
+    if (resourceIter == soundResources.end())
         return E_FAIL;
 
     // Find the source voice
-    auto voiceIt = sourceVoices.find(wFilePath);
-    if (voiceIt == sourceVoices.end())
+    auto voiceIter = sourceVoices.find(wFilePath);
+    if (voiceIter == sourceVoices.end())
         return E_FAIL;
 
     // Stop the sound
-    return resourceIt->second->Stop(voiceIt->second);
+    return resourceIter->second->Stop(voiceIter->second);
 }
 
 /// <summary>
@@ -194,10 +223,12 @@ void AudioManager::StopAllSounds()
     std::lock_guard<std::mutex> lock(resourceMutex);
 
     // Stop each sound
-    for (auto& pair : soundResources) {
-        auto voiceIt = sourceVoices.find(pair.first);
-        if (voiceIt != sourceVoices.end() && voiceIt->second) {
-            pair.second->Stop(voiceIt->second);
+    for (auto& pair : soundResources)
+    {
+        auto voiceIter = sourceVoices.find(pair.first);
+        if (voiceIter != sourceVoices.end() && voiceIter->second)
+        {
+            pair.second->Stop(voiceIter->second);
         }
     }
 }
@@ -218,17 +249,17 @@ HRESULT AudioManager::SetSoundVolume(const std::string& filePath, float volume)
     std::lock_guard<std::mutex> lock(resourceMutex);
 
     // Find the source voice
-    auto voiceIt = sourceVoices.find(wFilePath);
-    if (voiceIt == sourceVoices.end() || !voiceIt->second)
+    auto voiceIter = sourceVoices.find(wFilePath);
+    if (voiceIter == sourceVoices.end() || !voiceIter->second)
         return E_FAIL;
 
     // Find the resource
-    auto resourceIt = soundResources.find(wFilePath);
-    if (resourceIt == soundResources.end())
+    auto resourceIter = soundResources.find(wFilePath);
+    if (resourceIter == soundResources.end())
         return E_FAIL;
 
     // Set volume
-    return resourceIt->second->SetVolume(voiceIt->second, volume);
+    return resourceIter->second->SetVolume(voiceIter->second, volume);
 }
 
 /// <summary>
@@ -242,10 +273,12 @@ HRESULT AudioManager::SetMasterVolume(float volume)
         return E_FAIL;
 
     // Clamp volume between 0.0 and 1.0
-    if (volume < 0.0f) {
+    if (volume < 0.0f) 
+    {
         volume = 0.0f;
     }
-    else if (volume > 1.0f) {
+    else if (volume > 1.0f) 
+    {
         volume = 1.0f;
     }
 
@@ -267,9 +300,9 @@ std::shared_ptr<SoundResource> AudioManager::GetOrLoadResource(const std::wstrin
     std::lock_guard<std::mutex> lock(resourceMutex);
 
     // Check if resource already exists
-    auto it = soundResources.find(filePath);
-    if (it != soundResources.end())
-        return it->second;
+    auto iter = soundResources.find(filePath);
+    if (iter != soundResources.end())
+        return iter->second;
 
     // Create new resource
     auto resource = std::make_shared<SoundResource>();
@@ -280,7 +313,8 @@ std::shared_ptr<SoundResource> AudioManager::GetOrLoadResource(const std::wstrin
 
     // Load the resource
     HRESULT hr = resource->Load(filePath, resourceType);
-    if (FAILED(hr)) {
+    if (FAILED(hr)) 
+    {
         std::wcerr << L"Failed to load sound resource: " << filePath << std::endl;
         return nullptr;
     }
@@ -336,4 +370,159 @@ std::wstring AudioManager::GetProjectRoot()
 std::wstring GetProjectRoot()
 {
     return gAudioManager.GetProjectRoot();
+}
+
+/// <summary>
+/// Set the environment type for the audio.
+/// </summary>
+/// <param name="envType"></param>
+/// <returns></returns>
+HRESULT AudioManager::SetEnvironment(EnvironmentType envType)
+{
+    if (!pXAudio2 || !pMasteringVoice)
+        return E_FAIL;
+
+    // Always start by clearing any existing effect chain
+    HRESULT hr = pMasteringVoice->SetEffectChain(nullptr);
+    if (FAILED(hr))
+    {
+        std::cerr << "Failed to clear effect chain: " << std::hex << hr << std::dec << std::endl;
+        return hr;
+    }
+
+    // For ENV_NORMAL, we just leave the effect chain empty
+    if (envType == ENV_NORMAL)
+    {
+        std::cout << "Environment set to NORMAL (no effects)" << std::endl;
+        return S_OK;
+    }
+
+    // For other environment types, create and apply the appropriate reverb effect
+    IUnknown* pXAPO = nullptr;
+    XAUDIO2_EFFECT_DESCRIPTOR effects[1];
+    XAUDIO2_EFFECT_CHAIN effectChain;
+
+    // Create reverb effect
+    hr = XAudio2CreateReverb(&pXAPO);
+    if (FAILED(hr))
+    {
+        std::cerr << "Failed to create reverb effect: " << std::hex << hr << std::dec << std::endl;
+        return hr;
+    }
+
+    effects[0].pEffect = pXAPO;
+    effects[0].InitialState = true;
+    effects[0].OutputChannels = channels;
+
+    effectChain.EffectCount = 1;
+    effectChain.pEffectDescriptors = effects;
+
+    // Set effect chain
+    hr = pMasteringVoice->SetEffectChain(&effectChain);
+    if (FAILED(hr))
+    {
+        std::cerr << "Failed to set effect chain: " << std::hex << hr << std::dec << std::endl;
+        pXAPO->Release();
+        return hr;
+    }
+
+    // Configure reverb parameters based on environment
+    XAUDIO2FX_REVERB_PARAMETERS reverbParameters{};
+
+    // First, initialize with default values
+    reverbParameters.ReflectionsDelay = XAUDIO2FX_REVERB_DEFAULT_REFLECTIONS_DELAY;
+    reverbParameters.ReverbDelay = XAUDIO2FX_REVERB_DEFAULT_REVERB_DELAY;
+    reverbParameters.RearDelay = XAUDIO2FX_REVERB_DEFAULT_REAR_DELAY;
+    reverbParameters.PositionLeft = XAUDIO2FX_REVERB_DEFAULT_POSITION;
+    reverbParameters.PositionRight = XAUDIO2FX_REVERB_DEFAULT_POSITION;
+    reverbParameters.PositionMatrixLeft = XAUDIO2FX_REVERB_DEFAULT_POSITION_MATRIX;
+    reverbParameters.PositionMatrixRight = XAUDIO2FX_REVERB_DEFAULT_POSITION_MATRIX;
+    reverbParameters.EarlyDiffusion = XAUDIO2FX_REVERB_DEFAULT_EARLY_DIFFUSION;
+    reverbParameters.LateDiffusion = XAUDIO2FX_REVERB_DEFAULT_LATE_DIFFUSION;
+    reverbParameters.LowEQGain = XAUDIO2FX_REVERB_DEFAULT_LOW_EQ_GAIN;
+    reverbParameters.LowEQCutoff = XAUDIO2FX_REVERB_DEFAULT_LOW_EQ_CUTOFF;
+    reverbParameters.HighEQGain = XAUDIO2FX_REVERB_DEFAULT_HIGH_EQ_GAIN;
+    reverbParameters.HighEQCutoff = XAUDIO2FX_REVERB_DEFAULT_HIGH_EQ_CUTOFF;
+    reverbParameters.RoomFilterFreq = XAUDIO2FX_REVERB_DEFAULT_ROOM_FILTER_FREQ;
+    reverbParameters.RoomFilterMain = XAUDIO2FX_REVERB_DEFAULT_ROOM_FILTER_MAIN;
+    reverbParameters.RoomFilterHF = XAUDIO2FX_REVERB_DEFAULT_ROOM_FILTER_HF;
+    reverbParameters.ReflectionsGain = XAUDIO2FX_REVERB_DEFAULT_REFLECTIONS_GAIN;
+    reverbParameters.ReverbGain = XAUDIO2FX_REVERB_DEFAULT_REVERB_GAIN;
+    reverbParameters.DecayTime = XAUDIO2FX_REVERB_DEFAULT_DECAY_TIME;
+    reverbParameters.Density = XAUDIO2FX_REVERB_DEFAULT_DENSITY;
+    reverbParameters.RoomSize = XAUDIO2FX_REVERB_DEFAULT_ROOM_SIZE;
+    reverbParameters.WetDryMix = XAUDIO2FX_REVERB_DEFAULT_WET_DRY_MIX;
+
+    // Now override specific parameters for each environment type
+    switch (envType)
+    {
+    case ENV_CAVE:
+        // Cave-like echo
+        reverbParameters.ReverbDelay = 85;
+        reverbParameters.DecayTime = 3.0f;
+        reverbParameters.Density = 100.0f;
+        reverbParameters.RoomFilterFreq = 5000.0f;
+        reverbParameters.RoomFilterMain = 0.75f;
+        reverbParameters.RoomFilterHF = 0.5f;
+        reverbParameters.WetDryMix = 100.0f;  // Strong wet signal for caves
+        reverbParameters.ReflectionsGain = 1.3f;
+        reverbParameters.ReverbGain = 1.5f;
+        reverbParameters.EarlyDiffusion = 10;
+        reverbParameters.LateDiffusion = 10;
+        reverbParameters.RoomSize = 100.0f;  // Large room size for cave
+        std::cout << "Environment set to CAVE" << std::endl;
+        break;
+
+    case ENV_UNDERWATER:
+        // Underwater muffled sound
+        reverbParameters.DecayTime = 2.5f;                 // Increased from 1.5f for more reverb
+        reverbParameters.Density = 100.0f;                 // Maximum density
+        reverbParameters.RoomFilterFreq = 1000.0f;         // Reduced from 2000.0f for more muffling
+        reverbParameters.RoomFilterMain = 0.9f;            // Increased from 0.8f
+        reverbParameters.RoomFilterHF = 0.05f;             // Decreased from 0.1f for extreme HF filtering
+        reverbParameters.WetDryMix = 70.0f;                // Increased from 50.0f for more wet signal
+        reverbParameters.HighEQGain = 0.15f;               // Decreased from 0.25f to cut more high frequencies
+        reverbParameters.LowEQGain = 2.0f;                 // Increased from 1.5f to boost low frequencies more
+        reverbParameters.RoomSize = 40.0f;                 // Increased room size for more spacious effect
+        reverbParameters.ReflectionsGain = 0.3f;           // Reduced early reflections for muffled effect
+        reverbParameters.ReverbGain = 1.2f;                // Increased late reverb
+        reverbParameters.EarlyDiffusion = 5;               // Lower diffusion for more distinct early reflections
+        reverbParameters.LateDiffusion = 5;                // Lower diffusion for more distinct late reflections
+        std::cout << "Environment set to UNDERWATER" << std::endl;
+        break;
+
+    case ENV_LARGE_HALL:
+        // Big spaces like boss rooms
+        reverbParameters.ReverbDelay = 100;
+        reverbParameters.DecayTime = 4.0f;
+        reverbParameters.Density = 100.0f;
+        reverbParameters.RoomFilterFreq = 8000.0f;
+        reverbParameters.RoomFilterMain = 0.6f;
+        reverbParameters.RoomFilterHF = 0.8f;
+        reverbParameters.WetDryMix = 80.0f;    // Significant reverb
+        reverbParameters.ReflectionsGain = 1.2f;
+        reverbParameters.ReverbGain = 1.4f;
+        reverbParameters.RoomSize = 100.0f;    // Large room
+        std::cout << "Environment set to LARGE_HALL" << std::endl;
+        break;
+
+    default:
+        // We shouldn't reach this case since ENV_NORMAL is handled above
+        // But just in case, set very minimal reverb
+        reverbParameters.WetDryMix = 0.0f;  // No wet signal = no reverb
+        std::cout << "Environment set to default" << std::endl;
+        break;
+    }
+
+    // Set reverb parameters
+    hr = pMasteringVoice->SetEffectParameters(0, &reverbParameters, sizeof(reverbParameters));
+    if (FAILED(hr))
+    {
+        std::cerr << "Failed to set reverb parameters: " << std::hex << hr << std::dec << std::endl;
+    }
+
+    // Release XAPO interface
+    pXAPO->Release();
+
+    return hr;
 }
