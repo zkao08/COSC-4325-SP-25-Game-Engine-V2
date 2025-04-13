@@ -3,6 +3,92 @@
 #include <thread>
 #include <chrono>
 #include <string>
+#include <vector>
+#include <random>
+
+// Test the audio memory management
+void TestAudioMemoryManagement()
+{
+    std::cout << "\n=== Testing Audio Memory Management ===\n" << std::endl;
+
+    // Configure the audio cache
+    std::cout << "Configuring audio cache (max 10 resources, 2s min age)" << std::endl;
+    gAudioManager.ConfigureCache(10, 2);
+
+    // Create a list of test sound paths
+    std::vector<std::string> testSounds;
+    for (int i = 1; i <= 20; i++)
+    {
+        testSounds.push_back("assets/audio/sfx/test_sfx_" + std::to_string(i) + ".wav");
+    }
+
+    // Phase 1: Load many sounds
+    std::cout << "\nPhase 1: Loading 15 different sounds" << std::endl;
+    for (int i = 0; i < 15; i++)
+    {
+        std::string soundPath = testSounds[i];
+        std::cout << "Loading sound: " << soundPath << std::endl;
+        gAudioManager.PlaySound(soundPath, true, 0.1f);
+
+        // Small delay to simulate game loop
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+    // Wait longer to allow resources to age past the minimum
+    std::cout << "\nWaiting for resources to age..." << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+
+    // Manually trigger cleanup to configured maximum
+    std::cout << "\nManually triggering cache cleanup to configured maximum:" << std::endl;
+    gAudioManager.CleanupResourceCache();
+
+    // Wait a short time
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+    // Demonstrate override with aggressive cleanup
+    std::cout << "\nDemonstrating aggressive cleanup to 5 resources:" << std::endl;
+    gAudioManager.CleanupResourceCache(5);
+
+    // Phase 2: Play some sounds repeatedly
+    std::cout << "\nPhase 2: Playing a few sounds repeatedly (simulating frequent use)" << std::endl;
+    for (int i = 0; i < 20; i++)
+    {
+        // Pick a sound from the first 5
+        int soundIndex = i % 5;
+        std::string soundPath = testSounds[soundIndex];
+        std::cout << "Playing sound: " << soundPath << std::endl;
+        gAudioManager.PlaySound(soundPath, true, 0.1f);
+
+        // Small delay
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    }
+
+    // Wait to allow aging
+    std::cout << "\nWaiting for resources to age..." << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+
+    // Phase 3: Load more new sounds
+    std::cout << "\nPhase 3: Loading more sounds (should keep frequently used ones)" << std::endl;
+    for (int i = 5; i < 15; i++)
+    {
+        std::string soundPath = testSounds[i];
+        std::cout << "Loading sound: " << soundPath << std::endl;
+        gAudioManager.PlaySound(soundPath, true, 0.1f);
+
+        // Small delay
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+    // Wait to allow aging
+    std::cout << "\nWaiting for resources to age..." << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+
+    // Final cleanup with different target
+    std::cout << "\nFinal resource cleanup with override to 7 resources:" << std::endl;
+    gAudioManager.CleanupResourceCache(7);
+
+    std::cout << "\n=== Memory Management Test Complete ===\n" << std::endl;
+}
 
 int TestAudio()
 {
@@ -133,17 +219,17 @@ int TestAudio()
     }
 
     // 6.b. Test changing environment type
-	std::cout << "\nChanging environment type to CAVE" << std::endl;
-	gAudioManager.SetEnvironment(ENV_CAVE);
-	std::this_thread::sleep_for(std::chrono::seconds(3));
+    std::cout << "\nChanging environment type to CAVE" << std::endl;
+    gAudioManager.SetEnvironment(ENV_CAVE);
+    std::this_thread::sleep_for(std::chrono::seconds(3));
 
-	std::cout << "Changing environment type to UNDERWATER" << std::endl;
-	gAudioManager.SetEnvironment(ENV_UNDERWATER);
-	std::this_thread::sleep_for(std::chrono::seconds(3));
+    std::cout << "Changing environment type to UNDERWATER" << std::endl;
+    gAudioManager.SetEnvironment(ENV_UNDERWATER);
+    std::this_thread::sleep_for(std::chrono::seconds(3));
 
-	std::cout << "Changing environment type to LARGE_HALL" << std::endl;
-	gAudioManager.SetEnvironment(ENV_LARGE_HALL);
-	std::this_thread::sleep_for(std::chrono::seconds(3));
+    std::cout << "Changing environment type to LARGE_HALL" << std::endl;
+    gAudioManager.SetEnvironment(ENV_LARGE_HALL);
+    std::this_thread::sleep_for(std::chrono::seconds(3));
 
     std::cout << "Changing environment type to NORMAL" << std::endl;
     gAudioManager.SetEnvironment(ENV_NORMAL);
@@ -185,7 +271,11 @@ int main()
 
     std::cout << "=== Audio Engine Testing ===\n" << std::endl;
 
-    TestAudio();
+    // Run standard audio tests
+    //TestAudio();
+
+    // Run memory management tests
+    TestAudioMemoryManagement();
 
     std::cout << "\nShutting down AudioManager" << std::endl;
     gAudioManager.shutDown();

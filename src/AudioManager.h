@@ -7,12 +7,12 @@
 #include <string>
 #include <memory>
 #include <mutex>
+#include <queue>
+#include <chrono>
 #include "SoundResource.h"
 
-/// <summary>
-/// Room/Environment types for sound effects
-/// </summary>
-enum EnvironmentType 
+// Room/Environment types for sound effects
+enum EnvironmentType
 {
     ENV_NORMAL,
     ENV_CAVE,
@@ -20,74 +20,109 @@ enum EnvironmentType
     ENV_LARGE_HALL
 };
 
-// AudioManager singleton
-class AudioManager 
+// Resource usage tracking structure
+struct ResourceUsageInfo
 {
-    public:
-        AudioManager();
-        ~AudioManager();
+    std::wstring path;
+    std::chrono::steady_clock::time_point lastUsedTime;
 
-        // Singleton access
-        static AudioManager& GetInstance() 
-        {
-            static AudioManager instance;
-            return instance;
-        }
+    ResourceUsageInfo() {}
 
-        // Initialize the audio system
-        bool startUp();
+    ResourceUsageInfo(const std::wstring& p)
+        : path(p),
+        lastUsedTime(std::chrono::steady_clock::now()) { }
 
-        // Shutdown the audio system
-        void shutDown();
+    // Update usage timestamp
+    void Used()
+    {
+        lastUsedTime = std::chrono::steady_clock::now();
+    }
+};
 
-        // Play a sound with given volume (0.0f to 1.0f)
-        HRESULT PlaySound(const std::string& filePath, bool isSoundEffect = true, float volume = 1.0f);
+// AudioManager singleton
+class AudioManager
+{
+public:
+    AudioManager();
+    ~AudioManager();
 
-        // Stop a specific sound
-        HRESULT StopSound(const std::string& filePath);
+    // Singleton access
+    static AudioManager& GetInstance()
+    {
+        static AudioManager instance;
+        return instance;
+    }
 
-        // Stop all sounds
-        void StopAllSounds();
+    // Initialize the audio system
+    bool startUp(size_t maxCachedResources = 64,
+                 size_t minResourceAge = 10);
 
-        // Set volume for a specific sound (0.0f to 1.0f)
-        HRESULT SetSoundVolume(const std::string& filePath, float volume);
+    // Shutdown the audio system
+    void shutDown();
 
-        // Set master volume (0.0f to 1.0f)
-        HRESULT SetMasterVolume(float volume);
+    // Play a sound with given volume (0.0f to 1.0f)
+    HRESULT PlaySound(const std::string& filePath, bool isSoundEffect = true, float volume = 1.0f);
 
-        // Get master volume
-        float GetMasterVolume() const { return masterVolume; }
+    // Stop a specific sound
+    HRESULT StopSound(const std::string& filePath);
 
-        // Convert path string from narrow to wide
-        std::wstring ConvertToWideString(const std::string& str);
+    // Stop all sounds
+    void StopAllSounds();
 
-        // Get project root directory
-        std::wstring GetProjectRoot();
+    // Set volume for a specific sound (0.0f to 1.0f)
+    HRESULT SetSoundVolume(const std::string& filePath, float volume);
 
-        // Room/Environment Effects
-        HRESULT SetEnvironment(EnvironmentType envType);
+    // Set master volume (0.0f to 1.0f)
+    HRESULT SetMasterVolume(float volume);
 
-    private:
-        // XAudio2 interfaces
-        Microsoft::WRL::ComPtr<IXAudio2> pXAudio2;
-        IXAudio2MasteringVoice* pMasteringVoice;
+    // Get master volume
+    float GetMasterVolume() const { return masterVolume; }
 
-        // Sound resources and source voices
-        std::unordered_map<std::wstring, std::shared_ptr<SoundResource>> soundResources;
-        std::unordered_map<std::wstring, IXAudio2SourceVoice*> sourceVoices;
+    // Room/Environment Effects
+    HRESULT SetEnvironment(EnvironmentType envType);
 
-        // Mutex for thread safety
-        std::mutex resourceMutex;
+    // Memory management - cleanup cache
+    void CleanupResourceCache(size_t maxResourcesOverride = 0);
 
-        // Master volume level
-        float masterVolume;
+    // Get project root directory
+    std::wstring GetProjectRoot();
 
-        // Helper methods
-        std::shared_ptr<SoundResource> GetOrLoadResource(const std::wstring& filePath, bool isSoundEffect);
+    // Configure cache settings
+    void ConfigureCache(size_t maxCachedResources = 64,
+        size_t minResourceAge = 10);
 
-        // Cached speaker configuration
-        DWORD channelMask;
-        UINT32 channels;
+private:
+    // XAudio2 interfaces
+    Microsoft::WRL::ComPtr<IXAudio2> pXAudio2;
+    IXAudio2MasteringVoice* pMasteringVoice;
+
+    // Sound resources and source voices
+    std::unordered_map<std::wstring, std::shared_ptr<SoundResource>> soundResources;
+    std::unordered_map<std::wstring, IXAudio2SourceVoice*> sourceVoices;
+
+    // Resource usage tracking
+    std::unordered_map<std::wstring, ResourceUsageInfo> resourceUsage;
+
+    // Cache settings
+    size_t maxCachedResources;
+    size_t minResourceAgeSeconds;
+
+    // Mutex for thread safety
+    std::mutex resourceMutex;
+
+    // Master volume level
+    float masterVolume;
+
+    // Helper methods
+    std::shared_ptr<SoundResource> GetOrLoadResource(const std::wstring& filePath, bool isSoundEffect);
+    void UpdateResourceUsage(const std::wstring& filePath);
+
+    // Convert path string from narrow to wide
+    std::wstring ConvertToWideString(const std::string& str);
+
+    // Cached speaker configuration
+    DWORD channelMask;
+    UINT32 channels;
 };
 
 // Global singleton accessor

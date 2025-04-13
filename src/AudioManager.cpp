@@ -1,13 +1,12 @@
 /// <file>
 /// <summary>
-/// Audio Manager using XAudio2 and X3DAudio 
+/// Audio Manager using XAudio2
 /// for the audio engine subsystem of the game engine
 /// Provides a public interface for playing, stopping, and managing audio resources.
 /// </summary>
 /// 
 /// References:
 /// https://learn.microsoft.com/en-us/windows/win32/xaudio2/xaudio2-apis-portal
-/// https://learn.microsoft.com/en-us/windows/win32/xaudio2/x3daudio
 /// 
 /// <author> Zachary Kao </author>
 /// <date> 2025-4-3 </date>
@@ -19,6 +18,7 @@
 #include <sstream>
 #include <string>
 #include <algorithm>
+#include <vector>
 
 // Define global singleton accessor
 AudioManager& gAudioManager = AudioManager::GetInstance();
@@ -28,7 +28,9 @@ AudioManager::AudioManager()
     pMasteringVoice(nullptr),
     masterVolume(1.0f),
     channelMask(0),
-    channels(0)
+    channels(0),
+    maxCachedResources(64),
+    minResourceAgeSeconds(10)
 {
     // do nothing
 }
@@ -42,11 +44,11 @@ AudioManager::~AudioManager()
 /// Initializes the audio system.
 /// </summary>
 /// <returns></returns>
-bool AudioManager::startUp()
+bool AudioManager::startUp(size_t maxCachedResources, size_t minResourceAge)
 {
-    // Initialize COM (if not already done)
+    // Initialize COM
     HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-    if (FAILED(hr) && hr != S_FALSE && hr != RPC_E_CHANGED_MODE) 
+    if (FAILED(hr) && hr != S_FALSE && hr != RPC_E_CHANGED_MODE)
     {
         std::cerr << "Failed to initialize COM: " << std::hex << hr << std::dec << std::endl;
         return false;
@@ -54,7 +56,7 @@ bool AudioManager::startUp()
 
     // Create XAudio2 instance
     hr = XAudio2Create(&pXAudio2, XAUDIO2_DEBUG_ENGINE, XAUDIO2_DEFAULT_PROCESSOR);
-    if (FAILED(hr)) 
+    if (FAILED(hr))
     {
         std::cerr << "Failed to create XAudio2 instance: " << std::hex << hr << std::dec << std::endl;
         CoUninitialize();
@@ -63,7 +65,7 @@ bool AudioManager::startUp()
 
     // Create mastering voice
     hr = pXAudio2->CreateMasteringVoice(&pMasteringVoice);
-    if (FAILED(hr)) 
+    if (FAILED(hr))
     {
         std::cerr << "Failed to create mastering voice: " << std::hex << hr << std::dec << std::endl;
         pXAudio2.Reset();
@@ -94,6 +96,9 @@ bool AudioManager::startUp()
     // Set initial master volume
     pMasteringVoice->SetVolume(masterVolume);
 
+	// Configure cache settings
+	ConfigureCache(maxCachedResources, minResourceAge);
+
     std::cout << "AudioManager initialized successfully" << std::endl;
     return true;
 }
@@ -110,9 +115,9 @@ void AudioManager::shutDown()
     {
         std::lock_guard<std::mutex> lock(resourceMutex);
 
-        for (auto& pair : sourceVoices) 
+        for (auto& pair : sourceVoices)
         {
-            if (pair.second) 
+            if (pair.second)
             {
                 pair.second->DestroyVoice();
                 pair.second = nullptr;
@@ -120,10 +125,11 @@ void AudioManager::shutDown()
         }
         sourceVoices.clear();
         soundResources.clear();
+        resourceUsage.clear();
     }
 
     // Release XAudio2 resources
-    if (pMasteringVoice) 
+    if (pMasteringVoice)
     {
         pMasteringVoice->DestroyVoice();
         pMasteringVoice = nullptr;
@@ -160,7 +166,7 @@ HRESULT AudioManager::PlaySound(const std::string& filePath, bool isSoundEffect,
     {
         std::lock_guard<std::mutex> lock(resourceMutex);
         auto iter = sourceVoices.find(wFilePath);
-        if (iter != sourceVoices.end()) 
+        if (iter != sourceVoices.end())
         {
             pSourceVoice = iter->second;
 
@@ -175,10 +181,11 @@ HRESULT AudioManager::PlaySound(const std::string& filePath, bool isSoundEffect,
     if (FAILED(hr))
         return hr;
 
-    // Store the source voice
+    // Store the source voice and update usage statistics
     {
         std::lock_guard<std::mutex> lock(resourceMutex);
         sourceVoices[wFilePath] = pSourceVoice;
+        UpdateResourceUsage(wFilePath);
     }
 
     return S_OK;
@@ -273,15 +280,14 @@ HRESULT AudioManager::SetMasterVolume(float volume)
         return E_FAIL;
 
     // Clamp volume between 0.0 and 1.0
-    if (volume < 0.0f) 
+    if (volume < 0.0f)
     {
         volume = 0.0f;
     }
-    else if (volume > 1.0f) 
+    else if (volume > 1.0f)
     {
         volume = 1.0f;
     }
-
 
     // Store the master volume
     masterVolume = volume;
@@ -302,7 +308,11 @@ std::shared_ptr<SoundResource> AudioManager::GetOrLoadResource(const std::wstrin
     // Check if resource already exists
     auto iter = soundResources.find(filePath);
     if (iter != soundResources.end())
+    {
+        // Update usage statistics
+        UpdateResourceUsage(filePath);
         return iter->second;
+    }
 
     // Create new resource
     auto resource = std::make_shared<SoundResource>();
@@ -313,15 +323,179 @@ std::shared_ptr<SoundResource> AudioManager::GetOrLoadResource(const std::wstrin
 
     // Load the resource
     HRESULT hr = resource->Load(filePath, resourceType);
-    if (FAILED(hr)) 
+    if (FAILED(hr))
     {
         std::wcerr << L"Failed to load sound resource: " << filePath << std::endl;
         return nullptr;
     }
 
-    // Store and return the resource
+    // Store and return the resource without checking for cleanup
     soundResources[filePath] = resource;
+
+    // Initialize usage tracking for this resource
+    resourceUsage[filePath] = ResourceUsageInfo(filePath);
+
     return resource;
+}
+
+/// <summary>
+/// Update the usage statistics for a resource
+/// </summary>
+/// <param name="filePath">Path to the resource</param>
+void AudioManager::UpdateResourceUsage(const std::wstring& filePath)
+{
+    auto iter = resourceUsage.find(filePath);
+    if (iter != resourceUsage.end())
+    {
+        // Update existing entry
+        iter->second.Used();
+    }
+    else
+    {
+        // Create new entry
+        resourceUsage[filePath] = ResourceUsageInfo(filePath);
+    }
+}
+
+/// <summary>
+/// Clean up resource cache to maintain memory limits
+/// This function should be periodically called during the game engine loop to clean up resources
+/// </summary>
+/// <param name="maxResourcesOverride">If specified, clean up to this limit instead of the configured maximum</param>
+void AudioManager::CleanupResourceCache(size_t maxResourcesOverride)
+{
+    // Create a list of resources to remove, outside of the lock
+    std::vector<std::wstring> resourcesToRemove;
+
+    // Get resources to remove
+    {
+        std::lock_guard<std::mutex> lock(resourceMutex);
+
+        // Use override if provided, otherwise use the configured maximum
+        size_t targetMax = (maxResourcesOverride > 0) ? maxResourcesOverride : maxCachedResources;
+
+        // If we're under the limit, no cleanup needed
+        if (soundResources.size() <= targetMax)
+        {
+            return;
+        }
+
+        // Determine how many resources to remove
+        size_t numToRemove = soundResources.size() - targetMax;
+        if (numToRemove <= 0)
+            return;
+
+        // Get current time
+        auto currentTime = std::chrono::steady_clock::now();
+
+        // Prepare vector of resources for sorting
+        std::vector<std::pair<std::wstring, ResourceUsageInfo>> resources;
+        resources.reserve(resourceUsage.size());  // Pre-allocate for efficiency
+
+        for (const auto& pair : resourceUsage)
+        {
+            resources.push_back(pair);
+        }
+
+        // Sort by last used time (oldest first) - LRU policy
+        std::sort(resources.begin(), resources.end(),
+            [](const auto& a, const auto& b) {
+                return a.second.lastUsedTime < b.second.lastUsedTime;
+            });
+
+        // Count resources removed
+        size_t removed = 0;
+
+        // Iterate through sorted resources to identify what to remove
+        for (const auto& resource : resources)
+        {
+            // Skip if we've removed enough
+            if (removed >= numToRemove)
+                break;
+
+            const std::wstring& path = resource.first;
+
+            // Skip resources used recently (within minResourceAgeSeconds)
+            auto resourceAge = std::chrono::duration_cast<std::chrono::seconds>(
+                currentTime - resource.second.lastUsedTime).count();
+
+            if (resourceAge < minResourceAgeSeconds)
+                continue;
+
+            // Add to our list of resources to remove
+            resourcesToRemove.push_back(path);
+            removed++;
+        }
+
+        std::cout << "Audio cache cleanup: identified " << removed << " resources to remove" << std::endl;
+    }
+
+    // Now actually remove the resources
+    if (!resourcesToRemove.empty())
+    {
+        size_t removedCount = 0;
+
+        // Process each resource to remove
+        for (const auto& path : resourcesToRemove)
+        {
+            // Handle any stop operations outside the lock if possible
+
+            // Now get the lock to modify collections
+            std::lock_guard<std::mutex> lock(resourceMutex);
+
+            // Check if this resource has a source voice
+            auto voiceIter = sourceVoices.find(path);
+            if (voiceIter != sourceVoices.end())
+            {
+                // Stop and destroy the voice
+                if (voiceIter->second)
+                {
+                    auto resourceIter = soundResources.find(path);
+                    if (resourceIter != soundResources.end())
+                    {
+                        resourceIter->second->Stop(voiceIter->second);
+                    }
+
+                    voiceIter->second->DestroyVoice();
+                    voiceIter->second = nullptr;
+                }
+                sourceVoices.erase(voiceIter);
+            }
+
+            // Remove the resource
+            soundResources.erase(path);
+            resourceUsage.erase(path);
+            removedCount++;
+
+            std::wcout << L"Removed unused audio resource: " << path << std::endl;
+        }
+
+        std::cout << "Audio cache cleanup: removed " << removedCount << " resources, "
+            << soundResources.size() << " remaining" << std::endl;
+    }
+}
+
+/// <summary>
+/// Configure cache settings
+/// </summary>
+/// <param name="maxCachedResources">Maximum number of resources to keep in cache</param>
+/// <param name="minResourceAge">Minimum age in seconds before a resource can be removed</param>
+void AudioManager::ConfigureCache(size_t maxCachedResources, size_t minResourceAge)
+{
+    std::lock_guard<std::mutex> lock(resourceMutex);
+
+    this->maxCachedResources = maxCachedResources;
+    this->minResourceAgeSeconds = minResourceAge;
+
+    std::cout << "Audio cache configured: max=" << maxCachedResources
+        << ", min age=" << minResourceAge << "s, "
+        << "using LRU policy" << std::endl;
+
+    // Run cleanup with new settings if needed
+    if (soundResources.size() > maxCachedResources)
+    {
+        CleanupResourceCache();
+    }
 }
 
 /// <summary>
