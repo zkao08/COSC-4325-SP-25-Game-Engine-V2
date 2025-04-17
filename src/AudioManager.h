@@ -63,6 +63,9 @@ public:
     // Play a sound with given volume (0.0f to 1.0f)
     HRESULT PlaySound(const std::string& filePath, bool isSoundEffect = true, float volume = 1.0f);
 
+    // Play a preloaded sound
+    HRESULT PlaySound(SoundResource* pSoundResource, float volume = 1.0f);
+
     // Stop a specific sound
     HRESULT StopSound(const std::string& filePath);
 
@@ -89,7 +92,8 @@ public:
 
     // Configure cache settings
     void ConfigureCache(size_t maxCachedResources = 64,
-        size_t minResourceAge = 10);
+        size_t minResourceAge = 10,
+        size_t maxSourceVoices = 32);
 
 private:
     // XAudio2 interfaces
@@ -106,6 +110,7 @@ private:
     // Cache settings
     size_t maxCachedResources;
     size_t minResourceAgeSeconds;
+    size_t maxSourceVoices;
 
     // Mutex for thread safety
     std::mutex resourceMutex;
@@ -123,6 +128,9 @@ private:
     // Cached speaker configuration
     DWORD channelMask;
     UINT32 channels;
+
+    // Source voice cache management
+    void CleanupSourceVoicePool();
 };
 
 // Global singleton accessor

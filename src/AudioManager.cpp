@@ -30,7 +30,8 @@ AudioManager::AudioManager()
     channelMask(0),
     channels(0),
     maxCachedResources(64),
-    minResourceAgeSeconds(10)
+    minResourceAgeSeconds(10),
+    maxSourceVoices(32)
 {
     // do nothing
 }
@@ -186,6 +187,49 @@ HRESULT AudioManager::PlaySound(const std::string& filePath, bool isSoundEffect,
         std::lock_guard<std::mutex> lock(resourceMutex);
         sourceVoices[wFilePath] = pSourceVoice;
         UpdateResourceUsage(wFilePath);
+    }
+
+    return S_OK;
+}
+
+/// <summary>
+/// Plays a sound using a provided SoundResource.
+/// </summary>
+/// <param name="pSoundResource">Pointer to the sound resource to play</param>
+/// <param name="volume">Sound volume, between 0.0 and 1.0</param>
+/// <returns>HRESULT indicating success or failure</returns>
+HRESULT AudioManager::PlaySound(SoundResource* pSoundResource, float volume)
+{
+    if (!pXAudio2 || !pMasteringVoice || !pSoundResource)
+        return E_INVALIDARG;
+
+    const std::wstring& resourcePath = pSoundResource->GetFilePath();
+
+    // Get the source voice if it exists, or create a new one
+    IXAudio2SourceVoice* pSourceVoice = nullptr;
+
+    {
+        std::lock_guard<std::mutex> lock(resourceMutex);
+        auto iter = sourceVoices.find(resourcePath);
+        if (iter != sourceVoices.end())
+        {
+            pSourceVoice = iter->second;
+
+            // Stop the voice before reusing it
+            pSourceVoice->Stop(0);
+            pSourceVoice->FlushSourceBuffers();
+        }
+    }
+
+    // Play the sound with volume control
+    HRESULT hr = pSoundResource->Play(pXAudio2.Get(), &pSourceVoice, volume);
+    if (FAILED(hr))
+        return hr;
+
+    // Store the source voice in the AudioManager
+    {
+        std::lock_guard<std::mutex> lock(resourceMutex);
+        sourceVoices[resourcePath] = pSourceVoice;
     }
 
     return S_OK;
@@ -427,6 +471,12 @@ void AudioManager::CleanupResourceCache(size_t maxResourcesOverride)
             removed++;
         }
 
+        // After cleaning up resources, also clean up source voices
+        {
+            std::lock_guard<std::mutex> lock(resourceMutex);
+            CleanupSourceVoicePool();
+        }
+
         std::cout << "Audio cache cleanup: identified " << removed << " resources to remove" << std::endl;
     }
 
@@ -476,23 +526,103 @@ void AudioManager::CleanupResourceCache(size_t maxResourcesOverride)
 }
 
 /// <summary>
+/// Clean up source voice pool to maintain limits
+/// This function should be called with the resourceMutex already locked
+/// </summary>
+void AudioManager::CleanupSourceVoicePool()
+{
+    // If we're under the limit, no cleanup needed
+    if (sourceVoices.size() <= maxSourceVoices)
+    {
+        return;
+    }
+
+    std::cout << "Source voice pool cleanup: " << sourceVoices.size()
+        << " voices, limit " << maxSourceVoices << std::endl;
+
+    // Determine how many voices to remove
+    size_t numToRemove = sourceVoices.size() - maxSourceVoices;
+    if (numToRemove <= 0)
+        return;
+
+    // Prepare vector of source voices for sorting by LRU
+    std::vector<std::pair<std::wstring, std::chrono::steady_clock::time_point>> voices;
+    voices.reserve(sourceVoices.size());
+
+    // Get last used time for each voice from resourceUsage
+    for (const auto& pair : sourceVoices)
+    {
+        const std::wstring& path = pair.first;
+        auto usageIter = resourceUsage.find(path);
+
+        if (usageIter != resourceUsage.end())
+        {
+            voices.push_back(std::make_pair(path, usageIter->second.lastUsedTime));
+        }
+        else
+        {
+            // If no usage info, treat as very old (epoch time)
+            voices.push_back(std::make_pair(path, std::chrono::steady_clock::time_point()));
+        }
+    }
+
+    // Sort by last used time (oldest first) - LRU policy
+    std::sort(voices.begin(), voices.end(),
+        [](const auto& a, const auto& b) {
+            return a.second < b.second;
+        });
+
+    // Remove oldest voices up to the limit
+    size_t removed = 0;
+    for (size_t i = 0; i < numToRemove && i < voices.size(); i++)
+    {
+        const std::wstring& path = voices[i].first;
+        auto voiceIter = sourceVoices.find(path);
+
+        if (voiceIter != sourceVoices.end() && voiceIter->second)
+        {
+            // Stop the voice if it's playing
+            auto resourceIter = soundResources.find(path);
+            if (resourceIter != soundResources.end())
+            {
+                resourceIter->second->Stop(voiceIter->second);
+            }
+
+            // Destroy the voice
+            voiceIter->second->DestroyVoice();
+            voiceIter->second = nullptr;
+            sourceVoices.erase(voiceIter);
+            removed++;
+
+            std::wcout << L"Removed unused source voice: " << path << std::endl;
+        }
+    }
+
+    std::cout << "Source voice pool cleanup: removed " << removed
+        << " voices, " << sourceVoices.size() << " remaining" << std::endl;
+}
+
+/// <summary>
 /// Configure cache settings
 /// </summary>
 /// <param name="maxCachedResources">Maximum number of resources to keep in cache</param>
 /// <param name="minResourceAge">Minimum age in seconds before a resource can be removed</param>
-void AudioManager::ConfigureCache(size_t maxCachedResources, size_t minResourceAge)
+/// <param name="maxSourceVoices">Maximum number of source voices to keep</param>
+void AudioManager::ConfigureCache(size_t maxCachedResources, size_t minResourceAge, size_t maxSourceVoices)
 {
     std::lock_guard<std::mutex> lock(resourceMutex);
 
     this->maxCachedResources = maxCachedResources;
     this->minResourceAgeSeconds = minResourceAge;
+    this->maxSourceVoices = maxSourceVoices;
 
-    std::cout << "Audio cache configured: max=" << maxCachedResources
+    std::cout << "Audio cache configured: max resources=" << maxCachedResources
         << ", min age=" << minResourceAge << "s, "
-        << "using LRU policy" << std::endl;
+        << "max source voices=" << maxSourceVoices
+        << ", using LRU policy" << std::endl;
 
     // Run cleanup with new settings if needed
-    if (soundResources.size() > maxCachedResources)
+    if (soundResources.size() > maxCachedResources || sourceVoices.size() > maxSourceVoices)
     {
         CleanupResourceCache();
     }

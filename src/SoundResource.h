@@ -22,6 +22,12 @@ class SoundResource
         SoundResource();
         ~SoundResource();
 
+        // Constructor that automatically loads a sound file
+        SoundResource(const std::wstring& filePath, ResourceType type = SOUND_EFFECT);
+
+        // Constructor that takes string instead of wstring for convenience
+        SoundResource(const std::string& filePath, ResourceType type = SOUND_EFFECT);
+
         // Load sound from file
         HRESULT Load(const std::wstring& filePath, ResourceType type = SOUND_EFFECT);
 

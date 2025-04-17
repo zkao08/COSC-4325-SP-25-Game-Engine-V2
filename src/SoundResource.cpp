@@ -47,6 +47,50 @@ SoundResource::~SoundResource()
 }
 
 /// <summary>
+/// Constructs a SoundResource and automatically loads the sound from the specified file path.
+/// </summary>
+/// <param name="filePath">Wide string path to the sound file</param>
+/// <param name="type">Type of sound resource (SOUND_EFFECT or STREAMING)</param>
+SoundResource::SoundResource(const std::wstring& filePath, ResourceType type)
+    : resourceType(type),
+    isStreaming(false),
+    streamingFileHandle(INVALID_HANDLE_VALUE),
+    dataChunkSize(0),
+    dataChunkPosition(0)
+{
+    ZeroMemory(&buffer, sizeof(XAUDIO2_BUFFER));
+    ZeroMemory(&wfx, sizeof(WAVEFORMATEXTENSIBLE));
+
+    // Automatically load the sound
+    Load(filePath, type);
+}
+
+/// <summary>
+/// Constructs a SoundResource and automatically loads the sound from the specified file path.
+/// </summary>
+/// <param name="filePath">String path to the sound file</param>
+/// <param name="type">Type of sound resource (SOUND_EFFECT or STREAMING)</param>
+SoundResource::SoundResource(const std::string& filePath, ResourceType type)
+    : resourceType(type),
+    isStreaming(false),
+    streamingFileHandle(INVALID_HANDLE_VALUE),
+    dataChunkSize(0),
+    dataChunkPosition(0)
+{
+    ZeroMemory(&buffer, sizeof(XAUDIO2_BUFFER));
+    ZeroMemory(&wfx, sizeof(WAVEFORMATEXTENSIBLE));
+
+    // Convert string to wstring
+    std::wstring wFilePath;
+    wFilePath.resize(filePath.size());
+    MultiByteToWideChar(CP_UTF8, 0, filePath.c_str(), static_cast<int>(filePath.size()),
+        &wFilePath[0], static_cast<int>(wFilePath.size()));
+
+    // Automatically load the sound
+    Load(wFilePath, type);
+}
+
+/// <summary>
 /// Loads a sound file from the specified path into the buffer.
 /// </summary>
 /// <param name="filePath"></param>
