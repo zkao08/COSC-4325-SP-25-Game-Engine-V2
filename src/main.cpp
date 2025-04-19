@@ -5,6 +5,35 @@
 #include <string>
 #include <vector>
 #include <random>
+#include <sol/sol.hpp>
+#include "AudioLuaAPI.h"
+
+// Test Lua API integration
+int TestLuaApi()
+{
+    // Audio manager is already initialized in main()
+    std::cout << "\n=== Testing Audio Lua API ===\n" << std::endl;
+
+    // Create a Lua state
+    sol::state lua;
+
+    // Open standard libraries
+    lua.open_libraries(sol::lib::base, sol::lib::os, sol::lib::string, sol::lib::math);
+
+    // Initialize the Audio Lua API
+    AudioLuaAPI::Initialize(lua);
+
+    // Load and run the test script
+    try {
+        lua.script_file("../assets/scripts/audio_lua_test.lua");
+    }
+    catch (const sol::error& e) {
+        std::cerr << "Lua error: " << e.what() << std::endl;
+    }
+
+    std::cout << "\n=== Audio Lua API Test Complete ===\n" << std::endl;
+    return 0;
+}
 
 // Test the audio memory management
 void TestAudioMemoryManagement()
@@ -275,7 +304,10 @@ int main()
     //TestAudio();
 
     // Run memory management tests
-    TestAudioMemoryManagement();
+    //TestAudioMemoryManagement();
+
+    //Run Lua API tests
+	TestLuaApi();
 
     std::cout << "\nShutting down AudioManager" << std::endl;
     gAudioManager.shutDown();

@@ -1,18 +1,28 @@
 cmake_minimum_required(VERSION 3.10)
 project(GameEngine)
-
 set(CMAKE_CXX_STANDARD 17)
 
-# Enable FetchContent if you want an alternative to submodules
-include(FetchContent)
+# Find Lua libraries
+set(LUA_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party_libs/lua/src)
+file(GLOB LUA_SOURCES ${LUA_SRC_DIR}/*.c)
+
+# Remove the standalone executables from the build
+list(REMOVE_ITEM LUA_SOURCES 
+    ${LUA_SRC_DIR}/lua.c    # The Lua interpreter
+    ${LUA_SRC_DIR}/luac.c   # The Lua compiler
+)
+
+# Create a Lua static library
+add_library(lua STATIC ${LUA_SOURCES})
+target_include_directories(lua PUBLIC ${LUA_SRC_DIR})
 
 # Add subdirectories for each of the libraries
-add_subdirectory(third_party_libs/openal-soft)
-add_subdirectory(third_party_libs/bgfx)
 add_subdirectory(third_party_libs/box2d)
-add_subdirectory(third_party_libs/sdl EXCLUDE_FROM_ALL)
 
-# Specify the path to the ImGui source files (assuming they're located in third_party_libs/imgui)
+# Sol2 is header-only, so just include its directory
+set(SOL2_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party_libs/sol")
+
+# Specify the path to the ImGui source files
 set(IMGUI_DIR "third_party_libs/imgui")
 
 # Add ImGui source files manually
@@ -39,7 +49,7 @@ source_group("HeaderFiles" FILES ${GAME_HEADERS})
 # Create the main game engine executable
 add_executable(GameEngine ${GAME_SRC} ${IMGUI_SRC})
 
-# Add header files to the target, just for organizing in Visual Studio (not for compilation)
+# Add header files to the target, just for organizing in Visual Studio
 target_sources(GameEngine PRIVATE ${GAME_HEADERS})
 
 # -----------------------------
@@ -69,28 +79,19 @@ else()
     message(FATAL_ERROR "XAudio2 library not found. Please ensure the Windows SDK is installed.")
 endif()
 
-# Link XAudio2 to the project
-target_include_directories(GameEngine PRIVATE ${XAUDIO2_INCLUDE_DIR})
-target_link_libraries(GameEngine PRIVATE ${XAUDIO2_LIBRARY})
-
 # Include directories for each library
 target_include_directories(GameEngine PRIVATE
-    third_party_libs/openal-soft/include
-    third_party_libs/bgfx/include
-    ${IMGUI_DIR}  # Include the ImGui directory
+    ${IMGUI_DIR}
     third_party_libs/box2d
-    third_party_libs/sdl/include  # SDL2 include path
-    ${SRC_DIR}  # Include the src directory
+    ${SOL2_INCLUDE_DIR}
+    ${LUA_SRC_DIR} 
+    ${SRC_DIR} 
+    ${XAUDIO2_INCLUDE_DIR}
 )
 
 # Link libraries to your game engine executable
 target_link_libraries(GameEngine PRIVATE 
-    OpenAL
-    bgfx
     box2d
-    SDL3::SDL3
+    lua
+    ${XAUDIO2_LIBRARY}
 )
-
-# If you need to link OpenGL (for bgfx)
-#find_package(OpenGL REQUIRED)
-#target_link_libraries(GameEngine PRIVATE OpenGL::GL)

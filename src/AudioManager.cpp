@@ -9,7 +9,7 @@
 /// https://learn.microsoft.com/en-us/windows/win32/xaudio2/xaudio2-apis-portal
 /// 
 /// <author> Zachary Kao </author>
-/// <date> 2025-4-3 </date>
+/// <date> 2025-4-19</date>
 /// </file>
 
 #include "AudioManager.h"
@@ -410,6 +410,7 @@ void AudioManager::CleanupResourceCache(size_t maxResourcesOverride)
 {
     // Create a list of resources to remove, outside of the lock
     std::vector<std::wstring> resourcesToRemove;
+    bool shouldCleanupVoices = false;
 
     // Get resources to remove
     {
@@ -421,63 +422,69 @@ void AudioManager::CleanupResourceCache(size_t maxResourcesOverride)
         // If we're under the limit, no cleanup needed
         if (soundResources.size() <= targetMax)
         {
-            return;
+            // Check if we need to clean up voices
+            shouldCleanupVoices = (sourceVoices.size() > maxSourceVoices);
+
+            // If we don't need to clean up voices either, return early
+            if (!shouldCleanupVoices)
+                return;
         }
 
-        // Determine how many resources to remove
-        size_t numToRemove = soundResources.size() - targetMax;
-        if (numToRemove <= 0)
-            return;
-
-        // Get current time
-        auto currentTime = std::chrono::steady_clock::now();
-
-        // Prepare vector of resources for sorting
-        std::vector<std::pair<std::wstring, ResourceUsageInfo>> resources;
-        resources.reserve(resourceUsage.size());  // Pre-allocate for efficiency
-
-        for (const auto& pair : resourceUsage)
+        // Only process resource cleanup if we're over the limit
+        if (soundResources.size() > targetMax)
         {
-            resources.push_back(pair);
+            // Determine how many resources to remove
+            size_t numToRemove = soundResources.size() - targetMax;
+            if (numToRemove > 0)
+            {
+                // Get current time
+                auto currentTime = std::chrono::steady_clock::now();
+
+                // Prepare vector of resources for sorting
+                std::vector<std::pair<std::wstring, ResourceUsageInfo>> resources;
+                resources.reserve(resourceUsage.size());  // Pre-allocate for efficiency
+
+                for (const auto& pair : resourceUsage)
+                {
+                    resources.push_back(pair);
+                }
+
+                // Sort by last used time (oldest first) - LRU policy
+                std::sort(resources.begin(), resources.end(),
+                    [](const auto& a, const auto& b) {
+                        return a.second.lastUsedTime < b.second.lastUsedTime;
+                    });
+
+                // Count resources removed
+                size_t removed = 0;
+
+                // Iterate through sorted resources to identify what to remove
+                for (const auto& resource : resources)
+                {
+                    // Skip if we've removed enough
+                    if (removed >= numToRemove)
+                        break;
+
+                    const std::wstring& path = resource.first;
+
+                    // Skip resources used recently (within minResourceAgeSeconds)
+                    auto resourceAge = std::chrono::duration_cast<std::chrono::seconds>(
+                        currentTime - resource.second.lastUsedTime).count();
+
+                    if (resourceAge < minResourceAgeSeconds)
+                        continue;
+
+                    // Add to our list of resources to remove
+                    resourcesToRemove.push_back(path);
+                    removed++;
+                }
+
+                std::cout << "Audio cache cleanup: identified " << removed << " resources to remove" << std::endl;
+            }
         }
 
-        // Sort by last used time (oldest first) - LRU policy
-        std::sort(resources.begin(), resources.end(),
-            [](const auto& a, const auto& b) {
-                return a.second.lastUsedTime < b.second.lastUsedTime;
-            });
-
-        // Count resources removed
-        size_t removed = 0;
-
-        // Iterate through sorted resources to identify what to remove
-        for (const auto& resource : resources)
-        {
-            // Skip if we've removed enough
-            if (removed >= numToRemove)
-                break;
-
-            const std::wstring& path = resource.first;
-
-            // Skip resources used recently (within minResourceAgeSeconds)
-            auto resourceAge = std::chrono::duration_cast<std::chrono::seconds>(
-                currentTime - resource.second.lastUsedTime).count();
-
-            if (resourceAge < minResourceAgeSeconds)
-                continue;
-
-            // Add to our list of resources to remove
-            resourcesToRemove.push_back(path);
-            removed++;
-        }
-
-        // After cleaning up resources, also clean up source voices
-        {
-            std::lock_guard<std::mutex> lock(resourceMutex);
-            CleanupSourceVoicePool();
-        }
-
-        std::cout << "Audio cache cleanup: identified " << removed << " resources to remove" << std::endl;
+        // Set flag to clean up source voices after
+        shouldCleanupVoices = true;
     }
 
     // Now actually remove the resources
@@ -522,6 +529,12 @@ void AudioManager::CleanupResourceCache(size_t maxResourcesOverride)
 
         std::cout << "Audio cache cleanup: removed " << removedCount << " resources, "
             << soundResources.size() << " remaining" << std::endl;
+    }
+
+    // Clean up source voices if needed, but do it outside of any locks to prevent deadlock
+    if (shouldCleanupVoices)
+    {
+        CleanupSourceVoicePool();
     }
 }
 
