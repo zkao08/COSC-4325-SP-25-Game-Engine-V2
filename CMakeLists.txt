@@ -37,6 +37,10 @@ set(SRC_DIR "src")
 file(GLOB_RECURSE GAME_SRC "${SRC_DIR}/*.cpp")
 file(GLOB_RECURSE GAME_HEADERS "${SRC_DIR}/*.h")
 
+# Remove test files from the main game engine build
+# This prevents test files from being included in the main game executable
+list(FILTER GAME_SRC EXCLUDE REGEX ".*_test\\.cpp$")
+
 # Group ImGui files under "ThirdParty/ImGui" in Visual Studio
 source_group("ThirdParty/ImGui" FILES ${IMGUI_SRC})
 
@@ -45,12 +49,6 @@ source_group("SourceFiles" FILES ${GAME_SRC})
 
 # Group .h files under "Header Files"
 source_group("HeaderFiles" FILES ${GAME_HEADERS})
-
-# Create the main game engine executable
-add_executable(GameEngine ${GAME_SRC} ${IMGUI_SRC})
-
-# Add header files to the target, just for organizing in Visual Studio
-target_sources(GameEngine PRIVATE ${GAME_HEADERS})
 
 # -----------------------------
 # Dynamically Find XAudio2
@@ -79,7 +77,13 @@ else()
     message(FATAL_ERROR "XAudio2 library not found. Please ensure the Windows SDK is installed.")
 endif()
 
-# Include directories for each library
+# Create the main game engine executable
+add_executable(GameEngine ${GAME_SRC} ${IMGUI_SRC})
+
+# Add header files to the target, just for organizing in Visual Studio
+target_sources(GameEngine PRIVATE ${GAME_HEADERS})
+
+# Include directories for the main game engine
 target_include_directories(GameEngine PRIVATE
     ${IMGUI_DIR}
     third_party_libs/box2d
@@ -95,3 +99,66 @@ target_link_libraries(GameEngine PRIVATE
     lua
     ${XAUDIO2_LIBRARY}
 )
+
+# -------------------------------
+# Test Executables
+# -------------------------------
+
+# Audio Test Executable
+add_executable(AudioTest 
+    src/audio_test.cpp
+    src/AudioManager.cpp
+    src/AudioLuaAPI.cpp
+    src/SoundResource.cpp
+)
+
+# Include directories for AudioTest
+target_include_directories(AudioTest PRIVATE
+    ${IMGUI_DIR}
+    third_party_libs/box2d
+    ${SOL2_INCLUDE_DIR}
+    ${LUA_SRC_DIR} 
+    ${SRC_DIR} 
+    ${XAUDIO2_INCLUDE_DIR}
+)
+
+# Link libraries to AudioTest
+target_link_libraries(AudioTest PRIVATE 
+    lua
+    ${XAUDIO2_LIBRARY}
+)
+
+# You can add more test executables here following the same pattern
+# For example:
+
+# Physics Test Executable
+# add_executable(PhysicsTest 
+#     src/physics_test.cpp
+#     src/Physics/PhysicsSystem.cpp
+#     # Add other required source files
+# )
+# 
+# target_include_directories(PhysicsTest PRIVATE
+#     ${SRC_DIR}
+#     third_party_libs/box2d
+# )
+# 
+# target_link_libraries(PhysicsTest PRIVATE
+#     box2d
+# )
+
+# Rendering Test Executable 
+# add_executable(RenderingTest 
+#     src/rendering_test.cpp
+#     src/Rendering/RenderSystem.cpp
+#     # Add other required source files
+# )
+# 
+# target_include_directories(RenderingTest PRIVATE
+#     ${IMGUI_DIR}
+#     ${SRC_DIR}
+# )
+# 
+# target_link_libraries(RenderingTest PRIVATE
+#     # Add required libraries
+# )
