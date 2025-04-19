@@ -18,6 +18,7 @@ target_include_directories(lua PUBLIC ${LUA_SRC_DIR})
 
 # Add subdirectories for each of the libraries
 add_subdirectory(third_party_libs/box2d)
+add_subdirectory(third_party_libs/raylib)
 
 # Sol2 is header-only, so just include its directory
 set(SOL2_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party_libs/sol")
@@ -91,6 +92,7 @@ target_include_directories(GameEngine PRIVATE
     ${LUA_SRC_DIR} 
     ${SRC_DIR} 
     ${XAUDIO2_INCLUDE_DIR}
+	third_party_libs/raylib/src
 )
 
 # Link libraries to your game engine executable
@@ -98,6 +100,7 @@ target_link_libraries(GameEngine PRIVATE
     box2d
     lua
     ${XAUDIO2_LIBRARY}
+	raylib
 )
 
 # -------------------------------
@@ -105,28 +108,29 @@ target_link_libraries(GameEngine PRIVATE
 # -------------------------------
 
 # Audio Test Executable
-add_executable(AudioTest 
-    src/audio_test.cpp
-    src/AudioManager.cpp
-    src/AudioLuaAPI.cpp
-    src/SoundResource.cpp
-)
+#add_executable(AudioTest 
+#    src/audio_test.cpp
+#    src/AudioManager.cpp
+#    src/AudioLuaAPI.cpp
+#    src/SoundResource.cpp
+#)
 
 # Include directories for AudioTest
-target_include_directories(AudioTest PRIVATE
-    ${IMGUI_DIR}
-    third_party_libs/box2d
-    ${SOL2_INCLUDE_DIR}
-    ${LUA_SRC_DIR} 
-    ${SRC_DIR} 
-    ${XAUDIO2_INCLUDE_DIR}
-)
+#target_include_directories(AudioTest PRIVATE
+#    ${IMGUI_DIR}
+#    third_party_libs/box2d
+#    ${SOL2_INCLUDE_DIR}
+#    ${LUA_SRC_DIR} 
+#    ${SRC_DIR} 
+#    ${XAUDIO2_INCLUDE_DIR}
+#)
 
 # Link libraries to AudioTest
-target_link_libraries(AudioTest PRIVATE 
-    lua
-    ${XAUDIO2_LIBRARY}
-)
+#target_link_libraries(AudioTest PRIVATE 
+#    lua
+#    ${XAUDIO2_LIBRARY}
+#	raylib
+#)
 
 # You can add more test executables here following the same pattern
 # For example:
