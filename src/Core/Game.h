@@ -3,9 +3,10 @@
 #include "Entity.h"
 #include <vector>
 
-namespace {
-	static std::vector<Entity*> objectList;
-	static std::vector<Entity*> selectedObjects;
+class Game {
+public:
+	std::vector<Entity*> objectList;
+	std::vector<Entity*> selectedObjects;
 
 	std::vector<Entity*> GetObjects() {
 		return objectList;
@@ -53,4 +54,13 @@ namespace {
 	void DeselectObjects() {
 		selectedObjects.clear();
 	}
-}
+
+	void CreateTestItems() {
+		Entity* newObj = new Entity("Test");
+		Entity* newObj2 = new Entity("Test2");
+		Entity* newObj3 = new Entity("Test3");
+		newObj->AddChild(newObj2);
+		newObj2->AddChild(newObj3);
+		AddObject(newObj);
+	}
+};

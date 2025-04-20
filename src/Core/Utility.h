@@ -1,5 +1,9 @@
 #pragma once
 
+#include <string>
+#include <memory>
+#include "Vector2.h"
+
 namespace {
     std::unique_ptr<char> StringToChar(std::string str) {
         std::unique_ptr<char> charStr(new char[128]);

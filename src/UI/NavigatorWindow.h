@@ -16,8 +16,6 @@
 
 class NavigatorWindow {
     public:
-        static int Render(Renderer* renderer, float scale);
-        static void GenerateItemTreeNodes(Entity* item);
-        static void Cleanup();
-        static void CreateTestItems();
+        static int Render(Renderer* renderer, Game* game, float scale);
+        static void GenerateItemTreeNodes(Entity* item, Game* game);
 };

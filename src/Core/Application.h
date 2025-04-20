@@ -12,6 +12,7 @@
 #include "Camera.h"
 #include "RasterState.h"
 #include "RenderTarget.h"
+#include "Game.h"
 
 #include <memory>
 #include <string>
@@ -29,6 +30,7 @@ class Application
 		std::unique_ptr<Camera> m_CameraPlane = nullptr;
 		std::unique_ptr<RasterState> m_RasterState = nullptr;
 		std::unique_ptr<RenderTarget> m_RenderTarget = nullptr;
+		std::unique_ptr<Game> m_Game = nullptr;
 
 		bool m_Running = true;
 		bool m_WindowCreated = false;

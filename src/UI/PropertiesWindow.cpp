@@ -1,6 +1,6 @@
 #include "PropertiesWindow.h"
 
-int PropertiesWindow::Render(float scale) {
+int PropertiesWindow::Render(Game* game, float scale) {
     static char nameInput[64] = "";
     char* searchText = "";
 
@@ -14,8 +14,8 @@ int PropertiesWindow::Render(float scale) {
     ImGui::Separator();
 
     ImGui::SeparatorText("##PropertiesSearchSeparator");
-    if (GetSelectedObjects().size() > 0)
-        LoadProperties(GetSelectedObjects()[0]);
+    if (game->GetSelectedObjects().size() > 0)
+        LoadProperties(game->GetSelectedObjects()[0]);
     else
         LoadProperties(nullptr);
 

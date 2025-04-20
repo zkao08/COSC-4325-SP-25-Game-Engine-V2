@@ -1,6 +1,6 @@
 #include "NavigatorWindow.h"
 
-int NavigatorWindow::Render(Renderer* renderer, float scale) {
+int NavigatorWindow::Render(Renderer* renderer, Game* game, float scale) {
     char* searchText = "";
 
     ImGui::Begin("Navigator");
@@ -11,7 +11,7 @@ int NavigatorWindow::Render(Renderer* renderer, float scale) {
         ImGui::OpenPopup("Context Menu");
     }
     else if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsWindowHovered()) {
-        DeselectObjects();
+        game->DeselectObjects();
     }
 
     if (ImGui::BeginPopup("Context Menu")) {
@@ -37,8 +37,8 @@ int NavigatorWindow::Render(Renderer* renderer, float scale) {
 
     ImGui::Separator();
 
-    for (int i = 0; i < GetObjects().size(); i++) {
-        GenerateItemTreeNodes(GetObjects()[i]);
+    for (int i = 0; i < game->GetObjects().size(); i++) {
+        GenerateItemTreeNodes(game->GetObjects()[i], game);
     }
 
     ImGui::End();
@@ -46,10 +46,10 @@ int NavigatorWindow::Render(Renderer* renderer, float scale) {
     return 1;
 }
 
-void NavigatorWindow::GenerateItemTreeNodes(Entity* item) {
+void NavigatorWindow::GenerateItemTreeNodes(Entity* item, Game* game) {
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_OpenOnArrow;
-    for (int i = 0; i < GetSelectedObjects().size(); i++) {
-        if (IsObjectSelected(StringToChar(item->properties["Name"].Data).get()))
+    for (int i = 0; i < game->GetSelectedObjects().size(); i++) {
+        if (game->IsObjectSelected(StringToChar(item->properties["Name"].Data).get()))
             flags |= ImGuiTreeNodeFlags_Selected;
     }
 
@@ -61,25 +61,12 @@ void NavigatorWindow::GenerateItemTreeNodes(Entity* item) {
 
     if (open) {
         for (int i = 0; i < item->children.size(); i++) {
-            GenerateItemTreeNodes(item->children[i]);
+            GenerateItemTreeNodes(item->children[i], game);
         }
         ImGui::TreePop();
     }
     if (clicked) {
-        DeselectObjects();
-        SelectObject(item);
+        game->DeselectObjects();
+        game->SelectObject(item);
     }
-}
-
-void NavigatorWindow::Cleanup() {
-    CleanupObjects();
-}
-
-void NavigatorWindow::CreateTestItems() {
-    Entity* newObj = new Entity("Test");
-    Entity* newObj2 = new Entity("Test2");
-    Entity* newObj3 = new Entity("Test3");
-    newObj->AddChild(newObj2);
-    newObj2->AddChild(newObj3);
-    AddObject(newObj);
 }

@@ -14,6 +14,6 @@
 
 class PropertiesWindow {
     public:
-        static int Render(float scale);
+        static int Render(Game* game, float scale);
         static void LoadProperties(Entity* entity);
 };

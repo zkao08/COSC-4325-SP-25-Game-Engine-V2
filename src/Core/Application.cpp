@@ -8,6 +8,7 @@
 #include "RasterState.h"
 #include "RenderTarget.h"
 #include "Grid.h"
+#include "Game.h"
 
 #include "Dock.h"
 #include "EntityWindow.h"
@@ -59,6 +60,9 @@ Application::Application() {
 	// Create render target
 	m_RenderTarget = std::make_unique<RenderTarget>(m_Renderer.get());
 	m_RenderTarget->Create(scaledResolutionX, scaledResolutionY);
+
+	// Create game state
+	m_Game = std::make_unique<Game>();
 }
 
 int Application::Execute() {
@@ -80,7 +84,7 @@ int Application::Execute() {
 	// Raster state
 	m_RasterState = std::make_unique<RasterState>(m_Renderer.get());
 
-	NavigatorWindow::CreateTestItems();
+	m_Game.get()->CreateTestItems();
 
 	// Main application loop
 	while (m_Running)
@@ -99,7 +103,7 @@ int Application::Execute() {
 		else {
 			m_Shader->Use();
 			m_RasterState->Use();
-			
+
 			//RenderToTexture();
 			// Binds the render-to-texture render target to the pipeline
 			m_RenderTarget->Use();
@@ -118,8 +122,8 @@ int Application::Execute() {
 			if (result != 1)
 				break;
 
-			NavigatorWindow::Render(m_Renderer.get(), scaleFactor);
-			PropertiesWindow::Render(scaleFactor);
+			NavigatorWindow::Render(m_Renderer.get(), m_Game.get(), scaleFactor);
+			PropertiesWindow::Render(m_Game.get(), scaleFactor);
 			ViewportWindow::Render(m_Renderer.get(), scaleFactor, (ImTextureID)(intptr_t)m_RenderTarget->GetTexture());
 			EntityWindow::RenderEntityWindow(scaleFactor);
 
@@ -137,25 +141,25 @@ int Application::Execute() {
 LRESULT Application::HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	switch (msg)
 	{
-		case WM_DESTROY:
-			PostQuitMessage(0);
-			return 0;
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		return 0;
 
-		case WM_SIZE:
-			this->OnResized(hwnd, msg, wParam, lParam);
-			return 0;
+	case WM_SIZE:
+		this->OnResized(hwnd, msg, wParam, lParam);
+		return 0;
 
-		case WM_MOUSEMOVE:
-			this->OnMouseMove(hwnd, msg, wParam, lParam);
-			return 0;
-		
-		case WM_MOUSEWHEEL:
-			this->OnMouseScroll(hwnd, msg, wParam, lParam);
-			return 0;
+	case WM_MOUSEMOVE:
+		this->OnMouseMove(hwnd, msg, wParam, lParam);
+		return 0;
 
-		case WM_KEYDOWN:
-			this->OnKeyDown(hwnd, msg, wParam, lParam);
-			return 0;
+	case WM_MOUSEWHEEL:
+		this->OnMouseScroll(hwnd, msg, wParam, lParam);
+		return 0;
+
+	case WM_KEYDOWN:
+		this->OnKeyDown(hwnd, msg, wParam, lParam);
+		return 0;
 	}
 
 	extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
