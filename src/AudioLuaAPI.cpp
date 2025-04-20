@@ -12,7 +12,11 @@
 #include <iostream>
 
 namespace AudioLuaAPI
-{
+{   
+    /// <summary>
+	/// Initializes the Lua API for the AudioManager and SoundResource classes.
+    /// </summary>
+    /// <param name="lua"></param>
     void Initialize(sol::state& lua)
     {
         // Create table for the audio API
@@ -49,6 +53,8 @@ namespace AudioLuaAPI
         AudioManager& audioManager = AudioManager::GetInstance();
 
         // Register AudioManager functions
+
+        // Play sound + overloads
         audioAPI.set_function("PlaySound", sol::overload(
             [&audioManager](const std::string& filePath, bool isSoundEffect, float volume) -> bool {
                 HRESULT hr = audioManager.PlaySound(filePath, isSoundEffect, volume);
@@ -72,6 +78,7 @@ namespace AudioLuaAPI
             }
         ));
 
+		// Stop sound functions
         audioAPI.set_function("StopSound", [&audioManager](const std::string& filePath) -> bool {
             HRESULT hr = audioManager.StopSound(filePath);
             return SUCCEEDED(hr);
@@ -81,6 +88,7 @@ namespace AudioLuaAPI
             audioManager.StopAllSounds();
             });
 
+        // Volume functions
         audioAPI.set_function("SetSoundVolume", [&audioManager](const std::string& filePath, float volume) -> bool {
             HRESULT hr = audioManager.SetSoundVolume(filePath, volume);
             return SUCCEEDED(hr);
@@ -91,11 +99,13 @@ namespace AudioLuaAPI
             return SUCCEEDED(hr);
             });
 
+        // Environment / reverb settings
         audioAPI.set_function("SetEnvironment", [&audioManager](EnvironmentType envType) -> bool {
             HRESULT hr = audioManager.SetEnvironment(envType);
             return SUCCEEDED(hr);
             });
 
+		// Memory management functions
         audioAPI.set_function("CleanupResourceCache", sol::overload(
             [&audioManager]() {
                 audioManager.CleanupResourceCache();

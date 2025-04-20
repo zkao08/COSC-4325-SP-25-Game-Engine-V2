@@ -174,8 +174,8 @@ HRESULT SoundResource::Load(const std::wstring& filePath, ResourceType type)
 
         // Set up the audio buffer
         buffer.AudioBytes = dwChunkSize;
-        buffer.pAudioData = audioData.data();  // Points to vector memory which is managed automatically
-        buffer.Flags = XAUDIO2_END_OF_STREAM;  // End of stream flag
+        buffer.pAudioData = audioData.data();  
+        buffer.Flags = XAUDIO2_END_OF_STREAM;  
 
         CloseHandle(hFile);
     }
@@ -340,11 +340,10 @@ void SoundResource::StreamingWorker(IXAudio2SourceVoice* pSourceVoice)
     DWORD blockAlign = pFormat->nBlockAlign;
 
     // Ensure buffer size is large enough and a multiple of the block alignment
-    // Using a larger buffer size to prevent underruns
-    size_t bufferMultiplier = 4;  // Increased from default
+    size_t bufferMultiplier = 4; 
     size_t bufferSize = ((STREAMING_BUFFER_SIZE * bufferMultiplier) / blockAlign) * blockAlign;
     if (bufferSize == 0)
-        bufferSize = blockAlign * 4096;  // Larger fallback buffer
+        bufferSize = blockAlign * 4096;
 
     // Create multiple buffers for a proper ring buffer approach
     const int NUM_BUFFERS = 3;
@@ -361,7 +360,7 @@ void SoundResource::StreamingWorker(IXAudio2SourceVoice* pSourceVoice)
     int currentBuffer = 0;
     int buffersInUse = 0;
 
-    // FIX: Track which buffers have been submitted
+    // Track which buffers have been submitted
     std::vector<bool> bufferSubmitted(NUM_BUFFERS, false);
 
     // Pre-load initial buffers
@@ -370,7 +369,6 @@ void SoundResource::StreamingWorker(IXAudio2SourceVoice* pSourceVoice)
         SetFilePointer(streamingFileHandle, dataChunkPosition, NULL, FILE_BEGIN);
 
         // Fill only the first buffer initially to prevent overlap/double playback
-        // FIX: Load only one buffer instead of all NUM_BUFFERS
         if (totalBytesRead >= dataChunkSize)
         {
             // Loop back if needed
@@ -474,7 +472,6 @@ void SoundResource::StreamingWorker(IXAudio2SourceVoice* pSourceVoice)
         else
         {
             // Wait a bit before checking again
-            // Use a shorter wait time to be more responsive
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
         }
     }

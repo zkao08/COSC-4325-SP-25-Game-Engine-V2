@@ -581,7 +581,8 @@ void AudioManager::CleanupSourceVoicePool()
 
     // Sort by last used time (oldest first) - LRU policy
     std::sort(voices.begin(), voices.end(),
-        [](const auto& a, const auto& b) {
+        [](const auto& a, const auto& b) 
+        {
             return a.second < b.second;
         });
 
@@ -781,30 +782,30 @@ HRESULT AudioManager::SetEnvironment(EnvironmentType envType)
         reverbParameters.RoomFilterFreq = 5000.0f;
         reverbParameters.RoomFilterMain = 0.75f;
         reverbParameters.RoomFilterHF = 0.5f;
-        reverbParameters.WetDryMix = 100.0f;  // Strong wet signal for caves
+        reverbParameters.WetDryMix = 100.0f;  
         reverbParameters.ReflectionsGain = 1.3f;
         reverbParameters.ReverbGain = 1.5f;
         reverbParameters.EarlyDiffusion = 10;
         reverbParameters.LateDiffusion = 10;
-        reverbParameters.RoomSize = 100.0f;  // Large room size for cave
+        reverbParameters.RoomSize = 100.0f;  
         std::cout << "Environment set to CAVE" << std::endl;
         break;
 
     case ENV_UNDERWATER:
         // Underwater muffled sound
-        reverbParameters.DecayTime = 2.5f;                 // Increased from 1.5f for more reverb
-        reverbParameters.Density = 100.0f;                 // Maximum density
-        reverbParameters.RoomFilterFreq = 1000.0f;         // Reduced from 2000.0f for more muffling
-        reverbParameters.RoomFilterMain = 0.9f;            // Increased from 0.8f
-        reverbParameters.RoomFilterHF = 0.05f;             // Decreased from 0.1f for extreme HF filtering
-        reverbParameters.WetDryMix = 70.0f;                // Increased from 50.0f for more wet signal
-        reverbParameters.HighEQGain = 0.15f;               // Decreased from 0.25f to cut more high frequencies
-        reverbParameters.LowEQGain = 2.0f;                 // Increased from 1.5f to boost low frequencies more
-        reverbParameters.RoomSize = 40.0f;                 // Increased room size for more spacious effect
-        reverbParameters.ReflectionsGain = 0.3f;           // Reduced early reflections for muffled effect
-        reverbParameters.ReverbGain = 1.2f;                // Increased late reverb
-        reverbParameters.EarlyDiffusion = 5;               // Lower diffusion for more distinct early reflections
-        reverbParameters.LateDiffusion = 5;                // Lower diffusion for more distinct late reflections
+        reverbParameters.DecayTime = 2.5f;                 
+        reverbParameters.Density = 100.0f;                
+        reverbParameters.RoomFilterFreq = 1000.0f;        
+        reverbParameters.RoomFilterMain = 0.9f;            
+        reverbParameters.RoomFilterHF = 0.05f;             
+        reverbParameters.WetDryMix = 70.0f;               
+        reverbParameters.HighEQGain = 0.15f;               
+        reverbParameters.LowEQGain = 2.0f;                
+        reverbParameters.RoomSize = 40.0f;                
+        reverbParameters.ReflectionsGain = 0.3f;       
+        reverbParameters.ReverbGain = 1.2f;               
+        reverbParameters.EarlyDiffusion = 5;               
+        reverbParameters.LateDiffusion = 5;              
         std::cout << "Environment set to UNDERWATER" << std::endl;
         break;
 
@@ -816,10 +817,10 @@ HRESULT AudioManager::SetEnvironment(EnvironmentType envType)
         reverbParameters.RoomFilterFreq = 8000.0f;
         reverbParameters.RoomFilterMain = 0.6f;
         reverbParameters.RoomFilterHF = 0.8f;
-        reverbParameters.WetDryMix = 80.0f;    // Significant reverb
+        reverbParameters.WetDryMix = 80.0f;    
         reverbParameters.ReflectionsGain = 1.2f;
         reverbParameters.ReverbGain = 1.4f;
-        reverbParameters.RoomSize = 100.0f;    // Large room
+        reverbParameters.RoomSize = 100.0f;    
         std::cout << "Environment set to LARGE_HALL" << std::endl;
         break;
 
