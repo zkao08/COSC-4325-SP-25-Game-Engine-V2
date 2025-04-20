@@ -24,7 +24,7 @@ struct PhysicsShapeParams{
     float x = 0.0f;
     float y = 0.0f;
     float rotation = 0.0f; // in degrees
-    float linearDamping = 0.5f;
+    float linearDamping = 0.05f;
     float angularDamping = 1.0f;
 
     // Box, Triangle, Capsule
@@ -55,7 +55,7 @@ private:
     b2BodyId CreateBox(const PhysicsShapeParams& params);
     b2BodyId CreateCircle(const PhysicsShapeParams& params);
     b2BodyId CreateTriangle(const PhysicsShapeParams& params);
-    //b2BodyId CreateCapsule(const PhysicsShapeParams& params);
+    b2BodyId CreateCapsule(const PhysicsShapeParams& params);
 public:
 	PhysicsWorld(float gravityX = 0.0f, float gravityY = -9.8f);
 	~PhysicsWorld();

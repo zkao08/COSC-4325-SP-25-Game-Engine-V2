@@ -49,7 +49,7 @@ b2BodyId PhysicsWorld::CreateShape(const PhysicsShapeParams& params) {
 			body = CreateTriangle(params);
 			break;
 		case ShapeType::Capsule:
-			//body = CreateCapsule(params);
+			body = CreateCapsule(params);
 			break;
 		default:
 			return {}; // Invalid
@@ -151,14 +151,15 @@ b2BodyId PhysicsWorld::CreateTriangle(const PhysicsShapeParams& params) {
 	b2BodyId bodyId = b2CreateBody(worldId, &bodyDef);
 
 	// Define triangle points
-	b2Vec2 verts[3] = {
+	const int VERTS = 3; // number of verticies (3 for a triangle)
+	b2Vec2 vertices[VERTS] = {
 		{ -params.width * 0.5f, -params.height * 0.5f },
 		{  params.width * 0.5f, -params.height * 0.5f },
 		{  0.0f,                 params.height * 0.5f }
 	};
 
 	// Compute convex hull
-	b2Hull hull = b2ComputeHull(verts, 3);
+	b2Hull hull = b2ComputeHull(vertices, VERTS);
 	// hull check if failed
 	if (hull.count < 3) {
 		std::cerr << "Failed to create valid triangle hull." << std::endl;
@@ -173,5 +174,57 @@ b2BodyId PhysicsWorld::CreateTriangle(const PhysicsShapeParams& params) {
 	shapeDef.density = (params.bodyType == PhysicsBodyType::Dynamic) ? params.density : 0.0f;
 
 	b2CreatePolygonShape(bodyId, &shapeDef, &triangle);
+	return bodyId;
+}
+
+b2BodyId PhysicsWorld::CreateCapsule(const PhysicsShapeParams& params) {
+	b2BodyDef bodyDef = b2DefaultBodyDef();
+
+	switch (params.bodyType) {
+		case PhysicsBodyType::Static:
+			bodyDef.type = b2_staticBody;
+			break;
+		case PhysicsBodyType::Kinematic:
+			bodyDef.type = b2_kinematicBody;
+			break;
+		case PhysicsBodyType::Dynamic:
+			bodyDef.type = b2_dynamicBody;
+			break;
+	}
+
+	bodyDef.position = { params.x, params.y };
+	bodyDef.rotation = b2MakeRot(params.rotation * (B2_PI / 180.0f));
+	bodyDef.angularDamping = 1.0f;
+	bodyDef.linearDamping = 0.05f;
+
+	b2BodyId bodyId = b2CreateBody(worldId, &bodyDef);
+
+	// Capsule dimensions
+	float capsuleRadius = params.radius;
+	float capsuleHeight = params.height - 2.0f * capsuleRadius;
+	if (capsuleHeight < 0.0f) capsuleHeight = 0.0f; // clamp
+
+	b2ShapeDef shapeDef = b2DefaultShapeDef();
+	shapeDef.friction = params.friction;
+	shapeDef.density = (params.bodyType == PhysicsBodyType::Dynamic) ? params.density : 0.0f;
+
+	// Center box
+	if (capsuleHeight > 0.0f) {
+		b2Polygon box = b2MakeBox(params.radius, capsuleHeight * 0.5f);
+		b2CreatePolygonShape(bodyId, &shapeDef, &box);
+	}
+
+	// Top circle
+	b2Circle topCircle = {};
+	topCircle.center = { 0.0f, capsuleHeight * 0.5f };
+	topCircle.radius = capsuleRadius;
+	b2CreateCircleShape(bodyId, &shapeDef, &topCircle);
+
+	// Bottom circle
+	b2Circle bottomCircle = {};
+	bottomCircle.center = { 0.0f, -capsuleHeight * 0.5f };
+	bottomCircle.radius = capsuleRadius;
+	b2CreateCircleShape(bodyId, &shapeDef, &bottomCircle);
+
 	return bodyId;
 }

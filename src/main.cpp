@@ -72,6 +72,19 @@ int main() {
 
     b2BodyId triangle = world.CreateShape(triParams);
 
+    // --- Create a dynamic capsule
+    PhysicsShapeParams capsuleParams;
+    capsuleParams.shapeType = ShapeType::Capsule;
+    capsuleParams.bodyType = PhysicsBodyType::Dynamic;
+    capsuleParams.x = 4.0f;
+    capsuleParams.y = 14.0f;
+    capsuleParams.height = 2.0f;  // full capsule height including round ends
+    capsuleParams.radius = 0.5f;  // radius of top and bottom
+    capsuleParams.friction = 0.5f;
+    capsuleParams.density = 1.0f;
+    capsuleParams.rotation = 0.0f;
+
+    b2BodyId capsule = world.CreateShape(capsuleParams);
 
     /*b2BodyId ground = world.CreateBox({ 4.0f, 1.0f, 8.0f, 2.0f, 0.0f, 0.5f, 1.0f, PhysicsBodyType::Static });
 
@@ -182,6 +195,37 @@ int main() {
 
         // --- Draw Triangle ---
         DrawTriangle(triVerts[0], triVerts[1], triVerts[2], GREEN);
+
+        // --- Draw Capsule ---
+        b2Vec2 posCap = b2Body_GetPosition(capsule);
+        b2Rot rotCap = b2Body_GetRotation(capsule);
+        float angle = -atan2f(rotCap.s, rotCap.c); // Raylib needs negative for Y-down
+
+        float radius = capsuleParams.radius;
+        float bodyH = capsuleParams.height - 2.0f * radius;
+        float bodyW = radius * 2.0f;
+        float halfBodyH = bodyH * 0.5f;
+        float radiusPx = radius * SCALE;
+
+        // Convert body position to screen center
+        Vector2 center = { posCap.x * SCALE, 600 - posCap.y * SCALE };
+
+        // --- Draw body (rectangle) ---
+        DrawRectanglePro(
+            { center.x, center.y, bodyW * SCALE, bodyH * SCALE },
+            { (bodyW * SCALE) / 2, (bodyH * SCALE) / 2 },
+            angle * RAD2DEG,
+            ORANGE
+        );
+
+        // --- Circle offset (in world space)
+        float dx = sinf(angle) * halfBodyH;
+        float dy = cosf(angle) * halfBodyH;
+
+        // --- Draw top and bottom caps
+        DrawCircleV({ (posCap.x + dx) * SCALE, 600 - (posCap.y + dy) * SCALE }, radiusPx, ORANGE);
+        DrawCircleV({ (posCap.x - dx) * SCALE, 600 - (posCap.y - dy) * SCALE }, radiusPx, ORANGE);
+
 
         EndDrawing();
         // -------- DRAWING ENDS HERE --------
