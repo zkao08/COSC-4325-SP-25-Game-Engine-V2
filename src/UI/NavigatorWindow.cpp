@@ -11,7 +11,7 @@ int NavigatorWindow::Render(Renderer* renderer, float scale) {
         ImGui::OpenPopup("Context Menu");
     }
     else if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsWindowHovered()) {
-        Game::DeselectObjects();
+        DeselectObjects();
     }
 
     if (ImGui::BeginPopup("Context Menu")) {
@@ -37,8 +37,8 @@ int NavigatorWindow::Render(Renderer* renderer, float scale) {
 
     ImGui::Separator();
 
-    for (int i = 0; i < Game::GetObjects().size(); i++) {
-        GenerateItemTreeNodes(Game::GetObjects()[i]);
+    for (int i = 0; i < GetObjects().size(); i++) {
+        GenerateItemTreeNodes(GetObjects()[i]);
     }
 
     ImGui::End();
@@ -48,8 +48,8 @@ int NavigatorWindow::Render(Renderer* renderer, float scale) {
 
 void NavigatorWindow::GenerateItemTreeNodes(Entity* item) {
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_OpenOnArrow;
-    for (int i = 0; i < Game::GetSelectedObjects().size(); i++) {
-        if (Game::IsObjectSelected(StringToChar(item->properties["Name"].Data).get()))
+    for (int i = 0; i < GetSelectedObjects().size(); i++) {
+        if (IsObjectSelected(StringToChar(item->properties["Name"].Data).get()))
             flags |= ImGuiTreeNodeFlags_Selected;
     }
 
@@ -66,13 +66,13 @@ void NavigatorWindow::GenerateItemTreeNodes(Entity* item) {
         ImGui::TreePop();
     }
     if (clicked) {
-        Game::DeselectObjects();
-        Game::SelectObject(item);
+        DeselectObjects();
+        SelectObject(item);
     }
 }
 
 void NavigatorWindow::Cleanup() {
-    Game::CleanupObjects();
+    CleanupObjects();
 }
 
 void NavigatorWindow::CreateTestItems() {
@@ -81,5 +81,5 @@ void NavigatorWindow::CreateTestItems() {
     Entity* newObj3 = new Entity("Test3");
     newObj->AddChild(newObj2);
     newObj2->AddChild(newObj3);
-    Game::AddObject(newObj);
+    AddObject(newObj);
 }

@@ -1,8 +1,6 @@
 #include "EntityWindow.h"
 
-EntityWindow::EntityWindow() {
-    enabled = false;
-}
+static bool enabled = false;
 
 void EntityWindow::RenderEntityWindow(float scale) {
     if (enabled) {
@@ -37,4 +35,4 @@ void EntityWindow::ToggleEntityWindow(bool toggle) {
 
 void EntityWindow::ToggleEntityWindow() {
     enabled = !enabled;
-}
+} 

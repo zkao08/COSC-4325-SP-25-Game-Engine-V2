@@ -14,8 +14,8 @@ int PropertiesWindow::Render(float scale) {
     ImGui::Separator();
 
     ImGui::SeparatorText("##PropertiesSearchSeparator");
-    if (Game::GetSelectedObjects().size() > 0)
-        LoadProperties(Game::GetSelectedObjects()[0]);
+    if (GetSelectedObjects().size() > 0)
+        LoadProperties(GetSelectedObjects()[0]);
     else
         LoadProperties(nullptr);
 
