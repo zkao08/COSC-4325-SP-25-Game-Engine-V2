@@ -19,6 +19,10 @@ target_include_directories(lua PUBLIC ${LUA_SRC_DIR})
 # Add subdirectories for each of the libraries
 add_subdirectory(third_party_libs/box2d)
 add_subdirectory(third_party_libs/raylib)
+add_subdirectory(third_party_libs/imgui)
+add_subdirectory(src/Core)
+add_subdirectory(src/UI)
+add_subdirectory(Classes)
 
 # Sol2 is header-only, so just include its directory
 set(SOL2_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party_libs/sol")
@@ -97,7 +101,12 @@ target_include_directories(GameEngine PRIVATE
 
 # Link libraries to your game engine executable
 target_link_libraries(GameEngine PRIVATE 
+	classes
+	core
+	ui
     box2d
+	d3d11
+	imgui
     lua
     ${XAUDIO2_LIBRARY}
 	raylib
