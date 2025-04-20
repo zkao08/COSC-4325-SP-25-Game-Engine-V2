@@ -1,6 +1,8 @@
 #include "raylib.h"
 #include "PhysicsWorld.h"
+#include <iostream>
 extern "C" b2Vec2 b2Body_GetPosition(b2BodyId body);
+extern "C" b2Rot b2Body_GetRotation(b2BodyId body);
 
 int main() {
     const float SCALE = 100.0f;         // 1 meter = 100 pixels
@@ -8,23 +10,83 @@ int main() {
     float accumulator = 0.0f;
     double lastTime = GetTime();
 
-    InitWindow(800, 600, "Box2D + Raylib Physics Test");
-    SetTargetFPS(300);  // Can be anything now
+    InitWindow(1000, 800, "Box2D + Raylib Physics Test");
+    SetTargetFPS(60);
 
     PhysicsWorld world(0.0f, -4.0f);
-    b2BodyId ground = world.CreateBox(4.0f, 1.0f, 8.0f, 2.0f, PhysicsBodyType::Static);
-    b2BodyId box = world.CreateBox(4.0f, 10.0f, 1.0f, 1.0f, PhysicsBodyType::Dynamic);
-    b2BodyId box2 = world.CreateBox(5.0f, 25.0f, 1.0f, 1.0f, PhysicsBodyType::Dynamic);
+
+    // --- Create ground (static box)
+    PhysicsShapeParams groundParams;
+    groundParams.shapeType = ShapeType::Box;
+    groundParams.bodyType = PhysicsBodyType::Static;
+    groundParams.x = 6.0f;
+    groundParams.y = -1.0f;
+    groundParams.width = 18.0f;
+    groundParams.height = 2.0f;
+    groundParams.friction = 0.5f;
+
+    b2BodyId ground = world.CreateShape(groundParams);
+
+    // --- Create a dynamic box
+    PhysicsShapeParams boxParams;
+    boxParams.shapeType = ShapeType::Box;
+    boxParams.bodyType = PhysicsBodyType::Dynamic;
+    boxParams.x = 4.0f;
+    boxParams.y = 10.0f;
+    boxParams.width = 1.0f;
+    boxParams.height = 1.0f;
+    boxParams.rotation = 0.0f;
+
+    b2BodyId box = world.CreateShape(boxParams);
+
+    // --- Create another rotated dynamic box
+    PhysicsShapeParams box2Params = boxParams;
+    box2Params.x = 4.5f;
+    box2Params.y = 12.0f;
+    box2Params.rotation = 30.0f;
+
+    b2BodyId box2 = world.CreateShape(box2Params);
+
+    // --- Create a dynamic circle
+    PhysicsShapeParams circleParams;
+    circleParams.shapeType = ShapeType::Circle;
+    circleParams.bodyType = PhysicsBodyType::Dynamic;
+    circleParams.x = 6.0f;
+    circleParams.y = 13.0f;
+    circleParams.radius = 0.5f; // meters
+    circleParams.friction = 0.5f;
+    
+    b2BodyId circle = world.CreateShape(circleParams);
+
+    // --- Create a dynamic triangle
+    PhysicsShapeParams triParams;
+    triParams.shapeType = ShapeType::Triangle;
+    triParams.bodyType = PhysicsBodyType::Dynamic;
+    triParams.x = 6.0f;
+    triParams.y = 5.0f;
+    triParams.width = 1.0f;
+    triParams.height = 1.0f;
+    triParams.friction = 0.5f;
+    triParams.density = 1.0f;
+    triParams.rotation = 45.0f;
+
+    b2BodyId triangle = world.CreateShape(triParams);
+
+
+    /*b2BodyId ground = world.CreateBox({ 4.0f, 1.0f, 8.0f, 2.0f, 0.0f, 0.5f, 1.0f, PhysicsBodyType::Static });
+
+    b2BodyId ground = world.CreateBox({ 4.0f, 1.0f, 8.0f, 2.0f, 0.0f, 0.5f, 1.0f, PhysicsBodyType::Static });
+    b2BodyId box = world.CreateBox({ 4.0f, 10.0f, 1.0f, 1.0f, 0.0f, 0.5f, 1.0f, PhysicsBodyType::Dynamic });
+    b2BodyId box2 = world.CreateBox({ 4.5f, 12.0f, 1.0f, 1.0f, 45.0f, 0.5f, 1.0f, PhysicsBodyType::Dynamic });*/
+
+
 
     while (!WindowShouldClose()) {
         // --- Fixed Timestep Physics Simulation ---
         double now = GetTime();
         float frameTime = static_cast<float>(now - lastTime);
         lastTime = now;
-
-        // Clamp to avoid spiral of death (e.g. if paused or debugger attached)
         if (frameTime > 0.25f) frameTime = 0.25f;
-
         accumulator += frameTime;
 
         while (accumulator >= PHYSICS_TIMESTEP) {
@@ -36,44 +98,93 @@ int main() {
         BeginDrawing();
         ClearBackground(RAYWHITE);
 
-        // --- Get Body Info ---
-        b2Vec2 pos = b2Body_GetPosition(box);
-        b2Vec2 pos2 = b2Body_GetPosition(box2);
-        b2Vec2 groundPos = b2Body_GetPosition(ground);
-
-        float boxWidth = 1.0f * SCALE;
+        /*float boxWidth = 1.0f * SCALE;
         float boxHeight = 1.0f * SCALE;
         float groundWidth = 8.0f * SCALE;
-        float groundHeight = 2.0f * SCALE;
+        float groundHeight = 2.0f * SCALE;*/
 
+        // --- Get Physics Data ---
+        b2Vec2 pos = b2Body_GetPosition(box);
+        b2Rot rotation = b2Body_GetRotation(box);
+        float rot = -atan2f(rotation.s, rotation.c) * RAD2DEG;
+
+
+        b2Vec2 pos2 = b2Body_GetPosition(box2);
+        b2Rot rotation2 = b2Body_GetRotation(box2);
+        float rot2 = -atan2f(rotation2.s, rotation2.c) * RAD2DEG;
+
+        //std::cout << "ROTATION OF box2 IN DEGREES: " << rot2 << std::endl;
+        //std::cout << "POSITION OF box2: (" << pos2.x << ", " << pos2.y << ")" << std::endl;
+
+        b2Vec2 groundPos = b2Body_GetPosition(ground);
+        b2Vec2 posCircle = b2Body_GetPosition(circle);
+        std::cout << "POSITION OF circle: (" << posCircle.x << ", " << posCircle.y << ")" << std::endl;
+
+        b2Vec2 posTri = b2Body_GetPosition(triangle);
+        b2Rot rotTri = b2Body_GetRotation(triangle);
+        float angleTri = atan2f(rotTri.s, rotTri.c);
+        std::cout << "ROTATION OF triangle IN DEGREES: " << angleTri * RAD2DEG << std::endl;
+
+        // --- Calculations for Triangle ---
+        // Triangle local vertices
+        Vector2 triVerts[3] = {
+            { -triParams.width * 0.5f, -triParams.height * 0.5f },
+            {  triParams.width * 0.5f, -triParams.height * 0.5f },
+            {  0.0f,                   triParams.height * 0.5f }
+        };
+
+        // Transform to world space
+        for (int i = 0; i < 3; ++i) {
+            float x = triVerts[i].x;
+            float y = triVerts[i].y;
+
+            // Rotate
+            float rotatedX = x * cosf(angleTri) - y * sinf(angleTri);
+            float rotatedY = x * sinf(angleTri) + y * cosf(angleTri);
+
+            // Translate and scale
+            triVerts[i].x = posTri.x * SCALE + rotatedX * SCALE;
+            triVerts[i].y = 600 - (posTri.y * SCALE + rotatedY * SCALE);
+        }
+
+        // -------- DRAWING BEGINS HERE --------
         // --- Draw Ground ---
         DrawRectangle(
-            static_cast<int>(groundPos.x * SCALE - groundWidth / 2),
-            static_cast<int>(600 - (groundPos.y * SCALE) - groundHeight / 2),
-            static_cast<int>(groundWidth),
-            static_cast<int>(groundHeight),
+            static_cast<int>(groundPos.x * SCALE - (groundParams.width * SCALE) / 2),
+            static_cast<int>(600 - groundPos.y * SCALE - (groundParams.height * SCALE) / 2),
+            static_cast<int>(groundParams.width * SCALE),
+            static_cast<int>(groundParams.height * SCALE),
             DARKGRAY
         );
 
-        // --- Draw Box 1 ---
-        DrawRectangle(
-            static_cast<int>(pos.x * SCALE - boxWidth / 2),
-            static_cast<int>(600 - (pos.y * SCALE) - boxHeight / 2),
-            static_cast<int>(boxWidth),
-            static_cast<int>(boxHeight),
+        // --- Draw Box 1 (non-rotated) ---
+        DrawRectanglePro(
+            { pos.x * SCALE, 600 - pos.y * SCALE, boxParams.width * SCALE, boxParams.height * SCALE },
+            { (boxParams.width * SCALE / 2), (boxParams.height * SCALE) / 2 },
+            rot,
             BLUE
         );
 
-        // --- Draw Box 2 ---
-        DrawRectangle(
-            static_cast<int>(pos2.x * SCALE - boxWidth / 2),
-            static_cast<int>(600 - (pos2.y * SCALE) - boxHeight / 2),
-            static_cast<int>(boxWidth),
-            static_cast<int>(boxHeight),
+        // --- Draw Box 2 (rotated) ---
+        DrawRectanglePro(
+            { pos2.x * SCALE, 600 - pos2.y * SCALE, box2Params.width * SCALE, box2Params.height * SCALE },
+            { (box2Params.width * SCALE) / 2, (box2Params.height * SCALE) / 2 },
+            rot2,
             BLUE
         );
+
+        // --- Draw Circle ---
+        DrawCircleV(
+            { posCircle.x * SCALE, 600 - posCircle.y * SCALE },
+            circleParams.radius * SCALE,
+            RED
+        );
+
+        // --- Draw Triangle ---
+        DrawTriangle(triVerts[0], triVerts[1], triVerts[2], GREEN);
 
         EndDrawing();
+        // -------- DRAWING ENDS HERE --------
     }
 
     CloseWindow();
