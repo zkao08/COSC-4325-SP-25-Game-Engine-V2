@@ -1,4 +1,3 @@
-# === Existing Content ===
 # Prerequisites
 *.d
 
@@ -32,38 +31,8 @@
 *.out
 *.app
 
-# Build Directory
+# Directories
 /build/
-
-# Visual Studio specific
 .vs/
-*.VC.db
-*.VC.opendb
-*.sdf
-*.suo
-*.user
-*.userosscache
-*.sln.docstates
-
-# CMake cache and temp files
-CMakeFiles/
-CMakeCache.txt
-cmake_install.cmake
-Makefile
-
-# Backup/temporary files
-*~
-*.log
-*.tmp
-*.bak
-
-# Raylib-generated data
-*.png
-*.wav
-
-# Ignore generated directories for Raylib or SDL builds (if any)
-bin/
-obj/
-out/
-
-/GameEngine.exe
+/out/
+CMakeSettings.json
