@@ -2,6 +2,8 @@
 
 #include <string>
 #include <memory>
+#include <cmath>
+
 #include "Vector2.h"
 
 namespace {
@@ -35,5 +37,28 @@ namespace {
 
     std::string Vector2ToString(Vector2 vec2) {
         return std::to_string(vec2.x) + ',' + std::to_string(vec2.y);
+    }
+
+    float RoundFloat(float num, float precision = 0.001) {
+        return std::round((num / precision) * precision);
+    }
+
+    std::string RoundString(std::string str, int place = 3) {
+        std::string buffer;
+        int currentPlace = 0;
+        int decimalFound = false;
+        for (int i = 0; i < str.length(); i++) {
+            if (str[i] == '.')
+                decimalFound = true;
+            else if (decimalFound) {
+                currentPlace++;
+            }
+            if (currentPlace > place)
+                break;
+            
+            buffer += str[i];
+        }
+
+        return buffer;
     }
 }

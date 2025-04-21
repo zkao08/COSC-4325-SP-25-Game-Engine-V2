@@ -55,6 +55,8 @@ public:
 
 	ComPtr<ID3D11Device> GetDevice();
 	ComPtr<ID3D11DeviceContext> GetContext();
+	ComPtr<ID3D11BlendState> GetBlendState();
+	ComPtr<ID3D11SamplerState> GetSamplerState();
 
 private:
 	// Device and device context
@@ -71,6 +73,12 @@ private:
 	ComPtr<ID3D11RenderTargetView> m_RenderTargetView = nullptr;
 	ComPtr<ID3D11DepthStencilView> m_DepthStencilView = nullptr;
 	void CreateRenderTargetAndDepthStencilView(int width, int height);
+
+	ComPtr<ID3D11BlendState> m_BlendState = nullptr;
+	void CreateBlendState();
+
+	ComPtr<ID3D11SamplerState> m_SamplerState = nullptr;
+	void CreateSamplerState();
 
 	// Viewport
 	void SetViewport(int width, int height);

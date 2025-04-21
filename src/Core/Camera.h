@@ -1,6 +1,9 @@
 #pragma once
 
+#include "Vector3.h"
+
 #include <DirectXMath.h>
+#include <algorithm>
 
 // Perspective orbital camera
 class Camera
@@ -11,9 +14,6 @@ public:
 
 	void Move(float delta_x, float delta_y, float z);
 
-	// Recalculates the view based on the pitch and yaw
-	void Rotate(float pitch, float yaw);
-
 	void Reset();
 
 	// Update aspect ratio
@@ -21,6 +21,8 @@ public:
 
 	// Set field of view
 	void UpdateFov(float fov);
+
+	Vector3 GetPosition();
 
 	// Get projection matrix
 	inline DirectX::XMMATRIX GetProjection() const { return m_Projection; }

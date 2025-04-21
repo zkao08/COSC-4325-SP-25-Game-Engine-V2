@@ -14,8 +14,25 @@
 #include "RenderTarget.h"
 #include "Game.h"
 
-#include <memory>
+
+#include "Grid.h"
+#include "Object.h"
+
+#include "Dock.h"
+#include "ObjectWindow.h"
+#include "MainMenuBar.h"
+#include "NavigatorWindow.h"
+#include "PropertiesWindow.h"
+#include "ViewportWindow.h"
+
+#include <DirectXMath.h>
+#include <windowsx.h>
 #include <string>
+#include <iostream>
+#include <math.h>
+#include <vector>
+
+#include <memory>
 
 class Window;
 class Renderer;
@@ -48,8 +65,6 @@ class Application
 		void ComputePlaneViewProjectionMatrix();
 
 		void RenderToTexture();
-
-		void RenderToBackBuffer();
 
 		// Calculate frame stats
 		void CalculateFrameStats(float delta_time);

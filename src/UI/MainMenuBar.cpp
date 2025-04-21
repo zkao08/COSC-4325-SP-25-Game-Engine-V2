@@ -2,9 +2,6 @@
 
 int MainMenuBar::Render() {
     if (ImGui::BeginMainMenuBar()) {
-
-        //ImGui::SetWindowFontScale(scale);
-
         if (ImGui::BeginMenu("File")) {
             ImGui::MenuItem("New (TODO)", "Ctrl+N");
             ImGui::MenuItem("Load... (TODO)");

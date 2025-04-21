@@ -11,14 +11,27 @@
 
 Rect::Rect(Renderer* renderer) : m_Renderer(renderer) {}
 
+void Rect::Create() {
+	CreateVertexBuffer(0, 0);
+	CreateIndexBuffer();
+	LoadTexture(L"../../../assets/Square.png");
+}
+
 void Rect::Create(std::wstring texture_path)
 {
-	CreateVertexBuffer();
+	CreateVertexBuffer(0, 0);
 	CreateIndexBuffer();
 	LoadTexture(texture_path);
 }
 
-void Rect::CreateVertexBuffer()
+void Rect::Create(std::wstring texture_path, float pos_x, float pos_y)
+{
+	CreateVertexBuffer(pos_x, pos_y);
+	CreateIndexBuffer();
+	LoadTexture(texture_path);
+}
+
+void Rect::CreateVertexBuffer(float pos_x, float pos_y)
 {
 	ComPtr<ID3D11Device> device = m_Renderer->GetDevice();
 
@@ -26,13 +39,15 @@ void Rect::CreateVertexBuffer()
 	const float height = 1.0f;
 	const float depth = 0.1f;
 
-	// Vertex data
+	float pos_z = 0.0f;
+
+	// Vertex data with translation applied
 	std::vector<Vertex> vertices =
 	{
-		{ VertexPosition(-width, -height, -depth), VertexTextureUV(0.0f, 1.0f) },
-		{ VertexPosition(-width, +height, -depth), VertexTextureUV(0.0f, 0.0f) },
-		{ VertexPosition(+width, +height, -depth), VertexTextureUV(1.0f, 0.0f) },
-		{ VertexPosition(+width, -height, -depth), VertexTextureUV(1.0f, 1.0f) },
+		{ VertexPosition(pos_x - width, pos_y - height, pos_z - depth), VertexTextureUV(0.0f, 1.0f) },
+		{ VertexPosition(pos_x - width, pos_y + height, pos_z - depth), VertexTextureUV(0.0f, 0.0f) },
+		{ VertexPosition(pos_x + width, pos_y + height, pos_z - depth), VertexTextureUV(1.0f, 0.0f) },
+		{ VertexPosition(pos_x + width, pos_y - height, pos_z - depth), VertexTextureUV(1.0f, 1.0f) },
 	};
 
 	// Create vertex buffer
@@ -74,8 +89,6 @@ void Rect::CreateIndexBuffer()
 
 void Rect::LoadTexture(std::wstring path)
 {
-	//std::wstring path = L"../../../assets/WoodTexture.jpg";
-
 	// Check if file exists
 	if (!std::filesystem::exists(path))
 	{
@@ -99,6 +112,10 @@ void Rect::Render()
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
 
+	// Set the blend state
+	FLOAT blendFactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f }; // Optional: set blend factor
+	context->OMSetBlendState(m_Renderer->GetBlendState().Get(), blendFactor, 0xffffffff);
+
 	// Bind the vertex buffer to the pipeline's Input Assembler stage
 	context->IASetVertexBuffers(0, 1, m_VertexBuffer.GetAddressOf(), &stride, &offset);
 
@@ -108,9 +125,20 @@ void Rect::Render()
 	// Bind the geometry topology to the pipeline's Input Assembler stage
 	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
+	// Bind sampler to pixel shader
+	context->PSSetSamplers(0, 1, m_Renderer->GetSamplerState().GetAddressOf());
+
 	// Bind texture to the pixel shader
 	context->PSSetShaderResources(0, 1, m_DiffuseTexture.GetAddressOf());
 
 	// Render geometry
 	context->DrawIndexed(m_IndexCount, 0, 0);
+}
+
+void Rect::ChangePosition(float x, float y) {
+	CreateVertexBuffer(x, y);
+}
+
+void Rect::ChangePosition(Vector2 pos) {
+	CreateVertexBuffer(pos.x, pos.y);
 }

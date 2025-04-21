@@ -9,9 +9,10 @@
 #include "RenderTarget.h"
 #include "Grid.h"
 #include "Game.h"
+#include "Object.h"
 
 #include "Dock.h"
-#include "EntityWindow.h"
+#include "ObjectWindow.h"
 #include "MainMenuBar.h"
 #include "NavigatorWindow.h"
 #include "PropertiesWindow.h"
@@ -61,6 +62,9 @@ Application::Application() {
 	m_RenderTarget = std::make_unique<RenderTarget>(m_Renderer.get());
 	m_RenderTarget->Create(scaledResolutionX, scaledResolutionY);
 
+	// Create raster state
+	m_RasterState = std::make_unique<RasterState>(m_Renderer.get());
+
 	// Create game state
 	m_Game = std::make_unique<Game>();
 }
@@ -74,17 +78,13 @@ int Application::Execute() {
 	scaleFactor = m_Renderer->GetScaleFactor((float)scaledResolutionX, (float)scaledResolutionY);
 
 	// Rect
-	std::unique_ptr<Rect> newRect = std::make_unique<Rect>(m_Renderer.get());
-	newRect->Create(L"../../../assets/WoodTexture.jpg");
+	/*std::unique_ptr<Rect> newRect = std::make_unique<Rect>(m_Renderer.get());
+	newRect->Create(L"../../../assets/WoodTexture.jpg", 1, 1, 0);
+	std::unique_ptr<Rect> newRect2 = std::make_unique<Rect>(m_Renderer.get());
+	newRect2->Create(L"../../../assets/ThinTriangle.png", 0, 0, 0);*/
 
-	// Grid
-	//std::unique_ptr<Grid> newGrid = std::make_unique<Grid>(m_Renderer.get());
-	//newGrid->Create(1000, 2.0f);
-
-	// Raster state
-	m_RasterState = std::make_unique<RasterState>(m_Renderer.get());
-
-	m_Game.get()->CreateTestItems();
+	//std::unique_ptr<Object> obj = std::make_unique<Object>(m_Renderer.get(), (char*)"Test");
+	//m_Game->AddObject(obj.get());
 
 	// Main application loop
 	while (m_Running)
@@ -101,22 +101,23 @@ int Application::Execute() {
 			DispatchMessageW(&msg);
 		}
 		else {
+			std::vector<Object*> objects = m_Game->GetObjects();
+
 			m_Shader->Use();
 			m_RasterState->Use();
 
-			//RenderToTexture();
 			// Binds the render-to-texture render target to the pipeline
 			m_RenderTarget->Use();
 			// Update the model view projection constant buffer
 			this->ComputeModelViewProjectionMatrix();
 			// Render the model
-			newRect->Render();
-			//newGrid->Render();
+			//obj->Update();
+			for (int i = 0; i < objects.size(); i++)
+				objects[i]->Update();
 
-			//RenderToBackBuffer();
 			m_Renderer->Clear();
 
-			SetDockingBehavior();
+			Dock::SetDockingBehavior();
 
 			result = MainMenuBar::Render();
 			if (result != 1)
@@ -125,7 +126,7 @@ int Application::Execute() {
 			NavigatorWindow::Render(m_Renderer.get(), m_Game.get(), scaleFactor);
 			PropertiesWindow::Render(m_Game.get(), scaleFactor);
 			ViewportWindow::Render(m_Renderer.get(), scaleFactor, (ImTextureID)(intptr_t)m_RenderTarget->GetTexture());
-			EntityWindow::RenderEntityWindow(scaleFactor);
+			ObjectWindow::Render(m_Renderer.get(), m_Game.get(), scaleFactor);
 
 			ImVec2 viewportWindowSize = ViewportWindow::GetSize();
 			m_Camera->UpdateAspectRatio(viewportWindowSize.x, viewportWindowSize.y);
@@ -183,22 +184,15 @@ void Application::OnResized(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 }
 
 void Application::OnMouseMove(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, float delta_z) {
+	if (!ViewportWindow::IsHovered())
+		return;
+
 	static int previous_mouse_x = 0;
 	static int previous_mouse_y = 0;
 
 	int mouse_x = static_cast<int>(GET_X_LPARAM(lParam));
 	int mouse_y = static_cast<int>(GET_Y_LPARAM(lParam));
 
-	/*if (wParam & MK_LBUTTON) {
-		float relative_mouse_x = static_cast<float>(mouse_x - previous_mouse_x);
-		float relative_mouse_y = static_cast<float>(mouse_y - previous_mouse_y);
-
-		// Rotate camera
-		float yaw = relative_mouse_x * 0.01f;
-		float pitch = relative_mouse_y * 0.01f;
-
-		m_Camera->Rotate(pitch, yaw);
-	}*/
 	if ((wParam & MK_MBUTTON)) {
 		float relative_mouse_x = static_cast<float>(mouse_x - previous_mouse_x);
 		float relative_mouse_y = static_cast<float>(mouse_y - previous_mouse_y);
@@ -217,6 +211,9 @@ void Application::OnMouseMove(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,
 }
 
 void Application::OnMouseScroll(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+	if (!ViewportWindow::IsHovered())
+		return;
+
 	static int previous_mouse_z = 0;
 
 	int mouse_z = static_cast<int>(GET_WHEEL_DELTA_WPARAM(wParam));
@@ -227,9 +224,6 @@ void Application::OnMouseScroll(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 }
 
 void Application::OnKeyDown(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-	//WORD flags = HIWORD(lParam);
-	//BOOL key_repeat = (flags & KF_REPEAT) == KF_REPEAT;
-
 	if (!ViewportWindow::IsFocused())
 		return;
 
@@ -285,26 +279,6 @@ void Application::RenderToTexture()
 
 	// Update the model view projection constant buffer
 	this->ComputeModelViewProjectionMatrix();
-
-	// Render the model
-	//m_Model->Render();
-}
-
-void Application::RenderToBackBuffer()
-{
-	// Clear the buffers and bind's the backbuffer as the render target
-	m_Renderer->Clear();
-
-	// Update the model view projection constant buffer and renders the model
-	//this->ComputeModelViewProjectionMatrix();
-	//m_Model->Render();
-
-	// Sets the plane's texture to be the render-to-texture texture
-	//m_Plane->SetTexture(m_RenderTarget->GetTexture());
-
-	// Update the plane view projection constant buffer and renders the plane
-	//this->ComputePlaneViewProjectionMatrix();
-	//m_Plane->Render();
 }
 
 void Application::GetResolution(int& x, int& y)

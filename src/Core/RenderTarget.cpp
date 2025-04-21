@@ -1,6 +1,7 @@
 #include "RenderTarget.h"
 #include <DirectXColors.h>
 
+// Modifies the background color
 static DirectX::XMVECTORF32 floatingVector = { 32.0f / 255.0f, 32.0f / 255.0f, 32.0f / 255.0f, 1.0f };
 
 RenderTarget::RenderTarget(Renderer* renderer) : m_Renderer(renderer)

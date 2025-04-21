@@ -3,10 +3,9 @@
 ImVec2 ViewportWindow::size;
 
 static bool isFocused = false;
+static bool isHovered = false;
 
 int ViewportWindow::Render(Renderer* renderer, float scale, ImTextureID texture) {
-    ComPtr<ID3D11DeviceContext> context = renderer->GetContext();
-
     ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoBackground);
 
     ImGui::SetWindowFontScale(scale);
@@ -26,6 +25,7 @@ int ViewportWindow::Render(Renderer* renderer, float scale, ImTextureID texture)
     renderer->CreateImageButton("ResizeTool", "../../../assets/Resize.png", ImVec2(30, 30));
 
     isFocused = ImGui::IsWindowFocused();
+    isHovered = ImGui::IsWindowHovered();
 
     ImGui::End();
 
@@ -38,4 +38,8 @@ ImVec2 ViewportWindow::GetSize() {
 
 bool ViewportWindow::IsFocused() {
     return isFocused;
+}
+
+bool ViewportWindow::IsHovered() {
+    return isHovered;
 }

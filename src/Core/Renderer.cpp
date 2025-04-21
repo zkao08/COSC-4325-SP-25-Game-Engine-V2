@@ -12,11 +12,15 @@
 #include "stb_image.h"
 
 #include <iostream>
-
-#include <DirectXColors.h>
+#include <string>
+#include <memory>
+#include <map>
 
 const ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 const float clear_color_with_alpha[4] = { clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w };
+static DirectX::XMVECTORF32 floatingVector = { 32.0f / 255.0f, 32.0f / 255.0f, 32.0f / 255.0f, 1.0f };
+
+static std::map<char*, ID3D11ShaderResourceView*> cachedTextures;
 
 Renderer::Renderer(Application* application) : m_Application(application) {}
 
@@ -35,6 +39,8 @@ void Renderer::Create()
 	CreateDeviceAndContext();
 	CreateSwapChain(window_width, window_height);
 	CreateRenderTargetAndDepthStencilView(window_width, window_height);
+	CreateBlendState();
+	CreateSamplerState();
 	SetViewport(window_width, window_height);
 
 	// Setup imgui
@@ -144,6 +150,21 @@ void Renderer::CreateSwapChain(int width, int height)
 	}
 }
 
+void Renderer::CreateSamplerState() {
+	D3D11_SAMPLER_DESC samplerDesc;
+	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+	samplerDesc.MipLODBias = 0.0f;
+	samplerDesc.MaxAnisotropy = 1;
+	samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+	samplerDesc.MinLOD = -FLT_MAX;
+	samplerDesc.MaxLOD = FLT_MAX;
+
+	DX::Check(m_Device->CreateSamplerState(&samplerDesc, &m_SamplerState));
+}
+
 void Renderer::CreateRenderTargetAndDepthStencilView(int width, int height)
 {
 	// Create the render target view
@@ -172,6 +193,24 @@ void Renderer::CreateRenderTargetAndDepthStencilView(int width, int height)
 	m_DeviceContext->OMSetRenderTargets(1, m_RenderTargetView.GetAddressOf(), m_DepthStencilView.Get());
 }
 
+void Renderer::CreateBlendState() {
+	D3D11_BLEND_DESC blendDesc = {};
+	blendDesc.AlphaToCoverageEnable = TRUE; // Fun fact: Setting this to FALSE punches a hole through the viewport.
+	blendDesc.IndependentBlendEnable = FALSE;
+
+	D3D11_RENDER_TARGET_BLEND_DESC& rtBlendDesc = blendDesc.RenderTarget[0];
+	rtBlendDesc.BlendEnable = TRUE;
+	rtBlendDesc.SrcBlend = D3D11_BLEND_SRC_ALPHA;
+	rtBlendDesc.DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+	rtBlendDesc.BlendOp = D3D11_BLEND_OP_ADD;
+	rtBlendDesc.SrcBlendAlpha = D3D11_BLEND_ONE;
+	rtBlendDesc.DestBlendAlpha = D3D11_BLEND_ZERO;
+	rtBlendDesc.BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	rtBlendDesc.RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+
+	DX::Check(m_Device->CreateBlendState(&blendDesc, m_BlendState.ReleaseAndGetAddressOf()));
+}
+
 void Renderer::SetViewport(int width, int height)
 {
 	// Describe the viewport
@@ -190,7 +229,7 @@ void Renderer::SetViewport(int width, int height)
 void Renderer::Clear()
 {
 	// Clear the render target view to the chosen colour
-	m_DeviceContext->ClearRenderTargetView(m_RenderTargetView.Get(), reinterpret_cast<const float*>(&DirectX::Colors::SteelBlue));
+	m_DeviceContext->ClearRenderTargetView(m_RenderTargetView.Get(), floatingVector);
 	m_DeviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
 	// Bind the render target view to the pipeline's output merger stage
@@ -314,8 +353,16 @@ bool Renderer::CreateImageButton(char* id, char* path, ImVec2 size) {
 	ID3D11ShaderResourceView* image = NULL;
 	int size_x = size.x;
 	int size_y = size.y;
-	bool imageResult = LoadTextureFromFile(path, &image, &size_x, &size_y);
+	bool imageResult = true;
 	bool pressed = false;
+
+	// Fun fact: Not caching textures here results in a HUGE memory leak, meaning the computer can literally crash in minutes from running out of memory.
+	if (cachedTextures[path] != NULL)
+		image = cachedTextures[path];
+	else {
+		imageResult = LoadTextureFromFile(path, &image, &size_x, &size_y);
+		cachedTextures[path] = image;
+	}
 
 	if (imageResult) {
 		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));
@@ -341,4 +388,12 @@ ComPtr<ID3D11Device> Renderer::GetDevice() {
 }
 ComPtr<ID3D11DeviceContext> Renderer::GetContext() {
 	return m_DeviceContext;
+}
+
+ComPtr<ID3D11BlendState> Renderer::GetBlendState() {
+	return m_BlendState;
+}
+
+ComPtr<ID3D11SamplerState> Renderer::GetSamplerState() {
+	return m_SamplerState;
 }

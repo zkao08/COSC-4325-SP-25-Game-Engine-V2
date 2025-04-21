@@ -1,7 +1,6 @@
 #include "PropertiesWindow.h"
 
 int PropertiesWindow::Render(Game* game, float scale) {
-    static char nameInput[64] = "";
     char* searchText = "";
 
     ImGui::Begin("Properties");
@@ -24,13 +23,13 @@ int PropertiesWindow::Render(Game* game, float scale) {
     return 1;
 }
 
-void PropertiesWindow::LoadProperties(Entity* entity) {
-    if (entity == nullptr) {
+void PropertiesWindow::LoadProperties(Object* obj) {
+    if (obj == nullptr) {
         ImGui::Text("No object selected.");
         return;
     }
 
-    for (auto& property : entity->properties) {
+    for (auto& property : obj->properties) {
         ImGui::Text(property.first.c_str());
         ImGui::SameLine();
         if (property.second.DataType == "Vector2") {
@@ -41,16 +40,18 @@ void PropertiesWindow::LoadProperties(Entity* entity) {
             std::string buffer;
             bool conversionSuccess = true;
 
-            buffer = std::to_string(vec2.x);
+            buffer = RoundString(std::to_string(vec2.x));
             strcpy(xText, buffer.c_str());
-            buffer = std::to_string(vec2.y);
+            buffer = RoundString(std::to_string(vec2.y));
             strcpy(yText, buffer.c_str());
 
             ImGui::SetNextItemWidth(width);
-            ImGui::InputText(("##" + property.first + "X").c_str(), xText, 16, ImGuiInputTextFlags_CharsDecimal);
+            if (!ImGui::InputText(("##" + property.first + "X").c_str(), xText, 16, ImGuiInputTextFlags_CharsDecimal))
+                buffer = xText;
             ImGui::SameLine();
             ImGui::SetNextItemWidth(width);
-            ImGui::InputText(("##" + property.first + "Y").c_str(), yText, 16, ImGuiInputTextFlags_CharsDecimal);
+            if (!ImGui::InputText(("##" + property.first + "Y").c_str(), yText, 16, ImGuiInputTextFlags_CharsDecimal))
+                buffer = yText;
 
             try {
                 buffer = xText;
@@ -67,6 +68,17 @@ void PropertiesWindow::LoadProperties(Entity* entity) {
 
             delete[] xText;
             delete[] yText;
+        }
+        else if (property.second.DataType == "float") {
+            char* text = new char[8];
+
+            strcpy(text, RoundString(property.second.Data, 2).c_str());
+
+            if (ImGui::InputText(("##" + property.first + "Y").c_str(), text, 8, ImGuiInputTextFlags_CharsDecimal)) {
+                property.second.Data = text;
+            }
+
+            delete[] text;
         }
         else {
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);

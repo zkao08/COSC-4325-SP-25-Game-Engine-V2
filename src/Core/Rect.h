@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Vector2.h"
+
 #include <Windows.h>
 #include <d3d11.h>
 #include <string>
@@ -19,17 +21,22 @@ public:
 	virtual ~Rect() = default;
 
 	// Create the model
+	void Create();
 	void Create(std::wstring path);
+	void Create(std::wstring path, float pos_x, float pos_y);
 
 	// Render the model
 	void Render();
+
+	void ChangePosition(float x, float y);
+	void ChangePosition(Vector2 pos);
 
 private:
 	// Number of indices to draw
 	UINT m_IndexCount = 0;
 
 	// Vertex buffer
-	void CreateVertexBuffer();
+	void CreateVertexBuffer(float pos_x, float pos_y);
 	ComPtr<ID3D11Buffer> m_VertexBuffer = nullptr;
 
 	// Index buffer

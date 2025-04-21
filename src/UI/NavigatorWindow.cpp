@@ -16,7 +16,7 @@ int NavigatorWindow::Render(Renderer* renderer, Game* game, float scale) {
 
     if (ImGui::BeginPopup("Context Menu")) {
         if (ImGui::MenuItem("Add Item...")) {
-            EntityWindow::ToggleEntityWindow(true);
+            ObjectWindow::Toggle(true);
         }
         ImGui::EndPopup();
     }
@@ -28,7 +28,7 @@ int NavigatorWindow::Render(Renderer* renderer, Game* game, float scale) {
     ImGui::SameLine();
 
     if (renderer->CreateImageButton("Add", "../../../assets/Add.png", ImVec2(24, 24)))
-        EntityWindow::ToggleEntityWindow();
+        ObjectWindow::Toggle();
 
     ImGui::Separator();
 
@@ -46,7 +46,7 @@ int NavigatorWindow::Render(Renderer* renderer, Game* game, float scale) {
     return 1;
 }
 
-void NavigatorWindow::GenerateItemTreeNodes(Entity* item, Game* game) {
+void NavigatorWindow::GenerateItemTreeNodes(Object* item, Game* game) {
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_OpenOnArrow;
     for (int i = 0; i < game->GetSelectedObjects().size(); i++) {
         if (game->IsObjectSelected(StringToChar(item->properties["Name"].Data).get()))

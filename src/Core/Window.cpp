@@ -59,9 +59,7 @@ std::string ConvertToString(const std::wstring& str)
 	return conversion;
 }
 
-Window::Window(Application* application) : m_Application(application)
-{
-}
+Window::Window(Application* application) : m_Application(application) {}
 
 Window::~Window()
 {

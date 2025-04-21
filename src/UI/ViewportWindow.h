@@ -15,4 +15,5 @@ class ViewportWindow {
         static int Render(Renderer* renderer, float scale, ImTextureID texture);
         static ImVec2 GetSize();
         static bool IsFocused();
+        static bool IsHovered();
 };

@@ -8,12 +8,13 @@
 #include "Game.h"
 #include "Vector2.h"
 #include "Utility.h"
+#include "Object.h"
 
-#include <exception>
+#include <stdexcept>
 #include <string>
 
 class PropertiesWindow {
     public:
         static int Render(Game* game, float scale);
-        static void LoadProperties(Entity* entity);
+        static void LoadProperties(Object* entity);
 };
