@@ -115,61 +115,64 @@ target_link_libraries(GameEngine PRIVATE
 # -------------------------------
 
 # Audio Test Executable
-#add_executable(AudioTest 
-#    src/audio_test.cpp
-#    src/AudioManager.cpp
-#    src/AudioLuaAPI.cpp
-#    src/SoundResource.cpp
-#)
+add_executable(AudioTest 
+    src/audio_test.cpp
+    src/AudioManager.cpp
+    src/AudioLuaAPI.cpp
+    src/SoundResource.cpp
+)
 
 # Include directories for AudioTest
-#target_include_directories(AudioTest PRIVATE
-#    ${IMGUI_DIR}
-#    third_party_libs/box2d
-#    ${SOL2_INCLUDE_DIR}
-#    ${LUA_SRC_DIR} 
-#    ${SRC_DIR} 
-#    ${XAUDIO2_INCLUDE_DIR}
-#)
+target_include_directories(AudioTest PRIVATE
+    ${IMGUI_DIR}
+    third_party_libs/box2d
+    ${SOL2_INCLUDE_DIR}
+    ${LUA_SRC_DIR} 
+    ${SRC_DIR} 
+    ${XAUDIO2_INCLUDE_DIR}
+)
 
 # Link libraries to AudioTest
-#target_link_libraries(AudioTest PRIVATE 
-#    lua
-#    ${XAUDIO2_LIBRARY}
-#	raylib
-#)
-
-# You can add more test executables here following the same pattern
-# For example:
+target_link_libraries(AudioTest PRIVATE 
+    lua
+    ${XAUDIO2_LIBRARY}
+	raylib
+)
 
 # Physics Test Executable
-# add_executable(PhysicsTest 
-#     src/physics_test.cpp
-#     src/Physics/PhysicsSystem.cpp
-#     # Add other required source files
-# )
-# 
-# target_include_directories(PhysicsTest PRIVATE
-#     ${SRC_DIR}
-#     third_party_libs/box2d
-# )
-# 
-# target_link_libraries(PhysicsTest PRIVATE
-#     box2d
-# )
+add_executable(PhysicsTest 
+    src/physics_test.cpp
+    src/PhysicsWorld.cpp
+)
 
-# Rendering Test Executable 
-# add_executable(RenderingTest 
-#     src/rendering_test.cpp
-#     src/Rendering/RenderSystem.cpp
-#     # Add other required source files
-# )
-# 
-# target_include_directories(RenderingTest PRIVATE
-#     ${IMGUI_DIR}
-#     ${SRC_DIR}
-# )
-# 
-# target_link_libraries(RenderingTest PRIVATE
-#     # Add required libraries
-# )
+# Include directories for PhysicsTest
+target_include_directories(PhysicsTest PRIVATE
+    ${IMGUI_DIR}
+    third_party_libs/box2d
+    ${SOL2_INCLUDE_DIR}
+    ${LUA_SRC_DIR} 
+    ${SRC_DIR} 
+)
+
+# Link libraries to PhysicsTest
+target_link_libraries(PhysicsTest PRIVATE 
+    box2d
+    raylib
+)
+
+# Input Test Executable
+add_executable(InputTest 
+    src/input_test.cpp
+    src/InputHandler.cpp
+)
+
+# Include directories for InputTest
+target_include_directories(InputTest PRIVATE
+    ${SRC_DIR}
+    third_party_libs/raylib/src
+)
+
+# Link libraries to InputTest
+target_link_libraries(InputTest PRIVATE 
+    raylib
+)

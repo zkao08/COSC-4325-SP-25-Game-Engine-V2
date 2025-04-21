@@ -1,5 +1,3 @@
-#define STB_IMAGE_IMPLEMENTATION
-
 #include "Renderer.h"
 #include "Application.h"
 #include "Window.h"
