@@ -13,6 +13,9 @@
 #include <memory>
 #include <map>
 
+#include <wrl\client.h>
+using Microsoft::WRL::ComPtr;
+
 struct PropertyData {
 	std::string DataType;
 	std::string Data;
@@ -23,18 +26,14 @@ class Object {
 		Object* parent = nullptr;
 		std::vector<Object*> children;
 		std::unique_ptr<Rect> shape = nullptr;
+		bool markedDeleted = false;
 
 		std::map<std::string, PropertyData> properties {
 			{"Name", {"char", "Object"}},
-			{"Position", {"Vector2", "0,0"}},
-			{"Rotation", {"float", "0.0"}},
-			{"Size", {"Vector2", "0,0"}}
 		};
 
 		Object(Renderer* renderer, std::string new_name);
-
 		Object(Renderer* renderer, std::string new_name, std::map<std::string, PropertyData>);
-
 		~Object();
 
 		void AddChild(Object* child);

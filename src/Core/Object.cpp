@@ -1,7 +1,5 @@
 #include "Object.h"
 
-#include <iostream>
-
 Object::Object(Renderer* renderer, std::string new_name) {
 	this->properties["Name"].Data = new_name;
 	this->shape = std::make_unique<Rect>(renderer);
@@ -18,8 +16,10 @@ Object::Object(Renderer* renderer, std::string new_name, std::map<std::string, P
 }
 
 Object::~Object() {
-	for (int i = 0; i < children.size(); i++)
-		delete children[i];
+	for (int i = 0; i < children.size(); i++) {
+		if (!children[i]->markedDeleted)
+			delete children[i];
+	}
 
 	children.clear();
 }

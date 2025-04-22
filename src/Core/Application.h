@@ -53,24 +53,19 @@ class Application
 		bool m_WindowCreated = false;
 		std::string m_ApplicationTitle = "App";
 
-		// On resized event
 		void OnResized(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
 		void OnMouseMove(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, float delta_z = 0.0f);
-
 		void OnMouseScroll(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
 		void OnKeyDown(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 		void ComputePlaneViewProjectionMatrix();
+		void ComputeModelViewProjectionMatrix();
 
 		void RenderToTexture();
 
 		// Calculate frame stats
 		void CalculateFrameStats(float delta_time);
 		int m_FrameCount = 0;
-
-		void ComputeModelViewProjectionMatrix();
 
 		void GetResolution(int& x, int& y);
 

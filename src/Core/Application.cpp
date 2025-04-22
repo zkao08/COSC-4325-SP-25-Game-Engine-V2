@@ -112,8 +112,11 @@ int Application::Execute() {
 			this->ComputeModelViewProjectionMatrix();
 			// Render the model
 			//obj->Update();
-			for (int i = 0; i < objects.size(); i++)
-				objects[i]->Update();
+
+			for (int i = 0; i < objects.size(); i++) {
+				if (!objects[i]->markedDeleted)
+					objects[i]->Update();
+			}
 
 			m_Renderer->Clear();
 
