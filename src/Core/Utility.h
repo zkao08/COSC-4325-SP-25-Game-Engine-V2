@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Windows.h>
+
 #include <string>
 #include <memory>
 #include <cmath>
@@ -59,6 +61,21 @@ namespace {
             buffer += str[i];
         }
 
+        if (buffer == "" || buffer == "-")
+            return "0";
+
         return buffer;
+    }
+
+    void GetResolution(int& x, int& y)
+    {
+        RECT desktop;
+
+        const HWND hDesktop = GetDesktopWindow();
+
+        GetWindowRect(hDesktop, &desktop);
+
+        x = desktop.right;
+        y = desktop.bottom;
     }
 }

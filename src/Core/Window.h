@@ -27,6 +27,7 @@ public:
 
 	// Get window size
 	void GetSize(int* width, int* height);
+	void GetSize(int& width, int& height);
 
 	// Get native window handle
 	inline HWND GetHwnd() const { return m_Hwnd; }

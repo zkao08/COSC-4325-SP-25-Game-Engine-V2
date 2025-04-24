@@ -3,6 +3,7 @@
 #include "Object.h"
 #include <vector>
 #include <string>
+#include <DirectXMath.h>
 
 class Game {
 	private:

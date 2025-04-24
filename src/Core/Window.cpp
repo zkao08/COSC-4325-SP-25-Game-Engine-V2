@@ -128,6 +128,15 @@ void Window::GetSize(int* width, int* height)
 	*height = rect.bottom - rect.top;
 }
 
+void Window::GetSize(int& width, int& height)
+{
+	RECT rect;
+	GetClientRect(m_Hwnd, &rect);
+
+	width = rect.right - rect.left;
+	height = rect.bottom - rect.top;
+}
+
 void Window::SetTitle(const std::string& title)
 {
 	SetWindowText(m_Hwnd, (LPCSTR)title.c_str());

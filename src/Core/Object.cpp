@@ -1,5 +1,7 @@
 #include "Object.h"
 
+float LimitRotation(float rotation);
+
 Object::Object(Renderer* renderer, std::string new_name) {
 	this->properties["Name"].Data = new_name;
 	this->shape = std::make_unique<Rect>(renderer);
@@ -30,8 +32,22 @@ void Object::AddChild(Object* child) {
 }
 
 void Object::Update() {
+	if (this->properties.find("Rotation") != this->properties.end()) {
+		float num = std::stof(RoundString(this->properties["Rotation"].Data));
+		num = LimitRotation(num);
+		this->properties["Rotation"].Data = RoundString(std::to_string(num));
+	}
 	if (this->shape.get() != nullptr) {
-		shape->ChangePosition(StringToVector2(this->properties["Position"].Data));
+		shape->SetTransform(StringToVector2(this->properties["Position"].Data), StringToVector2(this->properties["Size"].Data), std::stof(RoundString(this->properties["Rotation"].Data)));
 		shape->Render();
 	}
+}
+
+float LimitRotation(float rotation) {
+	if (rotation > 360)
+		rotation = LimitRotation(rotation - 360);
+	else if (rotation < 0)
+		rotation = LimitRotation(rotation + 360);
+
+	return rotation;
 }

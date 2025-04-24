@@ -10,7 +10,7 @@ const std::map<std::string, std::map<std::string, PropertyData>> classList{
                     {"Name", {"char", "Object"}},
                     {"Position", {"Vector2", "0,0"}},
                     {"Rotation", {"float", "0.0"}},
-                    {"Size", {"Vector2", "0,0"}}
+                    {"Size", {"Vector2", "1,1"}}
                 }
             },
             {"Folder_Contains objects.",
