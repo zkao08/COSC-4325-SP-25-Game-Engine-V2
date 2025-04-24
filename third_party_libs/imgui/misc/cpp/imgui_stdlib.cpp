@@ -19,9 +19,9 @@
 
 struct InputTextCallback_UserData
 {
-    std::string*            Str;
+    std::string* Str;
     ImGuiInputTextCallback  ChainCallback;
-    void*                   ChainCallbackUserData;
+    void* ChainCallbackUserData;
 };
 
 static int InputTextCallback(ImGuiInputTextCallbackData* data)
