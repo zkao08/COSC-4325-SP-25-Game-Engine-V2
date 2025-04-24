@@ -2,6 +2,9 @@
 
 static int idCount = 0;
 
+const std::string REFRESH_PATH = GetProjectRoot() + "/assets/Refresh.png";
+const std::string ADD_PATH = GetProjectRoot() + "/assets/Add.png";
+
 int NavigatorWindow::Render(Renderer* renderer, Game* game, float scale) {
     char* searchText = "";
     static bool rightClicked = false;
@@ -19,13 +22,13 @@ int NavigatorWindow::Render(Renderer* renderer, Game* game, float scale) {
         game->DeselectObjects();
     }
 
-    if (renderer->CreateImageButton("Refresh", "../../../assets/Refresh.png", ImVec2(24, 24))) {
+    if (renderer->CreateImageButton("Refresh", const_cast<char*>(REFRESH_PATH.c_str()), ImVec2(24, 24))) {
         // No implementation yet.
     }
 
     ImGui::SameLine();
 
-    if (renderer->CreateImageButton("Add", "../../../assets/Add.png", ImVec2(24, 24)))
+    if (renderer->CreateImageButton("Add", const_cast<char*>(ADD_PATH.c_str()), ImVec2(24, 24)))
         ObjectWindow::Toggle();
 
     ImGui::Separator();

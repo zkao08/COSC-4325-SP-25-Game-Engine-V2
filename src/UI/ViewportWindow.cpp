@@ -9,6 +9,11 @@ ImVec2 ViewportWindow::regionAvail;
 static bool isFocused = false;
 static bool isHovered = false;
 
+const std::string SELECT_PATH = GetProjectRoot() + "/assets/Select.png";
+const std::string MOVE_PATH = GetProjectRoot() + "/assets/Move.png";
+const std::string ROTATE_PATH = GetProjectRoot() + "/assets/Rotate.png";
+const std::string RESIZE_PATH = GetProjectRoot() + "/assets/Resize.png";
+
 int ViewportWindow::Render(Renderer* renderer, float scale, ImTextureID texture) {
     ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoBackground);
 
@@ -20,10 +25,10 @@ int ViewportWindow::Render(Renderer* renderer, float scale, ImTextureID texture)
 
     ImGui::GetWindowDrawList()->AddImage(texture, windowPos, windowPos + ImVec2(2048, 2048));
 
-    renderer->CreateImageButton("SelectTool", "../../../assets/Select.png", ImVec2(30, 30));
-    renderer->CreateImageButton("MoveTool", "../../../assets/Move.png", ImVec2(30, 30));
-    renderer->CreateImageButton("RotateTool", "../../../assets/Rotate.png", ImVec2(30, 30));
-    renderer->CreateImageButton("ResizeTool", "../../../assets/Resize.png", ImVec2(30, 30));
+    renderer->CreateImageButton("SelectTool", const_cast<char*>(SELECT_PATH.c_str()), ImVec2(30, 30));
+    renderer->CreateImageButton("MoveTool", const_cast<char*>(MOVE_PATH.c_str()), ImVec2(30, 30));
+    renderer->CreateImageButton("RotateTool", const_cast<char*>(ROTATE_PATH.c_str()), ImVec2(30, 30));
+    renderer->CreateImageButton("ResizeTool", const_cast<char*>(RESIZE_PATH.c_str()), ImVec2(30, 30));
 
     isFocused = ImGui::IsWindowFocused();
     isHovered = ImGui::IsWindowHovered();

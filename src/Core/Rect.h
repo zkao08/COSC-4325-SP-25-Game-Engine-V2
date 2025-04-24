@@ -6,6 +6,7 @@
 #include <d3d11.h>
 #include <string>
 #include <DirectXMath.h>
+#include "Utility.h"
 
 // This include is requires for using DirectX smart pointers (ComPtr)
 #include <wrl\client.h>

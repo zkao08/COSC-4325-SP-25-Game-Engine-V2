@@ -78,4 +78,40 @@ namespace {
         x = desktop.right;
         y = desktop.bottom;
     }
+
+    std::string GetProjectRoot()
+    {
+        // Get current working directory
+        wchar_t buffer[MAX_PATH];
+        GetCurrentDirectoryW(MAX_PATH, buffer);
+
+        // Remove "\build" from the path if it exists
+        std::wstring path(buffer);
+        std::wstring buildDir = L"\\build";
+        size_t pos = path.find(buildDir);
+        if (pos != std::wstring::npos) {
+            path = path.substr(0, pos);
+        }
+
+        std::string strPath(path.begin(), path.end());
+
+        return strPath;
+    }
+
+    std::wstring GetProjectRootWString()
+    {
+        // Get current working directory
+        wchar_t buffer[MAX_PATH];
+        GetCurrentDirectoryW(MAX_PATH, buffer);
+
+        // Remove "\build" from the path if it exists
+        std::wstring path(buffer);
+        std::wstring buildDir = L"\\build";
+        size_t pos = path.find(buildDir);
+        if (pos != std::wstring::npos) {
+            path = path.substr(0, pos);
+        }
+
+        return path;
+    }
 }

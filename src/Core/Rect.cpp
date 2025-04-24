@@ -14,7 +14,7 @@ Rect::Rect(Renderer* renderer) : m_Renderer(renderer) {}
 void Rect::Create() {
 	CreateVertexBuffer(0, 0);
 	CreateIndexBuffer();
-	LoadTexture(L"../../../assets/Square.png");
+	LoadTexture(GetProjectRootWString() + L"/assets/Square.png");
 }
 
 void Rect::Create(std::wstring texture_path, float pos_x, float pos_y, float size_x, float size_y, float rotation)

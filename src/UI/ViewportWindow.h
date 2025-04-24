@@ -12,6 +12,7 @@
 #include "Vector3.h"
 #include "Utility.h"
 #include "Application.h"
+#include "Utility.h"
 
 #include <d3d11.h>
 
