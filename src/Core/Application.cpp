@@ -60,7 +60,7 @@ Application::Application() {
 
 	// Create render target
 	m_RenderTarget = std::make_unique<RenderTarget>(m_Renderer.get());
-	m_RenderTarget->Create(scaledResolutionX, scaledResolutionY);
+	m_RenderTarget->Create(TARGET_RESOLUTION_X, TARGET_RESOLUTION_Y);
 
 	// Create raster state
 	m_RasterState = std::make_unique<RasterState>(m_Renderer.get());
@@ -132,7 +132,8 @@ int Application::Execute() {
 			ObjectWindow::Render(m_Renderer.get(), m_Game.get(), scaleFactor);
 
 			ImVec2 viewportWindowSize = ViewportWindow::GetSize();
-			m_Camera->UpdateAspectRatio(viewportWindowSize.x, viewportWindowSize.y);
+			m_Camera->UpdateAspectRatio(viewportWindowSize.x, viewportWindowSize.x);
+			m_CameraPlane->UpdateAspectRatio(viewportWindowSize.x, viewportWindowSize.x);
 
 			// Display the rendered scene
 			m_Renderer->Present();
@@ -143,6 +144,10 @@ int Application::Execute() {
 }
 
 LRESULT Application::HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+	extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+	if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam))
+		return true;
+
 	switch (msg)
 	{
 	case WM_DESTROY:
@@ -161,14 +166,14 @@ LRESULT Application::HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 		this->OnMouseScroll(hwnd, msg, wParam, lParam);
 		return 0;
 
+	case WM_LBUTTONDOWN:
+		this->OnMouseDown(hwnd, msg, wParam, lParam);
+		return 0;
+
 	case WM_KEYDOWN:
 		this->OnKeyDown(hwnd, msg, wParam, lParam);
 		return 0;
 	}
-
-	extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-	if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam))
-		return true;
 
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
@@ -184,6 +189,9 @@ void Application::OnResized(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
 	// Resize renderer
 	m_Renderer->Resize(window_width, window_height);
+
+	// Resize render target
+	m_RenderTarget->Create(window_width, window_height);
 }
 
 void Application::OnMouseMove(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, float delta_z) {
@@ -211,6 +219,9 @@ void Application::OnMouseMove(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,
 
 	previous_mouse_x = mouse_x;
 	previous_mouse_y = mouse_y;
+
+	m_MouseX = mouse_x;
+	m_MouseY = mouse_y;
 }
 
 void Application::OnMouseScroll(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -224,6 +235,21 @@ void Application::OnMouseScroll(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 	float delta_z = relative_mouse_z * 0.01f;
 
 	this->OnMouseMove(hwnd, msg, wParam, lParam, delta_z);
+}
+
+void Application::OnMouseDown(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+	if (!ViewportWindow::IsHovered())
+		return;
+
+	int mouse_x = static_cast<int>(GET_X_LPARAM(lParam));
+	int mouse_y = static_cast<int>(GET_Y_LPARAM(lParam));
+
+	float x;
+	float y;
+
+	MouseToWorldCoordinates(x, y);
+
+	std::cout << x << " " << y << std::endl;
 }
 
 void Application::OnKeyDown(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -262,6 +288,8 @@ void Application::ComputeModelViewProjectionMatrix()
 	matrix *= m_Camera->GetProjection();
 
 	m_Shader->UpdateModelViewProjectionBuffer(matrix);
+
+	m_ProjectionMatrix = matrix;
 }
 
 void Application::ComputePlaneViewProjectionMatrix()
@@ -282,6 +310,7 @@ void Application::RenderToTexture()
 
 	// Update the model view projection constant buffer
 	this->ComputeModelViewProjectionMatrix();
+	//this->ComputePlaneViewProjectionMatrix();
 }
 
 void Application::GetResolution(int& x, int& y)
@@ -294,4 +323,60 @@ void Application::GetResolution(int& x, int& y)
 
 	x = desktop.right;
 	y = desktop.bottom;
+}
+
+void Application::MouseToWorldCoordinates(float& world_x, float& world_y) {
+	int screenWidth;
+	int screenHeight;
+
+	//m_Window->GetSize(screenWidth, screenHeight);
+
+	ImVec2 size = ViewportWindow::GetSize();
+	screenWidth = size.x;
+	screenHeight = size.y;
+
+	float mousex = (m_MouseX - size.x) - (m_Camera->GetPosition().x - size.x / 2);
+	float mousey = (m_MouseY - size.y) - (m_Camera->GetPosition().y - size.y / 2);
+
+	MouseToWorldCoordinates(mousex, mousey, m_Window->GetHwnd(), screenWidth, screenHeight, m_ProjectionMatrix, m_Camera->GetProjection(), world_x, world_y);
+}
+
+void Application::MouseToWorldCoordinates(int mouse_x, int mouse_y, HWND window, int screen_width, int screen_height, const DirectX::XMMATRIX& projection_matrix, const DirectX::XMMATRIX& view_matrix, float& world_x, float& world_y) {
+	RECT mainRect;
+	GetClientRect(window, &mainRect);
+	int mainWindowWidth = mainRect.right - mainRect.left;
+	int mainWindowHeight = mainRect.bottom - mainRect.top;
+
+	POINT mousePos;
+	GetCursorPos(&mousePos);
+	ScreenToClient(window, &mousePos);
+	mouse_x = mousePos.x;
+	mouse_y = mousePos.y;
+
+	mouse_x -= ViewportWindow::GetSize().x;
+	mouse_y -= ViewportWindow::GetSize().y;
+	
+	// Normalize mouse coordinates
+	float normalizedX = (2.0f * mouse_x) / screen_width - 1.0f;
+	float normalizedY = 1.0f - (2.0f * mouse_y) / screen_height; // Invert Y
+
+	// Create NDC vector
+	DirectX::XMFLOAT4 mouseNDC(normalizedX, normalizedY, 0.0f, 1.0f);
+
+	// Inverse projection matrix
+	DirectX::XMMATRIX inverseProjection = DirectX::XMMatrixInverse(nullptr, projection_matrix);
+
+	// Inverse view matrix
+	DirectX::XMMATRIX inverseView = DirectX::XMMatrixInverse(nullptr, view_matrix);
+
+	// Transform to clip space
+	DirectX::XMVECTOR clipSpace = DirectX::XMLoadFloat4(&mouseNDC);
+
+	// Transform to world coordinates
+	DirectX::XMVECTOR worldSpace = DirectX::XMVector3Transform(clipSpace, inverseProjection);
+	worldSpace = DirectX::XMVector3Transform(worldSpace, inverseView);
+
+	// Extract world coordinates
+	world_x = DirectX::XMVectorGetX(worldSpace);
+	world_y = DirectX::XMVectorGetY(worldSpace);
 }

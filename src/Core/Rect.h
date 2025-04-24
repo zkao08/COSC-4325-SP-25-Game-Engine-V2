@@ -5,6 +5,7 @@
 #include <Windows.h>
 #include <d3d11.h>
 #include <string>
+#include <DirectXMath.h>
 
 // This include is requires for using DirectX smart pointers (ComPtr)
 #include <wrl\client.h>
@@ -22,21 +23,20 @@ public:
 
 	// Create the model
 	void Create();
-	void Create(std::wstring path);
-	void Create(std::wstring path, float pos_x, float pos_y);
+	void Create(std::wstring path, float pos_x = 0.0f, float pos_y = 0.0f, float size_x = 1.0f, float size_y = 1.0f, float rotation = 0.0f);
 
 	// Render the model
 	void Render();
 
-	void ChangePosition(float x, float y);
-	void ChangePosition(Vector2 pos);
+	void SetTransform(float pos_x = 0.0f, float pos_y = 0.0f, float size_x = 1.0f, float size_y = 1.0f, float rotation = 0.0f);
+	void SetTransform(Vector2 pos = Vector2(0, 0), Vector2 size = Vector2(1, 1), float rotation = 0.0f);
 
 private:
 	// Number of indices to draw
 	UINT m_IndexCount = 0;
 
 	// Vertex buffer
-	void CreateVertexBuffer(float pos_x, float pos_y);
+	void CreateVertexBuffer(float pos_x = 0.0f, float pos_y = 0.0f, float size_x = 1.0f, float size_y = 1.0f, float rotation = 0.0f);
 	ComPtr<ID3D11Buffer> m_VertexBuffer = nullptr;
 
 	// Index buffer

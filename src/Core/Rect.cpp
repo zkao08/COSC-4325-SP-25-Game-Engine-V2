@@ -17,29 +17,25 @@ void Rect::Create() {
 	LoadTexture(L"../../../assets/Square.png");
 }
 
-void Rect::Create(std::wstring texture_path)
+void Rect::Create(std::wstring texture_path, float pos_x, float pos_y, float size_x, float size_y, float rotation)
 {
-	CreateVertexBuffer(0, 0);
+	CreateVertexBuffer(pos_x, pos_y, size_x, size_y);
 	CreateIndexBuffer();
 	LoadTexture(texture_path);
 }
 
-void Rect::Create(std::wstring texture_path, float pos_x, float pos_y)
-{
-	CreateVertexBuffer(pos_x, pos_y);
-	CreateIndexBuffer();
-	LoadTexture(texture_path);
-}
-
-void Rect::CreateVertexBuffer(float pos_x, float pos_y)
+void Rect::CreateVertexBuffer(float pos_x, float pos_y, float size_x, float size_y, float rotation)
 {
 	ComPtr<ID3D11Device> device = m_Renderer->GetDevice();
 
-	const float width = 1.0f;
-	const float height = 1.0f;
+	const float width = size_x;
+	const float height = size_y;
 	const float depth = 0.1f;
 
 	float pos_z = 0.0f;
+
+	// Rotation matrix (in radians)
+	DirectX::XMMATRIX rotationMatrix = DirectX::XMMatrixRotationZ(rotation * (DirectX::XM_PI / 180.0f));
 
 	// Vertex data with translation applied
 	std::vector<Vertex> vertices =
@@ -49,6 +45,20 @@ void Rect::CreateVertexBuffer(float pos_x, float pos_y)
 		{ VertexPosition(pos_x + width, pos_y + height, pos_z - depth), VertexTextureUV(1.0f, 0.0f) },
 		{ VertexPosition(pos_x + width, pos_y - height, pos_z - depth), VertexTextureUV(1.0f, 1.0f) },
 	};
+
+	// Apply rotation to vertices
+	for (auto& vertex : vertices)
+	{
+		// Create a vector for the vertex position
+		DirectX::XMVECTOR position = DirectX::XMVectorSet(vertex.position.x, vertex.position.y, vertex.position.z, 1.0f);
+
+		// Apply the rotation
+		position = XMVector3Transform(position, rotationMatrix);
+
+		// Update the vertex position
+		vertex.position.x = DirectX::XMVectorGetX(position);
+		vertex.position.y = DirectX::XMVectorGetY(position);
+	}
 
 	// Create vertex buffer
 	D3D11_BUFFER_DESC vertexbuffer_desc = {};
@@ -135,10 +145,10 @@ void Rect::Render()
 	context->DrawIndexed(m_IndexCount, 0, 0);
 }
 
-void Rect::ChangePosition(float x, float y) {
-	CreateVertexBuffer(x, y);
+void Rect::SetTransform(float pos_x, float pos_y, float size_x, float size_y, float rotation) {
+	CreateVertexBuffer(pos_x, pos_y, size_x, size_y, rotation);
 }
 
-void Rect::ChangePosition(Vector2 pos) {
-	CreateVertexBuffer(pos.x, pos.y);
+void Rect::SetTransform(Vector2 pos, Vector2 size, float rotation) {
+	CreateVertexBuffer(pos.x, pos.y, size.x, size.y, rotation);
 }

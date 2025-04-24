@@ -56,6 +56,7 @@ class Application
 		void OnResized(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 		void OnMouseMove(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, float delta_z = 0.0f);
 		void OnMouseScroll(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+		void OnMouseDown(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 		void OnKeyDown(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 		void ComputePlaneViewProjectionMatrix();
@@ -67,9 +68,14 @@ class Application
 		void CalculateFrameStats(float delta_time);
 		int m_FrameCount = 0;
 
-		void GetResolution(int& x, int& y);
+		void MouseToWorldCoordinates(int mouse_x, int mouse_y, HWND window, int screen_width, int screen_height, const DirectX::XMMATRIX& projection_matrix, const DirectX::XMMATRIX& view_matrix, float& world_x, float& world_y);
 
 	public:
+		int m_MouseX;
+		int m_MouseY;
+
+		DirectX::XMMATRIX m_ProjectionMatrix;
+
 		Application();
 		virtual ~Application() = default;
 
@@ -79,4 +85,7 @@ class Application
 
 		// Get window
 		inline Window* GetWindow() const { return m_Window.get(); }
+		void GetResolution(int& x, int& y);
+
+		void MouseToWorldCoordinates(float& world_x, float& world_y);
 };
