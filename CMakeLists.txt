@@ -176,3 +176,28 @@ target_include_directories(InputTest PRIVATE
 target_link_libraries(InputTest PRIVATE 
     raylib
 )
+
+# Render Test Executable
+add_executable(RenderTest 
+    src/render_test.cpp
+)
+
+# Include directories for RenderTest
+target_include_directories(RenderTest PRIVATE
+    ${IMGUI_DIR}
+    third_party_libs/box2d
+    ${SOL2_INCLUDE_DIR}
+    ${LUA_SRC_DIR} 
+    ${SRC_DIR} 
+    ${XAUDIO2_INCLUDE_DIR}
+    third_party_libs/raylib/src
+)
+
+# Link libraries to RenderTest
+target_link_libraries(RenderTest PRIVATE 
+    core
+    ui
+    imgui
+    raylib
+    d3d11
+)
