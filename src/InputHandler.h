@@ -1,7 +1,6 @@
 #ifndef INPUT_HANDLER_H
 #define INPUT_HANDLER_H
 
-#include <raylib.h>
 #include <map>
 #include <vector>
 #include <string>
@@ -22,6 +21,12 @@ struct CharKey {
 class InputHandler {
 public:
     InputHandler();
+    ~InputHandler();
+
+    // Initialize and shutdown
+    bool Initialize();
+    void Shutdown();
+
     void Update();
 
     // Getters for input states
@@ -36,6 +41,7 @@ public:
     bool IsShiftPressed() const;
     bool IsGamepadAvailable() const;
     const char* GetGamepadName() const;
+    bool IsKeyPressed(int keyCode) const;
 
     // Gamepad axis movements
     float GetGamepadAxisLeftX() const;
@@ -44,13 +50,17 @@ public:
     float GetGamepadAxisRightY() const;
 
 private:
+    // PIMPL implementation
+    struct Impl;
+    Impl* pImpl;
+
     // Input states
     std::map<int, InputState> keyboardMap;
     std::map<int, std::pair<const char*, const char*>> charKeyMap;
     std::map<int, InputState> mouseMap;
     std::map<int, InputState> gamepadMap;
 
-    // Custom mouse wheel states
+    // Mouse wheel states
     bool mouseWheelUp;
     bool mouseWheelDown;
 
