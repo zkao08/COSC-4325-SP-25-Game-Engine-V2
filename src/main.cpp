@@ -1,4 +1,6 @@
+#include "GameEngine.h"
 #include <iostream>
+<<<<<<< Updated upstream
 #include "AudioManager.h"
 #include <thread>
 #include <chrono>
@@ -19,4 +21,20 @@ int main()
     std::cout << "\nShutting down AudioManager" << std::endl;
     gAudioManager.shutDown();
     return 0;
+=======
+
+int main()
+{
+    GameEngine engine;
+    
+    if (!engine.Initialize())
+    {
+        std::cerr << "Failed to initialize game engine" << std::endl;
+        return -1;
+    }
+    
+    int result = engine.Run();
+    
+    return result;
+>>>>>>> Stashed changes
 }
