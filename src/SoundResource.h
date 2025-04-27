@@ -10,76 +10,81 @@
 
 class AudioManager; // Forward declaration
 
-class SoundResource 
+class SoundResource
 {
-    public:
-        enum ResourceType 
-        {
-            SOUND_EFFECT,  // Loaded entirely into memory
-            STREAMING      // Streamed from disk in chunks
-        };
+public:
+    enum ResourceType
+    {
+        SOUND_EFFECT,  // Loaded entirely into memory
+        STREAMING      // Streamed from disk in chunks
+    };
 
-        SoundResource();
-        ~SoundResource();
+    SoundResource();
+    ~SoundResource();
 
-        // Constructor that automatically loads a sound file
-        SoundResource(const std::wstring& filePath, ResourceType type = SOUND_EFFECT);
+    // Constructor that automatically loads a sound file
+    SoundResource(const std::wstring& filePath, ResourceType type = SOUND_EFFECT, bool loop = false);
 
-        // Constructor that takes string instead of wstring for convenience
-        SoundResource(const std::string& filePath, ResourceType type = SOUND_EFFECT);
+    // Constructor that takes string instead of wstring for convenience
+    SoundResource(const std::string& filePath, ResourceType type = SOUND_EFFECT, bool loop = false);
 
-        // Load sound from file
-        HRESULT Load(const std::wstring& filePath, ResourceType type = SOUND_EFFECT);
+    // Load sound from file
+    HRESULT Load(const std::wstring& filePath, ResourceType type = SOUND_EFFECT, bool loop = false);
 
-        // Play the sound with volume control (0.0f to 1.0f)
-        HRESULT Play(IXAudio2* pXAudio2, IXAudio2SourceVoice** ppSourceVoice, float volume = 1.0f);
+    // Play the sound with volume control (0.0f to 1.0f)
+    HRESULT Play(IXAudio2* pXAudio2, IXAudio2SourceVoice** ppSourceVoice, float volume = 1.0f);
 
-        // Stop playback
-        HRESULT Stop(IXAudio2SourceVoice* pSourceVoice);
+    // Stop playback
+    HRESULT Stop(IXAudio2SourceVoice* pSourceVoice);
 
-        // Set volume for a given source voice (0.0f to 1.0f)
-        HRESULT SetVolume(IXAudio2SourceVoice* pSourceVoice, float volume);
+    // Set volume for a given source voice (0.0f to 1.0f)
+    HRESULT SetVolume(IXAudio2SourceVoice* pSourceVoice, float volume);
 
-        // Accessors
-        const XAUDIO2_BUFFER* GetBuffer() const { return &buffer; }
-        const WAVEFORMATEXTENSIBLE* GetWaveFormat() const { return &wfx; }
-        const std::wstring& GetFilePath() const { return filePath; }
-        bool IsStreaming() const { return resourceType == STREAMING; }
+    // Set looping status
+    void SetLooping(bool shouldLoop);
+    bool IsLooping() const { return shouldLoop; }
 
-    private:
-        std::vector<BYTE> audioData;       // Actual audio data, managed automatically
-        XAUDIO2_BUFFER buffer;             // XAudio2 buffer structure
-        WAVEFORMATEXTENSIBLE wfx;          // Wave format
-        std::wstring filePath;             // Path to the audio file
-        ResourceType resourceType;         // Type of sound resource
+    // Accessors
+    const XAUDIO2_BUFFER* GetBuffer() const { return &buffer; }
+    const WAVEFORMATEXTENSIBLE* GetWaveFormat() const { return &wfx; }
+    const std::wstring& GetFilePath() const { return filePath; }
+    bool IsStreaming() const { return resourceType == STREAMING; }
 
-        // Streaming related members
-        static const size_t STREAMING_BUFFER_SIZE = 65536;  // 64KB chunks for streaming
-        std::atomic<bool> isStreaming;
-        std::thread streamingThread;
-        std::mutex streamingMutex;
-        HANDLE streamingFileHandle;
+private:
+    std::vector<BYTE> audioData;       // Actual audio data, managed automatically
+    XAUDIO2_BUFFER buffer;             // XAudio2 buffer structure
+    WAVEFORMATEXTENSIBLE wfx;          // Wave format
+    std::wstring filePath;             // Path to the audio file
+    ResourceType resourceType;         // Type of sound resource
+    bool shouldLoop;                   // Whether the sound should loop
 
-        // Start the streaming process for BGM
-        HRESULT StartStreaming(IXAudio2SourceVoice* pSourceVoice);
+    // Streaming related members
+    static const size_t STREAMING_BUFFER_SIZE = 65536;  // 64KB chunks for streaming
+    std::atomic<bool> isStreaming;
+    std::thread streamingThread;
+    std::mutex streamingMutex;
+    HANDLE streamingFileHandle;
 
-        // Stop the streaming process
-        void StopStreaming();
+    // Start the streaming process for BGM
+    HRESULT StartStreaming(IXAudio2SourceVoice* pSourceVoice);
 
-        // Streaming worker function
-        void StreamingWorker(IXAudio2SourceVoice* pSourceVoice);
+    // Stop the streaming process
+    void StopStreaming();
 
-        // Private helper methods
-        HRESULT FindChunk(HANDLE hFile, DWORD fourcc, DWORD& dwChunkSize, DWORD& dwChunkDataPosition);
-        HRESULT ReadChunkData(HANDLE hFile, void* buffer, DWORD buffersize, DWORD bufferoffset);
+    // Streaming worker function
+    void StreamingWorker(IXAudio2SourceVoice* pSourceVoice);
 
-        // Store wave file header locations for streaming
-        DWORD dataChunkSize;
-        DWORD dataChunkPosition;
+    // Private helper methods
+    HRESULT FindChunk(HANDLE hFile, DWORD fourcc, DWORD& dwChunkSize, DWORD& dwChunkDataPosition);
+    HRESULT ReadChunkData(HANDLE hFile, void* buffer, DWORD buffersize, DWORD bufferoffset);
 
-        // Constants for WAV file format
-        static const DWORD fourccRIFF = 'FFIR';
-        static const DWORD fourccDATA = 'atad';
-        static const DWORD fourccFMT = ' tmf';
-        static const DWORD fourccWAVE = 'EVAW';
+    // Store wave file header locations for streaming
+    DWORD dataChunkSize;
+    DWORD dataChunkPosition;
+
+    // Constants for WAV file format
+    static const DWORD fourccRIFF = 'FFIR';
+    static const DWORD fourccDATA = 'atad';
+    static const DWORD fourccFMT = ' tmf';
+    static const DWORD fourccWAVE = 'EVAW';
 };

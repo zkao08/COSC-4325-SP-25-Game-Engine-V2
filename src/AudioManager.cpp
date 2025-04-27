@@ -9,7 +9,7 @@
 /// https://learn.microsoft.com/en-us/windows/win32/xaudio2/xaudio2-apis-portal
 /// 
 /// <author> Zachary Kao </author>
-/// <date> 2025-4-19</date>
+/// <date> 2025-4-27</date>
 /// </file>
 
 #include "AudioManager.h"
@@ -151,27 +151,24 @@ void AudioManager::shutDown()
 /// <param name="isSoundEffect">TRUE:Repeated SFX, FALSE:Streaming audio</param>
 /// <param name="volume">Sound volume, between 0.0 and 1.0</param>
 /// <returns></returns>
-HRESULT AudioManager::PlaySound(const std::string& filePath, bool isSoundEffect, float volume)
+HRESULT AudioManager::PlaySound(const std::string& filePath, bool isSoundEffect, float volume, bool loop)
 {
     if (!pXAudio2 || !pMasteringVoice)
         return E_FAIL;
 
-    // Create a unique ID for this sound
-    std::string id = "sound_" + filePath;
-    // Convert to wstring for the sourceVoices map
-    std::wstring wideId = PathUtils::StringToWString(id);
+    std::wstring wFilePath = ConvertToWideString(filePath);
 
-    // Load or get sound from ResourceManager
-    auto soundResource = ResourceManager::GetInstance().LoadSound(id, filePath, !isSoundEffect);
-    if (!soundResource || !soundResource->GetSound())
+    // Get or load the sound resource
+    std::shared_ptr<SoundResource> resource = GetOrLoadResource(wFilePath, isSoundEffect, loop);
+    if (!resource)
         return E_FAIL;
 
-    // Rest of the method to play the sound...
+    // Get the source voice if it exists, or create a new one
     IXAudio2SourceVoice* pSourceVoice = nullptr;
 
     {
         std::lock_guard<std::mutex> lock(resourceMutex);
-        auto iter = sourceVoices.find(wideId); // Use wideId, which is std::wstring
+        auto iter = sourceVoices.find(wFilePath);
         if (iter != sourceVoices.end())
         {
             pSourceVoice = iter->second;
@@ -183,14 +180,15 @@ HRESULT AudioManager::PlaySound(const std::string& filePath, bool isSoundEffect,
     }
 
     // Play the sound with volume control
-    HRESULT hr = soundResource->GetSound()->Play(pXAudio2.Get(), &pSourceVoice, volume);
+    HRESULT hr = resource->Play(pXAudio2.Get(), &pSourceVoice, volume);
     if (FAILED(hr))
         return hr;
 
-    // Store the source voice
+    // Store the source voice and update usage statistics
     {
         std::lock_guard<std::mutex> lock(resourceMutex);
-        sourceVoices[wideId] = pSourceVoice; // Use wideId here as well
+        sourceVoices[wFilePath] = pSourceVoice;
+        UpdateResourceUsage(wFilePath);
     }
 
     return S_OK;
@@ -349,7 +347,7 @@ HRESULT AudioManager::SetMasterVolume(float volume)
 /// <param name="filePath"></param>
 /// <param name="isSoundEffect"></param>
 /// <returns></returns>
-std::shared_ptr<SoundResource> AudioManager::GetOrLoadResource(const std::wstring& filePath, bool isSoundEffect)
+std::shared_ptr<SoundResource> AudioManager::GetOrLoadResource(const std::wstring& filePath, bool isSoundEffect, bool loop)
 {
     std::lock_guard<std::mutex> lock(resourceMutex);
 
@@ -359,6 +357,10 @@ std::shared_ptr<SoundResource> AudioManager::GetOrLoadResource(const std::wstrin
     {
         // Update usage statistics
         UpdateResourceUsage(filePath);
+
+        // Update looping status if it's changed
+        iter->second->SetLooping(loop);
+
         return iter->second;
     }
 
@@ -369,8 +371,8 @@ std::shared_ptr<SoundResource> AudioManager::GetOrLoadResource(const std::wstrin
     SoundResource::ResourceType resourceType = isSoundEffect ?
         SoundResource::SOUND_EFFECT : SoundResource::STREAMING;
 
-    // Load the resource
-    HRESULT hr = resource->Load(filePath, resourceType);
+    // Load the resource with looping flag
+    HRESULT hr = resource->Load(filePath, resourceType, loop);
     if (FAILED(hr))
     {
         std::wcerr << L"Failed to load sound resource: " << filePath << std::endl;

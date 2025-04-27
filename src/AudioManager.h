@@ -30,7 +30,8 @@ struct ResourceUsageInfo
 
     ResourceUsageInfo(const std::wstring& p)
         : path(p),
-        lastUsedTime(std::chrono::steady_clock::now()) { }
+        lastUsedTime(std::chrono::steady_clock::now()) {
+    }
 
     // Update usage timestamp
     void Used()
@@ -55,13 +56,13 @@ public:
 
     // Initialize the audio system
     bool startUp(size_t maxCachedResources = 64,
-                 size_t minResourceAge = 10);
+        size_t minResourceAge = 10);
 
     // Shutdown the audio system
     void shutDown();
 
     // Play a sound with given volume (0.0f to 1.0f)
-    HRESULT PlaySound(const std::string& filePath, bool isSoundEffect = true, float volume = 1.0f);
+    HRESULT PlaySound(const std::string& filePath, bool isSoundEffect = true, float volume = 1.0f, bool loop = false);
 
     // Play a preloaded sound
     HRESULT PlaySound(SoundResource* pSoundResource, float volume = 1.0f);
@@ -119,7 +120,7 @@ private:
     float masterVolume;
 
     // Helper methods
-    std::shared_ptr<SoundResource> GetOrLoadResource(const std::wstring& filePath, bool isSoundEffect);
+    std::shared_ptr<SoundResource> GetOrLoadResource(const std::wstring& filePath, bool isSoundEffect, bool loop = false);
     void UpdateResourceUsage(const std::wstring& filePath);
 
     // Convert path string from narrow to wide

@@ -41,12 +41,15 @@ namespace AudioLuaAPI
         lua.new_usertype<SoundResource>("SoundResource",
             // Constructor
             sol::constructors<
-                SoundResource(const std::string&, SoundResource::ResourceType)
-            > (),
+            SoundResource(const std::string&, SoundResource::ResourceType),
+            SoundResource(const std::string&, SoundResource::ResourceType, bool)
+            >(),
 
             // Methods
             "GetFilePath", &SoundResource::GetFilePath,
-            "IsStreaming", &SoundResource::IsStreaming
+            "IsStreaming", &SoundResource::IsStreaming,
+            "IsLooping", &SoundResource::IsLooping,
+            "SetLooping", &SoundResource::SetLooping
         );
 
         // Get AudioManager instance
@@ -56,12 +59,20 @@ namespace AudioLuaAPI
 
         // Play sound + overloads
         audioAPI.set_function("PlaySound", sol::overload(
+            [&audioManager](const std::string& filePath, bool isSoundEffect, float volume, bool loop) -> bool {
+                HRESULT hr = audioManager.PlaySound(filePath, isSoundEffect, volume, loop);
+                return SUCCEEDED(hr);
+            },
             [&audioManager](const std::string& filePath, bool isSoundEffect, float volume) -> bool {
-                HRESULT hr = audioManager.PlaySound(filePath, isSoundEffect, volume);
+                HRESULT hr = audioManager.PlaySound(filePath, isSoundEffect, volume, false);
+                return SUCCEEDED(hr);
+            },
+            [&audioManager](const std::string& filePath, bool isSoundEffect, bool loop) -> bool {
+                HRESULT hr = audioManager.PlaySound(filePath, isSoundEffect, 1.0f, loop);
                 return SUCCEEDED(hr);
             },
             [&audioManager](const std::string& filePath, bool isSoundEffect) -> bool {
-                HRESULT hr = audioManager.PlaySound(filePath, isSoundEffect);
+                HRESULT hr = audioManager.PlaySound(filePath, isSoundEffect, 1.0f, false);
                 return SUCCEEDED(hr);
             },
             [&audioManager](const std::string& filePath) -> bool {

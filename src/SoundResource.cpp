@@ -5,7 +5,7 @@
 /// </summary>
 /// 
 /// <author> Zachary Kao </author>
-/// <date> 2025-4-19</date>
+/// <date> 2025-4-27</date>
 /// </file>
 
 #include "SoundResource.h"
@@ -24,7 +24,8 @@ SoundResource::SoundResource()
     isStreaming(false),
     streamingFileHandle(INVALID_HANDLE_VALUE),
     dataChunkSize(0),
-    dataChunkPosition(0)
+    dataChunkPosition(0),
+    shouldLoop(false)
 {
     ZeroMemory(&buffer, sizeof(XAUDIO2_BUFFER));
     ZeroMemory(&wfx, sizeof(WAVEFORMATEXTENSIBLE));
@@ -39,7 +40,7 @@ SoundResource::~SoundResource()
     StopStreaming();
 
     // Close file handle if open
-    if (streamingFileHandle != INVALID_HANDLE_VALUE) 
+    if (streamingFileHandle != INVALID_HANDLE_VALUE)
     {
         CloseHandle(streamingFileHandle);
         streamingFileHandle = INVALID_HANDLE_VALUE;
@@ -51,18 +52,20 @@ SoundResource::~SoundResource()
 /// </summary>
 /// <param name="filePath">Wide string path to the sound file</param>
 /// <param name="type">Type of sound resource (SOUND_EFFECT or STREAMING)</param>
-SoundResource::SoundResource(const std::wstring& filePath, ResourceType type)
+/// <param name="loop">Whether the sound should loop</param>
+SoundResource::SoundResource(const std::wstring& filePath, ResourceType type, bool loop)
     : resourceType(type),
     isStreaming(false),
     streamingFileHandle(INVALID_HANDLE_VALUE),
     dataChunkSize(0),
-    dataChunkPosition(0)
+    dataChunkPosition(0),
+    shouldLoop(loop)
 {
     ZeroMemory(&buffer, sizeof(XAUDIO2_BUFFER));
     ZeroMemory(&wfx, sizeof(WAVEFORMATEXTENSIBLE));
 
     // Automatically load the sound
-    Load(filePath, type);
+    Load(filePath, type, loop);
 }
 
 /// <summary>
@@ -70,12 +73,14 @@ SoundResource::SoundResource(const std::wstring& filePath, ResourceType type)
 /// </summary>
 /// <param name="filePath">String path to the sound file</param>
 /// <param name="type">Type of sound resource (SOUND_EFFECT or STREAMING)</param>
-SoundResource::SoundResource(const std::string& filePath, ResourceType type)
+/// <param name="loop">Whether the sound should loop</param>
+SoundResource::SoundResource(const std::string& filePath, ResourceType type, bool loop)
     : resourceType(type),
     isStreaming(false),
     streamingFileHandle(INVALID_HANDLE_VALUE),
     dataChunkSize(0),
-    dataChunkPosition(0)
+    dataChunkPosition(0),
+    shouldLoop(loop)
 {
     ZeroMemory(&buffer, sizeof(XAUDIO2_BUFFER));
     ZeroMemory(&wfx, sizeof(WAVEFORMATEXTENSIBLE));
@@ -87,19 +92,21 @@ SoundResource::SoundResource(const std::string& filePath, ResourceType type)
         &wFilePath[0], static_cast<int>(wFilePath.size()));
 
     // Automatically load the sound
-    Load(wFilePath, type);
+    Load(wFilePath, type, loop);
 }
 
 /// <summary>
 /// Loads a sound file from the specified path into the buffer.
 /// </summary>
-/// <param name="filePath"></param>
-/// <param name="type"></param>
-/// <returns></returns>
-HRESULT SoundResource::Load(const std::wstring& filePath, ResourceType type)
+/// <param name="filePath">Path to the audio file</param>
+/// <param name="type">Type of resource (SOUND_EFFECT or STREAMING)</param>
+/// <param name="loop">Whether the sound should loop</param>
+/// <returns>HRESULT indicating success or failure</returns>
+HRESULT SoundResource::Load(const std::wstring& filePath, ResourceType type, bool loop)
 {
     this->filePath = filePath;
     this->resourceType = type;
+    this->shouldLoop = loop;
 
     // Ensure file path is absolute
     std::wstring fullPath = GetProjectRoot() + L"\\" + filePath;
@@ -118,7 +125,7 @@ HRESULT SoundResource::Load(const std::wstring& filePath, ResourceType type)
 
     // Find the 'RIFF' chunk
     HRESULT hr = FindChunk(hFile, fourccRIFF, dwChunkSize, dwChunkDataPosition);
-    if (FAILED(hr)) 
+    if (FAILED(hr))
     {
         CloseHandle(hFile);
         return hr;
@@ -126,7 +133,7 @@ HRESULT SoundResource::Load(const std::wstring& filePath, ResourceType type)
 
     DWORD filetype;
     hr = ReadChunkData(hFile, &filetype, sizeof(DWORD), dwChunkDataPosition);
-    if (FAILED(hr) || filetype != fourccWAVE) 
+    if (FAILED(hr) || filetype != fourccWAVE)
     {
         CloseHandle(hFile);
         return hr;
@@ -134,14 +141,14 @@ HRESULT SoundResource::Load(const std::wstring& filePath, ResourceType type)
 
     // Find 'fmt ' chunk
     hr = FindChunk(hFile, fourccFMT, dwChunkSize, dwChunkDataPosition);
-    if (FAILED(hr)) 
+    if (FAILED(hr))
     {
         CloseHandle(hFile);
         return hr;
     }
 
     hr = ReadChunkData(hFile, &wfx, dwChunkSize, dwChunkDataPosition);
-    if (FAILED(hr)) 
+    if (FAILED(hr))
     {
         CloseHandle(hFile);
         return hr;
@@ -149,7 +156,7 @@ HRESULT SoundResource::Load(const std::wstring& filePath, ResourceType type)
 
     // Find 'data' chunk
     hr = FindChunk(hFile, fourccDATA, dwChunkSize, dwChunkDataPosition);
-    if (FAILED(hr)) 
+    if (FAILED(hr))
     {
         CloseHandle(hFile);
         return hr;
@@ -159,14 +166,14 @@ HRESULT SoundResource::Load(const std::wstring& filePath, ResourceType type)
     dataChunkSize = dwChunkSize;
     dataChunkPosition = dwChunkDataPosition;
 
-    if (resourceType == SOUND_EFFECT) 
+    if (resourceType == SOUND_EFFECT)
     {
         // For sound effects, load the entire file into memory
         audioData.resize(dwChunkSize);
 
         // Read the data into our vector
         hr = ReadChunkData(hFile, audioData.data(), dwChunkSize, dwChunkDataPosition);
-        if (FAILED(hr)) 
+        if (FAILED(hr))
         {
             CloseHandle(hFile);
             return hr;
@@ -174,12 +181,22 @@ HRESULT SoundResource::Load(const std::wstring& filePath, ResourceType type)
 
         // Set up the audio buffer
         buffer.AudioBytes = dwChunkSize;
-        buffer.pAudioData = audioData.data();  
-        buffer.Flags = XAUDIO2_END_OF_STREAM;  
+        buffer.pAudioData = audioData.data();
+        buffer.Flags = XAUDIO2_END_OF_STREAM;
+
+        // Set looping for sound effects if requested
+        if (shouldLoop)
+        {
+            buffer.LoopCount = XAUDIO2_LOOP_INFINITE;
+        }
+        else
+        {
+            buffer.LoopCount = 0;
+        }
 
         CloseHandle(hFile);
     }
-    else 
+    else
     {
         // For streaming audio, keep the file handle open
         streamingFileHandle = hFile;
@@ -187,6 +204,8 @@ HRESULT SoundResource::Load(const std::wstring& filePath, ResourceType type)
         // We'll load data in chunks during playback
         buffer.AudioBytes = 0;
         buffer.pAudioData = nullptr;
+
+        // Streaming audio uses manual looping in the worker thread
     }
 
     return S_OK;
@@ -195,17 +214,17 @@ HRESULT SoundResource::Load(const std::wstring& filePath, ResourceType type)
 /// <summary>
 /// Play the sound resource.
 /// </summary>
-/// <param name="pXAudio2"></param>
-/// <param name="ppSourceVoice"></param>
-/// <param name="volume"></param>
-/// <returns></returns>
+/// <param name="pXAudio2">XAudio2 engine instance</param>
+/// <param name="ppSourceVoice">Pointer to source voice pointer</param>
+/// <param name="volume">Sound volume</param>
+/// <returns>HRESULT indicating success or failure</returns>
 HRESULT SoundResource::Play(IXAudio2* pXAudio2, IXAudio2SourceVoice** ppSourceVoice, float volume)
 {
     if (!pXAudio2 || !ppSourceVoice)
         return E_INVALIDARG;
 
     // Create a source voice if one wasn't provided
-    if (*ppSourceVoice == nullptr) 
+    if (*ppSourceVoice == nullptr)
     {
         HRESULT hr = pXAudio2->CreateSourceVoice(ppSourceVoice, (WAVEFORMATEX*)&wfx);
         if (FAILED(hr))
@@ -217,7 +236,7 @@ HRESULT SoundResource::Play(IXAudio2* pXAudio2, IXAudio2SourceVoice** ppSourceVo
     if (FAILED(hr))
         return hr;
 
-    if (resourceType == SOUND_EFFECT) 
+    if (resourceType == SOUND_EFFECT)
     {
         // For sound effects, just submit the buffer and play
         hr = (*ppSourceVoice)->SubmitSourceBuffer(&buffer);
@@ -233,17 +252,33 @@ HRESULT SoundResource::Play(IXAudio2* pXAudio2, IXAudio2SourceVoice** ppSourceVo
 }
 
 /// <summary>
+/// Set looping status
+/// </summary>
+/// <param name="shouldLoop">Whether the sound should loop</param>
+void SoundResource::SetLooping(bool shouldLoop)
+{
+    this->shouldLoop = shouldLoop;
+
+    // If this is a sound effect and not streaming, update the buffer
+    if (resourceType == SOUND_EFFECT && !buffer.pAudioData)
+    {
+        buffer.LoopCount = shouldLoop ? XAUDIO2_LOOP_INFINITE : 0;
+    }
+    // For streaming audio, the looping is handled in the streaming worker thread
+}
+
+/// <summary>
 /// Stop the sound resource.
 /// </summary>
-/// <param name="pSourceVoice"></param>
-/// <returns></returns>
+/// <param name="pSourceVoice">Source voice to stop</param>
+/// <returns>HRESULT indicating success or failure</returns>
 HRESULT SoundResource::Stop(IXAudio2SourceVoice* pSourceVoice)
 {
     if (!pSourceVoice)
         return E_INVALIDARG;
 
     // Stop streaming if needed
-    if (resourceType == STREAMING) 
+    if (resourceType == STREAMING)
     {
         StopStreaming();
     }
@@ -260,16 +295,16 @@ HRESULT SoundResource::Stop(IXAudio2SourceVoice* pSourceVoice)
 /// <summary>
 /// Set the volume for the source voice.
 /// </summary>
-/// <param name="pSourceVoice"></param>
-/// <param name="volume"></param>
-/// <returns></returns>
+/// <param name="pSourceVoice">Source voice</param>
+/// <param name="volume">Volume level</param>
+/// <returns>HRESULT indicating success or failure</returns>
 HRESULT SoundResource::SetVolume(IXAudio2SourceVoice* pSourceVoice, float volume)
 {
     if (!pSourceVoice)
         return E_INVALIDARG;
 
     // Clamp volume between 0.0 and 1.0
-    if (volume < 0.0f) 
+    if (volume < 0.0f)
     {
         volume = 0.0f;
     }
@@ -278,15 +313,14 @@ HRESULT SoundResource::SetVolume(IXAudio2SourceVoice* pSourceVoice, float volume
         volume = 1.0f;
     }
 
-
     return pSourceVoice->SetVolume(volume);
 }
 
 /// <summary>
 /// Plays the streaming audio.
 /// </summary>
-/// <param name="pSourceVoice"></param>
-/// <returns></returns>
+/// <param name="pSourceVoice">Source voice</param>
+/// <returns>HRESULT indicating success or failure</returns>
 HRESULT SoundResource::StartStreaming(IXAudio2SourceVoice* pSourceVoice)
 {
     if (streamingFileHandle == INVALID_HANDLE_VALUE)
@@ -316,7 +350,7 @@ void SoundResource::StopStreaming()
         isStreaming = false;
 
         // Wait for streaming thread to finish
-        if (streamingThread.joinable()) 
+        if (streamingThread.joinable())
         {
             streamingThread.join();
         }
@@ -326,7 +360,7 @@ void SoundResource::StopStreaming()
 /// <summary>
 /// Worker function for streaming audio.
 /// </summary>
-/// <param name="pSourceVoice"></param>
+/// <param name="pSourceVoice">Source voice</param>
 void SoundResource::StreamingWorker(IXAudio2SourceVoice* pSourceVoice)
 {
     if (!pSourceVoice)
@@ -340,7 +374,7 @@ void SoundResource::StreamingWorker(IXAudio2SourceVoice* pSourceVoice)
     DWORD blockAlign = pFormat->nBlockAlign;
 
     // Ensure buffer size is large enough and a multiple of the block alignment
-    size_t bufferMultiplier = 4; 
+    size_t bufferMultiplier = 4;
     size_t bufferSize = ((STREAMING_BUFFER_SIZE * bufferMultiplier) / blockAlign) * blockAlign;
     if (bufferSize == 0)
         bufferSize = blockAlign * 4096;
@@ -371,9 +405,17 @@ void SoundResource::StreamingWorker(IXAudio2SourceVoice* pSourceVoice)
         // Fill only the first buffer initially to prevent overlap/double playback
         if (totalBytesRead >= dataChunkSize)
         {
-            // Loop back if needed
-            totalBytesRead = 0;
-            SetFilePointer(streamingFileHandle, dataChunkPosition, NULL, FILE_BEGIN);
+            // Loop back if needed and if looping is enabled
+            if (shouldLoop)
+            {
+                totalBytesRead = 0;
+                SetFilePointer(streamingFileHandle, dataChunkPosition, NULL, FILE_BEGIN);
+            }
+            else
+            {
+                // End streaming if we're not looping
+                return;
+            }
         }
 
         // Calculate bytes to read, ensuring it's a multiple of blockAlign
@@ -436,8 +478,20 @@ void SoundResource::StreamingWorker(IXAudio2SourceVoice* pSourceVoice)
             // Check if we need to loop back to beginning
             if (totalBytesRead >= dataChunkSize)
             {
-                totalBytesRead = 0;
-                SetFilePointer(streamingFileHandle, dataChunkPosition, NULL, FILE_BEGIN);
+                if (shouldLoop)
+                {
+                    // Reset for looping
+                    totalBytesRead = 0;
+                    SetFilePointer(streamingFileHandle, dataChunkPosition, NULL, FILE_BEGIN);
+                }
+                else
+                {
+                    // End of file and not looping - submit end buffer
+                    xaudioBuffer = {};
+                    xaudioBuffer.Flags = XAUDIO2_END_OF_STREAM;
+                    pSourceVoice->SubmitSourceBuffer(&xaudioBuffer);
+                    break; // Exit the streaming loop
+                }
             }
 
             // Calculate bytes to read (ensure it's aligned to block size)
@@ -456,7 +510,17 @@ void SoundResource::StreamingWorker(IXAudio2SourceVoice* pSourceVoice)
             xaudioBuffer = {};  // Reset the buffer
             xaudioBuffer.AudioBytes = alignedBytes;
             xaudioBuffer.pAudioData = audioBuffers[currentBuffer].data();
-            xaudioBuffer.Flags = 0;
+
+            // Set end of stream flag if not looping and this is the last buffer
+            if (!shouldLoop && totalBytesRead >= dataChunkSize)
+            {
+                xaudioBuffer.Flags = XAUDIO2_END_OF_STREAM;
+            }
+            else
+            {
+                xaudioBuffer.Flags = 0;
+            }
+
             xaudioBuffer.pContext = reinterpret_cast<void*>(static_cast<uintptr_t>(currentBuffer));
 
             HRESULT hr = pSourceVoice->SubmitSourceBuffer(&xaudioBuffer);
