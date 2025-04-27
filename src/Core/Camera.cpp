@@ -2,12 +2,15 @@
 
 #include "Camera.h"
 
-const float MIN_ZOOM = 2.0f; // Smallest amount user can zoom. Helps prevent camera clipping through 2D plane.
+const float MIN_ZOOM = 2.0f; // Smallest distance user can zoom. Helps prevent camera clipping through 2D plane.
+const float MAX_ZOOM = 180.0f; // Max distance user can zoom. Keep under MAX_RENDER_RANGE to prevent everything from disappearing.
+const float MAX_RENDER_RANGE = 200.0f; // Maximum distance objects render relative to camera position and zoom.
+const float DEFAULT_ZOOM = 10.0f; // Default zoom of the camera on initialization.
 
 Camera::Camera(int width, int height)
 {
 	this->UpdateAspectRatio(width, height);
-	Move(0, 0, 5);
+	Move(0, 0, DEFAULT_ZOOM);
 }
 
 void Camera::Move(float delta_x, float delta_y, float delta_z) {
@@ -17,6 +20,8 @@ void Camera::Move(float delta_x, float delta_y, float delta_z) {
 
 	if (m_z < MIN_ZOOM)
 		m_z = MIN_ZOOM;
+	if (m_z > MAX_ZOOM)
+		m_z = MAX_ZOOM;
 
 	m_View = DirectX::XMMatrixTranslation(m_x, m_y, m_z);
 }
@@ -24,7 +29,7 @@ void Camera::Move(float delta_x, float delta_y, float delta_z) {
 void Camera::Reset() {
 	m_x = 0;
 	m_y = 0;
-	m_z = 0;
+	m_z = DEFAULT_ZOOM;
 }
 
 // Designed for 3D. May remove later.
@@ -67,9 +72,9 @@ void Camera::CalculateProjection()
 	float field_of_view_radians = DirectX::XMConvertToRadians(m_FieldOfViewDegrees);
 
 	// Calculate camera's perspective
-	m_Projection = DirectX::XMMatrixPerspectiveFovLH(field_of_view_radians, m_AspectRatio, 0.01f, 100.0f);
+	m_Projection = DirectX::XMMatrixPerspectiveFovLH(field_of_view_radians, m_AspectRatio, 0.01f, MAX_RENDER_RANGE);
 }
 
 Vector3 Camera::GetPosition() {
-	return Vector3(m_x, m_y, m_z);
+	return Vector3(-m_x, -m_y, m_z);
 }

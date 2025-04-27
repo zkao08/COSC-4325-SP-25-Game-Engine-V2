@@ -12,7 +12,6 @@
 #include "Vector3.h"
 #include "Utility.h"
 #include "Application.h"
-#include "Utility.h"
 
 #include <d3d11.h>
 
@@ -22,7 +21,7 @@ class ViewportWindow {
         static ImVec2 position;
         static ImVec2 regionAvail;
     public:
-        static int Render(Renderer* renderer, float scale, ImTextureID texture);
+        static int Render(Renderer* renderer, float scale, ImTextureID texture, Camera* camera);
         static ImVec2 GetSize();
         static bool IsFocused();
         static bool IsHovered();

@@ -15,7 +15,9 @@
 #include <memory>
 
 class NavigatorWindow {
+    private:
+        static Object* heldObject;
     public:
         static int Render(Renderer* renderer, Game* game, float scale);
-        static void GenerateItemTreeNodes(Object* item, Game* game);
+        static void GenerateItemTreeNodes(Object* item, Game* game, int id = 0);
 };

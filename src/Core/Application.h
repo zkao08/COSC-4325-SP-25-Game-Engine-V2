@@ -2,7 +2,6 @@
 
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
 
 #include "Window.h"
 #include "Timer.h"
@@ -14,8 +13,6 @@
 #include "RenderTarget.h"
 #include "Game.h"
 
-
-#include "Grid.h"
 #include "Object.h"
 
 #include "Dock.h"
@@ -26,13 +23,12 @@
 #include "ViewportWindow.h"
 
 #include <DirectXMath.h>
+#include <Windows.h>
 #include <windowsx.h>
 #include <string>
-#include <iostream>
-#include <math.h>
 #include <vector>
-
 #include <memory>
+#include <math.h>
 
 class Window;
 class Renderer;

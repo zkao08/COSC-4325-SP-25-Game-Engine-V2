@@ -36,7 +36,7 @@ void PropertiesWindow::LoadProperties(Object* obj) {
             Vector2 vec2 = StringToVector2(property.second.Data);
             char* xText = new char[16];
             char* yText = new char[16];
-            float width = ImGui::GetContentRegionAvail().x / 3.0f;
+            float width = ImGui::GetContentRegionAvail().x / 2.05f;
             std::string buffer;
             bool conversionSuccess = true;
 
@@ -74,13 +74,40 @@ void PropertiesWindow::LoadProperties(Object* obj) {
 
             strcpy(text, RoundString(property.second.Data, 2).c_str());
 
-            if (ImGui::InputText(("##" + property.first + "Y").c_str(), text, 8, ImGuiInputTextFlags_CharsDecimal)) {
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            if (ImGui::InputText(("##" + property.first).c_str(), text, 8, ImGuiInputTextFlags_CharsDecimal)) {
                 property.second.Data = text;
             }
 
             delete[] text;
         }
-        else {
+        else if (property.second.DataType == "const_Vector2") {
+            Vector2 vec2 = StringToVector2(property.second.Data);
+            float width = ImGui::GetContentRegionAvail().x / 2.05f;
+
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5, 0.5, 0.5, 1));
+
+            ImGui::SetNextItemWidth(width);
+            ImGui::InputText(("##" + property.first + "X").c_str(), StringToChar(RoundString(std::to_string(vec2.x))).get(), 16, ImGuiInputTextFlags_ReadOnly | ImGuiInputTextFlags_CharsDecimal);
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(width);
+            ImGui::InputText(("##" + property.first + "Y").c_str(), StringToChar(RoundString(std::to_string(vec2.y))).get(), 16, ImGuiInputTextFlags_ReadOnly | ImGuiInputTextFlags_CharsDecimal);
+
+            ImGui::PopStyleColor(1);
+        }
+        else if (property.second.DataType == "const_float") {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5, 0.5, 0.5, 1));
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            ImGui::InputText(("##" + property.first).c_str(), StringToChar(RoundString(property.second.Data, 2)).get(), 8, ImGuiInputTextFlags_CharsDecimal);
+            ImGui::PopStyleColor(1);
+        }
+        else if (property.second.DataType == "const_char") {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5, 0.5, 0.5, 1));
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            ImGui::InputText(("##" + property.first).c_str(), &property.second.Data, ImGuiInputTextFlags_ReadOnly, nullptr, nullptr);
+            ImGui::PopStyleColor(1);
+        }
+        else { // char
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
             ImGui::InputText(("##" + property.first).c_str(), &property.second.Data, ImGuiInputTextFlags_None, nullptr, nullptr);
         }

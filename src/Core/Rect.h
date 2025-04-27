@@ -16,35 +16,41 @@ class Renderer;
 
 class Rect
 {
-	Renderer* m_Renderer = nullptr;
+	private:
+		Renderer* m_Renderer = nullptr;
 
-public:
-	Rect(Renderer* renderer);
-	virtual ~Rect() = default;
+		// Number of indices to draw
+		UINT m_IndexCount = 0;
 
-	// Create the model
-	void Create();
-	void Create(std::wstring path, float pos_x = 0.0f, float pos_y = 0.0f, float size_x = 1.0f, float size_y = 1.0f, float rotation = 0.0f);
+		// Vertex buffer
+		void CreateVertexBuffer(float pos_x = 0.0f, float pos_y = 0.0f, float size_x = 1.0f, float size_y = 1.0f, float rotation = 0.0f);
+		ComPtr<ID3D11Buffer> m_VertexBuffer = nullptr;
 
-	// Render the model
-	void Render();
+		// Index buffer
+		void CreateIndexBuffer();
+		ComPtr<ID3D11Buffer> m_IndexBuffer = nullptr;
 
-	void SetTransform(float pos_x = 0.0f, float pos_y = 0.0f, float size_x = 1.0f, float size_y = 1.0f, float rotation = 0.0f);
-	void SetTransform(Vector2 pos = Vector2(0, 0), Vector2 size = Vector2(1, 1), float rotation = 0.0f);
+		// Texture buffer
+		void LoadTexture(std::wstring path);
+		ComPtr<ID3D11ShaderResourceView> m_DiffuseTexture = nullptr;
 
-private:
-	// Number of indices to draw
-	UINT m_IndexCount = 0;
+		float lastPosX = -1.0f;
+		float lastPosY = -1.0f;
+		float lastSizeX = -1.0f;
+		float lastSizeY = -1.0f;
+		float lastRotation = -1.0f;
+		std::wstring lastTexture;
+	public:
+		Rect(Renderer* renderer);
+		virtual ~Rect() = default;
 
-	// Vertex buffer
-	void CreateVertexBuffer(float pos_x = 0.0f, float pos_y = 0.0f, float size_x = 1.0f, float size_y = 1.0f, float rotation = 0.0f);
-	ComPtr<ID3D11Buffer> m_VertexBuffer = nullptr;
+		// Create the model
+		void Create(std::wstring path = GetProjectRootWString() + L"/assets/Square.png", float pos_x = 0.0f, float pos_y = 0.0f, float size_x = 1.0f, float size_y = 1.0f, float rotation = 0.0f);
 
-	// Index buffer
-	void CreateIndexBuffer();
-	ComPtr<ID3D11Buffer> m_IndexBuffer = nullptr;
+		// Render the model
+		void Render();
 
-	// Texture buffer
-	void LoadTexture(std::wstring path);
-	ComPtr<ID3D11ShaderResourceView> m_DiffuseTexture = nullptr;
+		void SetTransform(float pos_x = 0.0f, float pos_y = 0.0f, float size_x = 1.0f, float size_y = 1.0f, float rotation = 0.0f);
+		void SetTransform(Vector2 pos = Vector2(0, 0), Vector2 size = Vector2(1, 1), float rotation = 0.0f);
+		void SetTexture(std::string path);
 };

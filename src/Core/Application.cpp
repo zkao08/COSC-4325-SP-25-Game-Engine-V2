@@ -1,29 +1,4 @@
 #include "Application.h"
-#include "Window.h"
-#include "Timer.h"
-#include "Renderer.h"
-#include "Shader.h"
-#include "Rect.h"
-#include "Camera.h"
-#include "RasterState.h"
-#include "RenderTarget.h"
-#include "Grid.h"
-#include "Game.h"
-#include "Object.h"
-
-#include "Dock.h"
-#include "ObjectWindow.h"
-#include "MainMenuBar.h"
-#include "NavigatorWindow.h"
-#include "PropertiesWindow.h"
-#include "ViewportWindow.h"
-
-#include <DirectXMath.h>
-#include <windowsx.h>
-#include <Windows.h>
-#include <string>
-#include <iostream>
-#include <math.h>
 
 const int TARGET_RESOLUTION_X = 1920;
 const int TARGET_RESOLUTION_Y = 1080;
@@ -77,15 +52,6 @@ int Application::Execute() {
 
 	scaleFactor = m_Renderer->GetScaleFactor((float)scaledResolutionX, (float)scaledResolutionY);
 
-	// Rect
-	/*std::unique_ptr<Rect> newRect = std::make_unique<Rect>(m_Renderer.get());
-	newRect->Create(L"../../../assets/WoodTexture.jpg", 1, 1, 0);
-	std::unique_ptr<Rect> newRect2 = std::make_unique<Rect>(m_Renderer.get());
-	newRect2->Create(L"../../../assets/ThinTriangle.png", 0, 0, 0);*/
-
-	//std::unique_ptr<Object> obj = std::make_unique<Object>(m_Renderer.get(), (char*)"Test");
-	//m_Game->AddObject(obj.get());
-
 	// Main application loop
 	while (m_Running)
 	{
@@ -101,8 +67,6 @@ int Application::Execute() {
 			DispatchMessageW(&msg);
 		}
 		else {
-			std::vector<Object*> objects = m_Game->GetObjects();
-
 			m_Shader->Use();
 			m_RasterState->Use();
 
@@ -110,13 +74,8 @@ int Application::Execute() {
 			m_RenderTarget->Use();
 			// Update the model view projection constant buffer
 			this->ComputeModelViewProjectionMatrix();
-			// Render the model
-			//obj->Update();
 
-			for (int i = 0; i < objects.size(); i++) {
-				if (!objects[i]->markedDeleted)
-					objects[i]->Update();
-			}
+			m_Game->GetGameObject()->Update();
 
 			m_Renderer->Clear();
 
@@ -128,7 +87,7 @@ int Application::Execute() {
 
 			NavigatorWindow::Render(m_Renderer.get(), m_Game.get(), scaleFactor);
 			PropertiesWindow::Render(m_Game.get(), scaleFactor);
-			ViewportWindow::Render(m_Renderer.get(), scaleFactor, (ImTextureID)(intptr_t)m_RenderTarget->GetTexture());
+			ViewportWindow::Render(m_Renderer.get(), scaleFactor, (ImTextureID)(intptr_t)m_RenderTarget->GetTexture(), m_Camera.get());
 			ObjectWindow::Render(m_Renderer.get(), m_Game.get(), scaleFactor);
 
 			ImVec2 viewportWindowSize = ViewportWindow::GetSize();

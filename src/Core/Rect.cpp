@@ -11,12 +11,6 @@
 
 Rect::Rect(Renderer* renderer) : m_Renderer(renderer) {}
 
-void Rect::Create() {
-	CreateVertexBuffer(0, 0);
-	CreateIndexBuffer();
-	LoadTexture(GetProjectRootWString() + L"/assets/Square.png");
-}
-
 void Rect::Create(std::wstring texture_path, float pos_x, float pos_y, float size_x, float size_y, float rotation)
 {
 	CreateVertexBuffer(pos_x, pos_y, size_x, size_y);
@@ -26,51 +20,63 @@ void Rect::Create(std::wstring texture_path, float pos_x, float pos_y, float siz
 
 void Rect::CreateVertexBuffer(float pos_x, float pos_y, float size_x, float size_y, float rotation)
 {
-	ComPtr<ID3D11Device> device = m_Renderer->GetDevice();
+    if (pos_x == lastPosX && pos_y == lastPosY && size_x == lastSizeX && size_y == lastSizeY && rotation == lastRotation)
+        return;
 
-	const float width = size_x;
-	const float height = size_y;
-	const float depth = 0.1f;
+    ComPtr<ID3D11Device> device = m_Renderer->GetDevice();
 
-	float pos_z = 0.0f;
+    const float halfWidth = size_x / 2.0f;  // Half width
+    const float halfHeight = size_y / 2.0f; // Half height
+    const float depth = 0.1f;
 
-	// Rotation matrix (in radians)
-	DirectX::XMMATRIX rotationMatrix = DirectX::XMMatrixRotationZ(rotation * (DirectX::XM_PI / 180.0f));
+    float pos_z = 0.0f;
 
-	// Vertex data with translation applied
-	std::vector<Vertex> vertices =
-	{
-		{ VertexPosition(pos_x - width, pos_y - height, pos_z - depth), VertexTextureUV(0.0f, 1.0f) },
-		{ VertexPosition(pos_x - width, pos_y + height, pos_z - depth), VertexTextureUV(0.0f, 0.0f) },
-		{ VertexPosition(pos_x + width, pos_y + height, pos_z - depth), VertexTextureUV(1.0f, 0.0f) },
-		{ VertexPosition(pos_x + width, pos_y - height, pos_z - depth), VertexTextureUV(1.0f, 1.0f) },
-	};
+    // Rotation matrix (in radians)
+    DirectX::XMMATRIX rotationMatrix = DirectX::XMMatrixRotationZ(rotation * (DirectX::XM_PI / 180.0f));
 
-	// Apply rotation to vertices
-	for (auto& vertex : vertices)
-	{
-		// Create a vector for the vertex position
-		DirectX::XMVECTOR position = DirectX::XMVectorSet(vertex.position.x, vertex.position.y, vertex.position.z, 1.0f);
+    // Vertex data defined relative to the center of the rectangle
+    std::vector<Vertex> vertices =
+    {
+        { VertexPosition(-halfWidth, -halfHeight, pos_z - depth), VertexTextureUV(0.0f, 1.0f) },
+        { VertexPosition(-halfWidth, halfHeight, pos_z - depth), VertexTextureUV(0.0f, 0.0f) },
+        { VertexPosition(halfWidth, halfHeight, pos_z - depth), VertexTextureUV(1.0f, 0.0f) },
+        { VertexPosition(halfWidth, -halfHeight, pos_z - depth), VertexTextureUV(1.0f, 1.0f) },
+    };
 
-		// Apply the rotation
-		position = XMVector3Transform(position, rotationMatrix);
+    // Apply transformations to vertices
+    for (auto& vertex : vertices)
+    {
+        // Create a vector for the vertex position
+        DirectX::XMVECTOR position = DirectX::XMVectorSet(vertex.position.x, vertex.position.y, vertex.position.z, 1.0f);
 
-		// Update the vertex position
-		vertex.position.x = DirectX::XMVectorGetX(position);
-		vertex.position.y = DirectX::XMVectorGetY(position);
-	}
+        // Translate to origin (center of the rectangle)
+		// Note: Changing first two values of XMVectorSet can modify its "pivot". Example: Using halfWidth and halfHeight would rotate at by its bottom-left corner.
+        position = DirectX::XMVectorAdd(position, DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f));
 
-	// Create vertex buffer
-	D3D11_BUFFER_DESC vertexbuffer_desc = {};
-	vertexbuffer_desc.Usage = D3D11_USAGE_DEFAULT;
-	vertexbuffer_desc.ByteWidth = static_cast<UINT>(sizeof(Vertex) * vertices.size());
-	vertexbuffer_desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+        // Apply the rotation
+        position = DirectX::XMVector3Transform(position, rotationMatrix);
 
-	D3D11_SUBRESOURCE_DATA vertex_subdata = {};
-	vertex_subdata.pSysMem = vertices.data();
+        // Translate back to original position
+        position = DirectX::XMVectorAdd(position, DirectX::XMVectorSet(pos_x, pos_y, 0.0f, 0.0f));
 
-	DX::Check(device->CreateBuffer(&vertexbuffer_desc, &vertex_subdata, m_VertexBuffer.ReleaseAndGetAddressOf()));
+        // Update the vertex position
+        vertex.position.x = DirectX::XMVectorGetX(position);
+        vertex.position.y = DirectX::XMVectorGetY(position);
+    }
+
+    // Create vertex buffer
+    D3D11_BUFFER_DESC vertexbuffer_desc = {};
+    vertexbuffer_desc.Usage = D3D11_USAGE_DEFAULT;
+    vertexbuffer_desc.ByteWidth = static_cast<UINT>(sizeof(Vertex) * vertices.size());
+    vertexbuffer_desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+
+    D3D11_SUBRESOURCE_DATA vertex_subdata = {};
+    vertex_subdata.pSysMem = vertices.data();
+
+    DX::Check(device->CreateBuffer(&vertexbuffer_desc, &vertex_subdata, m_VertexBuffer.ReleaseAndGetAddressOf()));
 }
+
+
 
 void Rect::CreateIndexBuffer()
 {
@@ -99,6 +105,11 @@ void Rect::CreateIndexBuffer()
 
 void Rect::LoadTexture(std::wstring path)
 {
+	if (path == lastTexture)
+		return;
+
+	lastTexture = path;
+
 	// Check if file exists
 	if (!std::filesystem::exists(path))
 	{
@@ -151,4 +162,10 @@ void Rect::SetTransform(float pos_x, float pos_y, float size_x, float size_y, fl
 
 void Rect::SetTransform(Vector2 pos, Vector2 size, float rotation) {
 	CreateVertexBuffer(pos.x, pos.y, size.x, size.y, rotation);
+}
+
+void Rect::SetTexture(std::string path) {
+	std::wstring wStr(path.begin(), path.end());
+
+	LoadTexture(wStr);
 }
