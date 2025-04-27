@@ -8,6 +8,8 @@
 #include <filesystem>
 #include <Windows.h>
 #include <iostream>
+#include "PathUtils.h"
+#include "ResourceManager.h"
 
 Rect::Rect(Renderer* renderer) : m_Renderer(renderer) {}
 
@@ -99,20 +101,21 @@ void Rect::CreateIndexBuffer()
 
 void Rect::LoadTexture(std::wstring path)
 {
-	// Check if file exists
-	if (!std::filesystem::exists(path))
+	// Get string path for resource ID
+	std::string pathStr = PathUtils::WStringToString(path);
+	std::string id = "texture_" + pathStr;
+
+	// Load or get texture from ResourceManager
+	auto texture = ResourceManager::GetInstance().LoadTexture(id, pathStr);
+	if (texture)
 	{
-		std::cout << "Error loading file." << std::endl;
-		return;
+		m_DiffuseTexture = texture->GetTexture();
 	}
-
-	// Load texture into a resource shader view
-	ComPtr<ID3D11Device> device = m_Renderer->GetDevice();
-	ComPtr<ID3D11DeviceContext> context = m_Renderer->GetContext();
-
-	ComPtr<ID3D11Resource> resource = nullptr;
-	DX::Check(DirectX::CreateWICTextureFromFile(device.Get(), context.Get(), path.c_str(), resource.ReleaseAndGetAddressOf(), m_DiffuseTexture.ReleaseAndGetAddressOf()));
-} 
+	else
+	{
+		std::cout << "Error loading texture: " << pathStr << std::endl;
+	}
+}
 
 void Rect::Render()
 {

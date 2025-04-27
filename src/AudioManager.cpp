@@ -19,6 +19,8 @@
 #include <string>
 #include <algorithm>
 #include <vector>
+#include "PathUtils.h"
+#include "ResourceManager.h"
 
 // Define global singleton accessor
 AudioManager& gAudioManager = AudioManager::GetInstance();
@@ -154,19 +156,22 @@ HRESULT AudioManager::PlaySound(const std::string& filePath, bool isSoundEffect,
     if (!pXAudio2 || !pMasteringVoice)
         return E_FAIL;
 
-    std::wstring wFilePath = ConvertToWideString(filePath);
+    // Create a unique ID for this sound
+    std::string id = "sound_" + filePath;
+    // Convert to wstring for the sourceVoices map
+    std::wstring wideId = PathUtils::StringToWString(id);
 
-    // Get or load the sound resource
-    std::shared_ptr<SoundResource> resource = GetOrLoadResource(wFilePath, isSoundEffect);
-    if (!resource)
+    // Load or get sound from ResourceManager
+    auto soundResource = ResourceManager::GetInstance().LoadSound(id, filePath, !isSoundEffect);
+    if (!soundResource || !soundResource->GetSound())
         return E_FAIL;
 
-    // Get the source voice if it exists, or create a new one
+    // Rest of the method to play the sound...
     IXAudio2SourceVoice* pSourceVoice = nullptr;
 
     {
         std::lock_guard<std::mutex> lock(resourceMutex);
-        auto iter = sourceVoices.find(wFilePath);
+        auto iter = sourceVoices.find(wideId); // Use wideId, which is std::wstring
         if (iter != sourceVoices.end())
         {
             pSourceVoice = iter->second;
@@ -178,15 +183,14 @@ HRESULT AudioManager::PlaySound(const std::string& filePath, bool isSoundEffect,
     }
 
     // Play the sound with volume control
-    HRESULT hr = resource->Play(pXAudio2.Get(), &pSourceVoice, volume);
+    HRESULT hr = soundResource->GetSound()->Play(pXAudio2.Get(), &pSourceVoice, volume);
     if (FAILED(hr))
         return hr;
 
-    // Store the source voice and update usage statistics
+    // Store the source voice
     {
         std::lock_guard<std::mutex> lock(resourceMutex);
-        sourceVoices[wFilePath] = pSourceVoice;
-        UpdateResourceUsage(wFilePath);
+        sourceVoices[wideId] = pSourceVoice; // Use wideId here as well
     }
 
     return S_OK;
@@ -663,31 +667,10 @@ std::wstring AudioManager::ConvertToWideString(const std::string& str)
     return wstr;
 }
 
-/// <summary>
-/// Helper function to get the project root directory.
-/// </summary>
-/// <returns></returns>
-std::wstring AudioManager::GetProjectRoot()
-{
-    // Get current working directory
-    wchar_t buffer[MAX_PATH];
-    GetCurrentDirectoryW(MAX_PATH, buffer);
-
-    // Remove "\build" from the path if it exists
-    std::wstring path(buffer);
-    std::wstring buildDir = L"\\build";
-    size_t pos = path.find(buildDir);
-    if (pos != std::wstring::npos) {
-        path = path.substr(0, pos);
-    }
-
-    return path;
-}
-
 // For use by SoundResource.cpp
 std::wstring GetProjectRoot()
 {
-    return gAudioManager.GetProjectRoot();
+    return PathUtils::GetProjectRoot();
 }
 
 /// <summary>
