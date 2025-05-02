@@ -58,14 +58,27 @@ public:
     static std::wstring GetAbsolutePath(const std::wstring& relativePath)
     {
         std::wstring root = GetProjectRoot();
-        
-        // Ensure we have proper path separator
-        if (!root.empty() && root.back() != L'\\' && relativePath.front() != L'\\')
-        {
+
+        // Check if the path is already absolute (starts with a drive letter)
+        if (relativePath.length() >= 2 && relativePath[1] == L':') {
+            return relativePath; // Already an absolute path
+        }
+
+        // Normalize path separators
+        std::wstring normalizedPath = relativePath;
+        std::replace(normalizedPath.begin(), normalizedPath.end(), L'/', L'\\');
+
+        // Remove leading backslash if present
+        if (!normalizedPath.empty() && normalizedPath[0] == L'\\') {
+            normalizedPath = normalizedPath.substr(1);
+        }
+
+        // Ensure root path ends with backslash
+        if (!root.empty() && root.back() != L'\\') {
             root += L'\\';
         }
-        
-        return root + relativePath;
+
+        return root + normalizedPath;
     }
     
     /**

@@ -3,13 +3,14 @@
 #include <xaudio2.h>
 #include <xaudio2fx.h>
 #include <wrl/client.h>
-#include <unordered_map>
 #include <string>
 #include <memory>
 #include <mutex>
-#include <queue>
+#include <unordered_map>
 #include <chrono>
-#include "SoundResource.h"
+
+// Forward declarations
+class SoundResource;
 
 // Room/Environment types for sound effects
 enum EnvironmentType
@@ -20,119 +21,67 @@ enum EnvironmentType
     ENV_LARGE_HALL
 };
 
-// Resource usage tracking structure
-struct ResourceUsageInfo
-{
-    std::wstring path;
-    std::chrono::steady_clock::time_point lastUsedTime;
-
-    ResourceUsageInfo() {}
-
-    ResourceUsageInfo(const std::wstring& p)
-        : path(p),
-        lastUsedTime(std::chrono::steady_clock::now()) {
-    }
-
-    // Update usage timestamp
-    void Used()
-    {
-        lastUsedTime = std::chrono::steady_clock::now();
-    }
-};
-
 // AudioManager singleton
 class AudioManager
 {
 public:
+    // Singleton access
+    static AudioManager& GetInstance();
+
+    // Delete copy constructor and assignment operator
+    AudioManager(const AudioManager&) = delete;
+    AudioManager& operator=(const AudioManager&) = delete;
+
+    // Core system methods
+    bool startUp();
+    void shutDown();
+
+    // Playback methods
+    HRESULT PlaySound(const std::string& soundId, float volume = 1.0f);
+    HRESULT PlaySoundDirect(SoundResource* pSoundResource, float volume = 1.0f);
+    HRESULT StopSound(const std::string& soundId);
+    void StopAllSounds();
+
+    // Volume control
+    HRESULT SetSoundVolume(const std::string& soundId, float volume);
+    HRESULT SetMasterVolume(float volume);
+    float GetMasterVolume() const { return m_MasterVolume; }
+
+    // Effects
+    HRESULT SetEnvironment(EnvironmentType envType);
+
+    // Engine access
+    IXAudio2* GetXAudio2Engine() const { return m_XAudio2.Get(); }
+
+    // Source voice pool management
+    void ConfigureSourceVoicePool(size_t maxVoices);
+    void CleanupSourceVoicePool(bool forceCleanup = false);
+    bool IsVoicePlaying(const std::string& soundId);
+    void GetVoicePoolStatus(size_t& totalVoices, size_t& playingVoices);
+    void PerformMaintenance();
+
+private:
     AudioManager();
     ~AudioManager();
 
-    // Singleton access
-    static AudioManager& GetInstance()
-    {
-        static AudioManager instance;
-        return instance;
-    }
-
-    // Initialize the audio system
-    bool startUp(size_t maxCachedResources = 64,
-        size_t minResourceAge = 10);
-
-    // Shutdown the audio system
-    void shutDown();
-
-    // Play a sound with given volume (0.0f to 1.0f)
-    HRESULT PlaySound(const std::string& filePath, bool isSoundEffect = true, float volume = 1.0f, bool loop = false);
-
-    // Play a preloaded sound
-    HRESULT PlaySound(SoundResource* pSoundResource, float volume = 1.0f);
-
-    // Stop a specific sound
-    HRESULT StopSound(const std::string& filePath);
-
-    // Stop all sounds
-    void StopAllSounds();
-
-    // Set volume for a specific sound (0.0f to 1.0f)
-    HRESULT SetSoundVolume(const std::string& filePath, float volume);
-
-    // Set master volume (0.0f to 1.0f)
-    HRESULT SetMasterVolume(float volume);
-
-    // Get master volume
-    float GetMasterVolume() const { return masterVolume; }
-
-    // Room/Environment Effects
-    HRESULT SetEnvironment(EnvironmentType envType);
-
-    // Memory management - cleanup cache
-    void CleanupResourceCache(size_t maxResourcesOverride = 0);
-
-    // Get project root directory
-    std::wstring GetProjectRoot();
-
-    // Configure cache settings
-    void ConfigureCache(size_t maxCachedResources = 64,
-        size_t minResourceAge = 10,
-        size_t maxSourceVoices = 32);
-
-private:
     // XAudio2 interfaces
-    Microsoft::WRL::ComPtr<IXAudio2> pXAudio2;
-    IXAudio2MasteringVoice* pMasteringVoice;
+    Microsoft::WRL::ComPtr<IXAudio2> m_XAudio2;
+    IXAudio2MasteringVoice* m_MasteringVoice;
 
-    // Sound resources and source voices
-    std::unordered_map<std::wstring, std::shared_ptr<SoundResource>> soundResources;
-    std::unordered_map<std::wstring, IXAudio2SourceVoice*> sourceVoices;
+    // Source voices - mapping from sound ID to voice
+    std::unordered_map<std::string, IXAudio2SourceVoice*> m_SourceVoices;
 
-    // Resource usage tracking
-    std::unordered_map<std::wstring, ResourceUsageInfo> resourceUsage;
-
-    // Cache settings
-    size_t maxCachedResources;
-    size_t minResourceAgeSeconds;
-    size_t maxSourceVoices;
-
-    // Mutex for thread safety
-    std::mutex resourceMutex;
+    // Voice pool management
+    size_t m_MaxSourceVoices = 64;
+    std::unordered_map<std::string, std::chrono::steady_clock::time_point> m_VoiceLastUsedTime;
 
     // Master volume level
-    float masterVolume;
-
-    // Helper methods
-    std::shared_ptr<SoundResource> GetOrLoadResource(const std::wstring& filePath, bool isSoundEffect, bool loop = false);
-    void UpdateResourceUsage(const std::wstring& filePath);
-
-    // Convert path string from narrow to wide
-    std::wstring ConvertToWideString(const std::string& str);
+    float m_MasterVolume;
 
     // Cached speaker configuration
-    DWORD channelMask;
-    UINT32 channels;
+    DWORD m_ChannelMask;
+    UINT32 m_Channels;
 
-    // Source voice cache management
-    void CleanupSourceVoicePool();
+    // Thread safety
+    std::mutex m_AudioMutex;
 };
-
-// Global singleton accessor
-extern AudioManager& gAudioManager;

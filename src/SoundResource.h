@@ -8,8 +8,6 @@
 #include <atomic>
 #include <mutex>
 
-class AudioManager; // Forward declaration
-
 class SoundResource
 {
 public:
@@ -42,28 +40,28 @@ public:
 
     // Set looping status
     void SetLooping(bool shouldLoop);
-    bool IsLooping() const { return shouldLoop; }
+    bool IsLooping() const { return m_ShouldLoop; }
 
     // Accessors
-    const XAUDIO2_BUFFER* GetBuffer() const { return &buffer; }
-    const WAVEFORMATEXTENSIBLE* GetWaveFormat() const { return &wfx; }
-    const std::wstring& GetFilePath() const { return filePath; }
-    bool IsStreaming() const { return resourceType == STREAMING; }
+    const XAUDIO2_BUFFER* GetBuffer() const { return &m_Buffer; }
+    const WAVEFORMATEXTENSIBLE* GetWaveFormat() const { return &m_Wfx; }
+    const std::wstring& GetFilePath() const { return m_FilePath; }
+    bool IsStreaming() const { return m_ResourceType == STREAMING; }
 
 private:
-    std::vector<BYTE> audioData;       // Actual audio data, managed automatically
-    XAUDIO2_BUFFER buffer;             // XAudio2 buffer structure
-    WAVEFORMATEXTENSIBLE wfx;          // Wave format
-    std::wstring filePath;             // Path to the audio file
-    ResourceType resourceType;         // Type of sound resource
-    bool shouldLoop;                   // Whether the sound should loop
+    std::vector<BYTE> m_AudioData;       // Actual audio data, managed automatically
+    XAUDIO2_BUFFER m_Buffer;             // XAudio2 buffer structure
+    WAVEFORMATEXTENSIBLE m_Wfx;          // Wave format
+    std::wstring m_FilePath;             // Path to the audio file
+    ResourceType m_ResourceType;         // Type of sound resource
+    bool m_ShouldLoop;                   // Whether the sound should loop
 
     // Streaming related members
     static const size_t STREAMING_BUFFER_SIZE = 65536;  // 64KB chunks for streaming
-    std::atomic<bool> isStreaming;
-    std::thread streamingThread;
-    std::mutex streamingMutex;
-    HANDLE streamingFileHandle;
+    std::atomic<bool> m_IsStreaming;
+    std::thread m_StreamingThread;
+    std::mutex m_StreamingMutex;
+    HANDLE m_StreamingFileHandle;
 
     // Start the streaming process for BGM
     HRESULT StartStreaming(IXAudio2SourceVoice* pSourceVoice);
@@ -79,8 +77,8 @@ private:
     HRESULT ReadChunkData(HANDLE hFile, void* buffer, DWORD buffersize, DWORD bufferoffset);
 
     // Store wave file header locations for streaming
-    DWORD dataChunkSize;
-    DWORD dataChunkPosition;
+    DWORD m_DataChunkSize;
+    DWORD m_DataChunkPosition;
 
     // Constants for WAV file format
     static const DWORD fourccRIFF = 'FFIR';

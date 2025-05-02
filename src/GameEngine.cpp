@@ -1,5 +1,11 @@
 // GameEngine.cpp
 #include "GameEngine.h"
+#include "Application.h"
+#include "PhysicsWorld.h"
+#include "InputHandler.h"
+#include "AudioManager.h"
+#include "ResourceManager.h"
+#include "Timer.h"
 #include <Windows.h>
 #include <iostream>
 
@@ -24,14 +30,16 @@ bool GameEngine::Initialize()
     
     try
     {
-        // Initialize renderer (through Application)
-        //m_Application = std::make_unique<Application>();
+        // Get singleton references
+        //Renderer& gRenderer = Renderer::GetInstance();
+        //PhysicsWorld& gPhysicsSystem = PhysicsWorld::GetInstance();
+        //InputHandler& gInputSystem = InputSystem::GetInstance();
+        AudioManager& gAudioManager = AudioManager::GetInstance();
+        //ResourceManager& gResourceManager = ResourceManager::GetInstance();
         
-        // Initialize physics
-        m_PhysicsSystem = std::make_unique<PhysicsWorld>(0.0f, -9.8f);
-        
-        // Initialize input
-        m_InputSystem = std::make_unique<InputHandler>();
+        // Initialize subsystems
+        //gPhysicsSystem.startUp(0.0f, -9.8f);
+        //gInputSystem.startUp();
         
         // Initialize audio (singleton)
         if (!gAudioManager.startUp())
@@ -39,7 +47,7 @@ bool GameEngine::Initialize()
             std::cerr << "Failed to initialize audio system" << std::endl;
             return false;
         }
-        
+
         // Set running state
         m_Running = true;
         
@@ -61,6 +69,13 @@ int GameEngine::Run()
         std::cerr << "Error: Engine not initialized. Call Initialize() before Run()" << std::endl;
         return -1;
     }
+
+    // Get singleton references
+    //Renderer& gRenderer = Renderer::GetInstance();
+    //PhysicsWorld& gPhysicsSystem = PhysicsWorld::GetInstance();
+    //InputHandler& gInputSystem = InputSystem::GetInstance();
+    AudioManager& gAudioManager = AudioManager::GetInstance();
+    //ResourceManager& gResourceManager = ResourceManager::GetInstance();
     
     std::cout << "Starting game loop..." << std::endl;
     
@@ -79,16 +94,16 @@ int GameEngine::Run()
         ProcessWindowMessages();
         
         // Process input
-        m_InputSystem->Update();
+        //gInputSystem->Update();
         
         // Update game logic
         Update(deltaTime);
         
         // Update physics
-        m_PhysicsSystem->Step(deltaTime);
+        //gPhysicsSystem->Step(deltaTime);
         
         // Render frame
-        Render();
+        //gRenderer.Render();
     }
     
     std::cout << "Game loop ended" << std::endl;
@@ -99,34 +114,28 @@ void GameEngine::Shutdown()
 {
     std::cout << "Shutting down Game Engine..." << std::endl;
     
+    // Get singleton references
+    //Renderer& gRenderer = Renderer::GetInstance();
+    //PhysicsWorld& gPhysicsSystem = PhysicsWorld::GetInstance();
+    //InputHandler& gInputSystem = InputSystem::GetInstance();
+    AudioManager& gAudioManager = AudioManager::GetInstance();
+    //ResourceManager& gResourceManager = ResourceManager::GetInstance();
+
     // Set running flag to false
     m_Running = false;
     
-    // Shutdown audio (singleton)
+    // Shutdown subsystems
     gAudioManager.shutDown();
-    
-    // These will call destructors through reset()
-    m_InputSystem.reset();
-    m_PhysicsSystem.reset();
-    //m_Application.reset();
+    //gInputSystem.shutDown();
+    //gPhysicsSystem.shutDown();
+    //m_Application.shutDown();
     
     std::cout << "Game Engine shutdown complete" << std::endl;
 }
 
 void GameEngine::Update(float deltaTime)
 {
-    // Update game logic for game objects?
-}
-
-void GameEngine::Render()
-{
-    // These calls will be delegated to your Application and Renderer
-    //m_Application->GetRenderer()->Clear();
-    
-    // Render objects would happen here
-    // For example: for each object in game objects list, call render
-    
-    //m_Application->GetRenderer()->Present();
+    // Update game logic for game objects
 }
 
 void GameEngine::ProcessWindowMessages()

@@ -26,8 +26,16 @@ print("\n--- Testing Basic Sound Playback ---")
 print("Setting master volume to 70%")
 Audio.SetMasterVolume(0.7)
 
+-- First, load sounds with IDs
+print("Loading sounds...")
+local sfxId = "test_sfx"
+local bgmId = "test_bgm"
+
+Audio.LoadSound(sfxId, "assets/audio/sfx/test_sfx.wav", false, false)
+Audio.LoadSound(bgmId, "assets/audio/bgm/test_bgm.wav", true, true)
+
 print("Playing sound effect...")
-local result = Audio.PlaySound("assets/audio/sfx/test_sfx.wav", true, 1.0)
+local result = Audio.PlaySound(sfxId, 1.0)
 print("PlaySound result: " .. tostring(result))
 
 -- Wait for sound to play
@@ -39,32 +47,32 @@ print("\n--- Testing Volume Control ---")
 print("Playing sound at different volumes...")
 
 print("Playing at 100% volume")
-Audio.PlaySound("assets/audio/sfx/test_sfx.wav", true, 1.0)
+Audio.PlaySound(sfxId, 1.0)
 sleep(1)
 
 print("Playing at 60% volume")
-Audio.PlaySound("assets/audio/sfx/test_sfx.wav", true, 0.6)
+Audio.PlaySound(sfxId, 0.6)
 sleep(1)
 
 print("Playing at 30% volume")
-Audio.PlaySound("assets/audio/sfx/test_sfx.wav", true, 0.3)
+Audio.PlaySound(sfxId, 0.3)
 sleep(1)
 
 -- Test streaming audio
 print("\n--- Testing Streaming Audio ---")
 print("Playing streaming BGM at 50% volume...")
-local bgmResult = Audio.PlaySound("assets/audio/bgm/test_bgm.wav", false, 0.5)
+local bgmResult = Audio.PlaySound(bgmId, 0.5)
 print("BGM PlaySound result: " .. tostring(bgmResult))
 
 print("Wait 3 seconds...")
 sleep(3)
 
 print("Changing BGM volume to 80%")
-Audio.SetSoundVolume("assets/audio/bgm/test_bgm.wav", 0.8)
+Audio.SetSoundVolume(bgmId, 0.8)
 sleep(3)
 
 print("Changing BGM volume to 20%")
-Audio.SetSoundVolume("assets/audio/bgm/test_bgm.wav", 0.2)
+Audio.SetSoundVolume(bgmId, 0.2)
 sleep(3)
 
 -- Test master volume
@@ -102,28 +110,30 @@ sleep(3)
 -- Test sound stopping
 print("\n--- Testing Sound Stopping ---")
 print("Playing sound effect...")
-Audio.PlaySound("assets/audio/sfx/test_sfx.wav")
+Audio.PlaySound(sfxId)
 sleep(1)
 
 print("Stopping sound effect")
-Audio.StopSound("assets/audio/sfx/test_sfx.wav")
+Audio.StopSound(sfxId)
 sleep(1)
 
 print("Stopping BGM")
-Audio.StopSound("assets/audio/bgm/test_bgm.wav")
+Audio.StopSound(bgmId)
 sleep(2)
 
 -- Test memory management
 print("\n--- Testing Memory Management ---")
-print("Configuring cache (max 10 resources, 2s min age)")
-Audio.ConfigureCache(10, 2)
+print("Configuring sound cache (max 10 resources, 2s min age)")
+Audio.ConfigureSoundCache(10, 2)
 
 -- Load multiple sounds to test cache behavior
 print("\nLoading multiple sounds...")
 for i = 1, 15 do
+  local soundId = "test_sfx_" .. i
   local soundPath = "assets/audio/sfx/test_sfx_" .. i .. ".wav"
   print("Loading sound: " .. soundPath)
-  Audio.PlaySound(soundPath, true, 0.1)
+  Audio.LoadSound(soundId, soundPath, false, false)
+  Audio.PlaySound(soundId, 0.1)
   -- Very short delay to avoid hanging
   sleep(0.5)
 end
@@ -131,21 +141,22 @@ end
 print("\nWaiting for resources to age...")
 sleep(3)
 
--- Adding back the CleanupResourceCache calls
-print("\nManually triggering cache cleanup to configured maximum:")
-pcall(function() 
-  -- Use pcall to prevent script termination if an error occurs
-  Audio.CleanupResourceCache()
-  print("Cleanup completed successfully")
-end)
+-- Using the new UnloadUnusedSounds function
+print("\nManually unloading unused sounds:")
+Audio.UnloadUnusedSounds(2)
+print("Cleanup completed successfully")
 sleep(1)
 
-print("\nDemonstrating aggressive cleanup to 5 resources:")
-pcall(function()
-  -- Use pcall to prevent script termination if an error occurs 
-  Audio.CleanupResourceCache(5)
-  print("Aggressive cleanup completed successfully")
-end)
+-- Test voice pool management
+print("\n--- Testing Voice Pool Management ---")
+print("Configuring voice pool (max 20 voices)")
+Audio.ConfigureSourceVoicePool(20)
+
+local poolStatus = Audio.GetVoicePoolStatus()
+print("Voice pool status - Total: " .. poolStatus.totalVoices .. ", Playing: " .. poolStatus.playingVoices)
+
+print("\nPerforming voice pool maintenance")
+Audio.PerformMaintenance()
 
 print("\nTest complete. Stopping all sounds")
 Audio.StopAllSounds()

@@ -115,11 +115,16 @@ target_link_libraries(GameEngine PRIVATE
 # -------------------------------
 
 # Audio Test Executable
+# Gather all .cpp files
+file(GLOB_RECURSE TEST_SRC "${SRC_DIR}/*.cpp")
+
+# Remove main.cpp
+list(FILTER TEST_SRC EXCLUDE REGEX ".*/main\\.cpp$")
+list(FILTER TEST_SRC EXCLUDE REGEX ".*_test\\.cpp$")
+
 add_executable(AudioTest 
     src/audio_test.cpp
-    src/AudioManager.cpp
-    src/AudioLuaAPI.cpp
-    src/SoundResource.cpp
+    ${TEST_SRC} ${IMGUI_SRC}
 )
 
 # Include directories for AudioTest
@@ -130,13 +135,19 @@ target_include_directories(AudioTest PRIVATE
     ${LUA_SRC_DIR} 
     ${SRC_DIR} 
     ${XAUDIO2_INCLUDE_DIR}
+    third_party_libs/raylib/src
 )
 
 # Link libraries to AudioTest
 target_link_libraries(AudioTest PRIVATE 
+    core
+	ui
+    box2d
+	d3d11
+	imgui
     lua
     ${XAUDIO2_LIBRARY}
-	raylib
+    raylib
 )
 
 # Physics Test Executable

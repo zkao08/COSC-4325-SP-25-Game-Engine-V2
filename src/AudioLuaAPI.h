@@ -2,6 +2,7 @@
 
 #include "AudioManager.h"
 #include "SoundResource.h"
+#include "ResourceManager.h"
 #include <sol/sol.hpp>
 
 namespace AudioLuaAPI

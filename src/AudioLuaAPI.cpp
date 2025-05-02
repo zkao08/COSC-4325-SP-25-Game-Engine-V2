@@ -5,16 +5,16 @@
 /// </summary>
 /// 
 /// <author> Zachary Kao </author>
-/// <date> 2025-4-19</date>
+/// <date> 2025-4-30</date>
 /// </file>
 
 #include "AudioLuaAPI.h"
 #include <iostream>
 
 namespace AudioLuaAPI
-{   
+{
     /// <summary>
-	/// Initializes the Lua API for the AudioManager and SoundResource classes.
+    /// Initializes the Lua API for the AudioManager and SoundResource classes.
     /// </summary>
     /// <param name="lua"></param>
     void Initialize(sol::state& lua)
@@ -43,7 +43,7 @@ namespace AudioLuaAPI
             sol::constructors<
             SoundResource(const std::string&, SoundResource::ResourceType),
             SoundResource(const std::string&, SoundResource::ResourceType, bool)
-            >(),
+            > (),
 
             // Methods
             "GetFilePath", &SoundResource::GetFilePath,
@@ -52,46 +52,57 @@ namespace AudioLuaAPI
             "SetLooping", &SoundResource::SetLooping
         );
 
-        // Get AudioManager instance
+        // Get manager instances
         AudioManager& audioManager = AudioManager::GetInstance();
+        ResourceManager& resourceManager = ResourceManager::GetInstance();
 
-        // Register AudioManager functions
+        // Register sound management functions
+        audioAPI.set_function("LoadSound", sol::overload(
+            [&resourceManager](const std::string& id, const std::string& filePath, bool isStreaming, bool loop) -> std::shared_ptr<SoundResource> {
+                return resourceManager.LoadSound(id, filePath, isStreaming, loop);
+            },
+            [&resourceManager](const std::string& id, const std::string& filePath, bool isStreaming) -> std::shared_ptr<SoundResource> {
+                return resourceManager.LoadSound(id, filePath, isStreaming, false);
+            },
+            [&resourceManager](const std::string& id, const std::string& filePath) -> std::shared_ptr<SoundResource> {
+                return resourceManager.LoadSound(id, filePath, false, false);
+            }
+        ));
 
         // Play sound + overloads
         audioAPI.set_function("PlaySound", sol::overload(
-            [&audioManager](const std::string& filePath, bool isSoundEffect, float volume, bool loop) -> bool {
-                HRESULT hr = audioManager.PlaySound(filePath, isSoundEffect, volume, loop);
+            [&audioManager](const std::string& soundId, float volume) -> bool {
+                HRESULT hr = audioManager.PlaySound(soundId, volume);
                 return SUCCEEDED(hr);
             },
-            [&audioManager](const std::string& filePath, bool isSoundEffect, float volume) -> bool {
-                HRESULT hr = audioManager.PlaySound(filePath, isSoundEffect, volume, false);
+            [&audioManager](const std::string& soundId) -> bool {
+                HRESULT hr = audioManager.PlaySound(soundId, 1.0f);
                 return SUCCEEDED(hr);
             },
-            [&audioManager](const std::string& filePath, bool isSoundEffect, bool loop) -> bool {
-                HRESULT hr = audioManager.PlaySound(filePath, isSoundEffect, 1.0f, loop);
-                return SUCCEEDED(hr);
-            },
-            [&audioManager](const std::string& filePath, bool isSoundEffect) -> bool {
-                HRESULT hr = audioManager.PlaySound(filePath, isSoundEffect, 1.0f, false);
-                return SUCCEEDED(hr);
-            },
-            [&audioManager](const std::string& filePath) -> bool {
-                HRESULT hr = audioManager.PlaySound(filePath);
+            [&audioManager, &resourceManager](const std::string& filePath, bool isStreaming, float volume, bool loop) -> bool {
+                // Create a unique ID for the sound based on the filepath
+                std::string id = "sound_" + filePath;
+
+                // Load the sound first
+                resourceManager.LoadSound(id, filePath, isStreaming, loop);
+
+                // Then play it
+                HRESULT hr = audioManager.PlaySound(id, volume);
                 return SUCCEEDED(hr);
             },
             [&audioManager](SoundResource* pSoundResource, float volume) -> bool {
-                HRESULT hr = audioManager.PlaySound(pSoundResource, volume);
+                HRESULT hr = audioManager.PlaySoundDirect(pSoundResource, volume);
                 return SUCCEEDED(hr);
             },
             [&audioManager](SoundResource* pSoundResource) -> bool {
-                HRESULT hr = audioManager.PlaySound(pSoundResource);
+                HRESULT hr = audioManager.PlaySoundDirect(pSoundResource, 1.0f);
                 return SUCCEEDED(hr);
             }
         ));
 
-		// Stop sound functions
-        audioAPI.set_function("StopSound", [&audioManager](const std::string& filePath) -> bool {
-            HRESULT hr = audioManager.StopSound(filePath);
+        // Stop sound functions
+        audioAPI.set_function("StopSound", [&audioManager](const std::string& soundId) -> bool {
+            HRESULT hr = audioManager.StopSound(soundId);
             return SUCCEEDED(hr);
             });
 
@@ -100,8 +111,8 @@ namespace AudioLuaAPI
             });
 
         // Volume functions
-        audioAPI.set_function("SetSoundVolume", [&audioManager](const std::string& filePath, float volume) -> bool {
-            HRESULT hr = audioManager.SetSoundVolume(filePath, volume);
+        audioAPI.set_function("SetSoundVolume", [&audioManager](const std::string& soundId, float volume) -> bool {
+            HRESULT hr = audioManager.SetSoundVolume(soundId, volume);
             return SUCCEEDED(hr);
             });
 
@@ -116,30 +127,59 @@ namespace AudioLuaAPI
             return SUCCEEDED(hr);
             });
 
-		// Memory management functions
-        audioAPI.set_function("CleanupResourceCache", sol::overload(
-            [&audioManager]() {
-                audioManager.CleanupResourceCache();
+        // Memory management functions
+        audioAPI.set_function("UnloadSound", [&resourceManager](const std::string& id) {
+            resourceManager.UnloadSound(id);
+            });
+
+        audioAPI.set_function("UnloadUnusedSounds", sol::overload(
+            [&resourceManager]() {
+                resourceManager.UnloadUnusedSounds();
             },
-            [&audioManager](size_t maxResourcesOverride) {
-                audioManager.CleanupResourceCache(maxResourcesOverride);
+            [&resourceManager](int maxAgeInSeconds) {
+                resourceManager.UnloadUnusedSounds(maxAgeInSeconds);
             }
         ));
 
-        audioAPI.set_function("ConfigureCache", sol::overload(
-            [&audioManager]() {
-                audioManager.ConfigureCache();
+        audioAPI.set_function("ConfigureSoundCache", sol::overload(
+            [&resourceManager]() {
+                resourceManager.ConfigureSoundCache(50, 10);
             },
-            [&audioManager](size_t maxCachedResources) {
-                audioManager.ConfigureCache(maxCachedResources);
+            [&resourceManager](size_t maxSounds) {
+                resourceManager.ConfigureSoundCache(maxSounds, 10);
             },
-            [&audioManager](size_t maxCachedResources, size_t minResourceAge) {
-                audioManager.ConfigureCache(maxCachedResources, minResourceAge);
-            },
-            [&audioManager](size_t maxCachedResources, size_t minResourceAge, size_t maxSourceVoices) {
-                audioManager.ConfigureCache(maxCachedResources, minResourceAge, maxSourceVoices);
+            [&resourceManager](size_t maxSounds, size_t minAgeSeconds) {
+                resourceManager.ConfigureSoundCache(maxSounds, minAgeSeconds);
             }
         ));
+
+        // Voice pool management
+        audioAPI.set_function("ConfigureSourceVoicePool", [&audioManager](size_t maxVoices) {
+            audioManager.ConfigureSourceVoicePool(maxVoices);
+            });
+
+        audioAPI.set_function("IsVoicePlaying", [&audioManager](const std::string& soundId) -> bool {
+            return audioManager.IsVoicePlaying(soundId);
+            });
+
+        // GetVoicePoolStatus returns a table with the voice pool statistics
+        audioAPI.set_function("GetVoicePoolStatus", [&audioManager](sol::this_state ts) -> sol::table {
+            sol::state_view lua(ts);
+            size_t totalVoices = 0;
+            size_t playingVoices = 0;
+
+            audioManager.GetVoicePoolStatus(totalVoices, playingVoices);
+
+            sol::table result = lua.create_table();
+            result["totalVoices"] = totalVoices;
+            result["playingVoices"] = playingVoices;
+
+            return result;
+            });
+
+        audioAPI.set_function("PerformMaintenance", [&audioManager]() {
+            audioManager.PerformMaintenance();
+            });
 
         std::cout << "Audio Lua API initialized successfully" << std::endl;
     }

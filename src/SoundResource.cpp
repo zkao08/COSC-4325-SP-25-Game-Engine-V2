@@ -5,30 +5,28 @@
 /// </summary>
 /// 
 /// <author> Zachary Kao </author>
-/// <date> 2025-4-27</date>
+/// <date> 2025-4-30</date>
 /// </file>
 
 #include "SoundResource.h"
 #include <Windows.h>
 #include <iostream>
 #include <filesystem>
-
-// Forward declaration of GetProjectRoot from AudioManager
-std::wstring GetProjectRoot();
+#include "PathUtils.h"
 
 /// <summary>
 /// Initializes the SoundResource object.
 /// </summary>
 SoundResource::SoundResource()
-    : resourceType(SOUND_EFFECT),
-    isStreaming(false),
-    streamingFileHandle(INVALID_HANDLE_VALUE),
-    dataChunkSize(0),
-    dataChunkPosition(0),
-    shouldLoop(false)
+    : m_ResourceType(SOUND_EFFECT),
+    m_IsStreaming(false),
+    m_StreamingFileHandle(INVALID_HANDLE_VALUE),
+    m_DataChunkSize(0),
+    m_DataChunkPosition(0),
+    m_ShouldLoop(false)
 {
-    ZeroMemory(&buffer, sizeof(XAUDIO2_BUFFER));
-    ZeroMemory(&wfx, sizeof(WAVEFORMATEXTENSIBLE));
+    ZeroMemory(&m_Buffer, sizeof(XAUDIO2_BUFFER));
+    ZeroMemory(&m_Wfx, sizeof(WAVEFORMATEXTENSIBLE));
 }
 
 /// <summary>
@@ -40,10 +38,10 @@ SoundResource::~SoundResource()
     StopStreaming();
 
     // Close file handle if open
-    if (streamingFileHandle != INVALID_HANDLE_VALUE)
+    if (m_StreamingFileHandle != INVALID_HANDLE_VALUE)
     {
-        CloseHandle(streamingFileHandle);
-        streamingFileHandle = INVALID_HANDLE_VALUE;
+        CloseHandle(m_StreamingFileHandle);
+        m_StreamingFileHandle = INVALID_HANDLE_VALUE;
     }
 }
 
@@ -54,15 +52,15 @@ SoundResource::~SoundResource()
 /// <param name="type">Type of sound resource (SOUND_EFFECT or STREAMING)</param>
 /// <param name="loop">Whether the sound should loop</param>
 SoundResource::SoundResource(const std::wstring& filePath, ResourceType type, bool loop)
-    : resourceType(type),
-    isStreaming(false),
-    streamingFileHandle(INVALID_HANDLE_VALUE),
-    dataChunkSize(0),
-    dataChunkPosition(0),
-    shouldLoop(loop)
+    : m_ResourceType(type),
+    m_IsStreaming(false),
+    m_StreamingFileHandle(INVALID_HANDLE_VALUE),
+    m_DataChunkSize(0),
+    m_DataChunkPosition(0),
+    m_ShouldLoop(loop)
 {
-    ZeroMemory(&buffer, sizeof(XAUDIO2_BUFFER));
-    ZeroMemory(&wfx, sizeof(WAVEFORMATEXTENSIBLE));
+    ZeroMemory(&m_Buffer, sizeof(XAUDIO2_BUFFER));
+    ZeroMemory(&m_Wfx, sizeof(WAVEFORMATEXTENSIBLE));
 
     // Automatically load the sound
     Load(filePath, type, loop);
@@ -75,21 +73,18 @@ SoundResource::SoundResource(const std::wstring& filePath, ResourceType type, bo
 /// <param name="type">Type of sound resource (SOUND_EFFECT or STREAMING)</param>
 /// <param name="loop">Whether the sound should loop</param>
 SoundResource::SoundResource(const std::string& filePath, ResourceType type, bool loop)
-    : resourceType(type),
-    isStreaming(false),
-    streamingFileHandle(INVALID_HANDLE_VALUE),
-    dataChunkSize(0),
-    dataChunkPosition(0),
-    shouldLoop(loop)
+    : m_ResourceType(type),
+    m_IsStreaming(false),
+    m_StreamingFileHandle(INVALID_HANDLE_VALUE),
+    m_DataChunkSize(0),
+    m_DataChunkPosition(0),
+    m_ShouldLoop(loop)
 {
-    ZeroMemory(&buffer, sizeof(XAUDIO2_BUFFER));
-    ZeroMemory(&wfx, sizeof(WAVEFORMATEXTENSIBLE));
+    ZeroMemory(&m_Buffer, sizeof(XAUDIO2_BUFFER));
+    ZeroMemory(&m_Wfx, sizeof(WAVEFORMATEXTENSIBLE));
 
     // Convert string to wstring
-    std::wstring wFilePath;
-    wFilePath.resize(filePath.size());
-    MultiByteToWideChar(CP_UTF8, 0, filePath.c_str(), static_cast<int>(filePath.size()),
-        &wFilePath[0], static_cast<int>(wFilePath.size()));
+    std::wstring wFilePath = PathUtils::StringToWString(filePath);
 
     // Automatically load the sound
     Load(wFilePath, type, loop);
@@ -104,19 +99,22 @@ SoundResource::SoundResource(const std::string& filePath, ResourceType type, boo
 /// <returns>HRESULT indicating success or failure</returns>
 HRESULT SoundResource::Load(const std::wstring& filePath, ResourceType type, bool loop)
 {
-    this->filePath = filePath;
-    this->resourceType = type;
-    this->shouldLoop = loop;
+    m_FilePath = filePath;
+    m_ResourceType = type;
+    m_ShouldLoop = loop;
 
-    // Ensure file path is absolute
-    std::wstring fullPath = GetProjectRoot() + L"\\" + filePath;
+    // Ensure file path is absolute using PathUtils
+    std::wstring absolutePath = PathUtils::GetAbsolutePath(filePath);
+
+    // Log the path we're loading from
+    wprintf(L"Loading sound from: %s\n", absolutePath.c_str());
 
     // Open file using wide-character API
-    HANDLE hFile = CreateFileW(fullPath.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    HANDLE hFile = CreateFileW(absolutePath.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (hFile == INVALID_HANDLE_VALUE)
     {
         DWORD errorCode = GetLastError();
-        wprintf(L"Failed to open file: %s, Error Code: %d\n", fullPath.c_str(), errorCode);
+        wprintf(L"Failed to open file: %s, Error Code: %d\n", absolutePath.c_str(), errorCode);
         return HRESULT_FROM_WIN32(errorCode);
     }
 
@@ -124,7 +122,7 @@ HRESULT SoundResource::Load(const std::wstring& filePath, ResourceType type, boo
     DWORD dwChunkDataPosition = 0;
 
     // Find the 'RIFF' chunk
-    HRESULT hr = FindChunk(hFile, fourccRIFF, dwChunkSize, dwChunkDataPosition);
+    HRESULT hr = FindChunk(hFile, FOURCC_RIFF, dwChunkSize, dwChunkDataPosition);
     if (FAILED(hr))
     {
         CloseHandle(hFile);
@@ -147,7 +145,7 @@ HRESULT SoundResource::Load(const std::wstring& filePath, ResourceType type, boo
         return hr;
     }
 
-    hr = ReadChunkData(hFile, &wfx, dwChunkSize, dwChunkDataPosition);
+    hr = ReadChunkData(hFile, &m_Wfx, dwChunkSize, dwChunkDataPosition);
     if (FAILED(hr))
     {
         CloseHandle(hFile);
@@ -163,16 +161,16 @@ HRESULT SoundResource::Load(const std::wstring& filePath, ResourceType type, boo
     }
 
     // Store data chunk info for streaming
-    dataChunkSize = dwChunkSize;
-    dataChunkPosition = dwChunkDataPosition;
+    m_DataChunkSize = dwChunkSize;
+    m_DataChunkPosition = dwChunkDataPosition;
 
-    if (resourceType == SOUND_EFFECT)
+    if (m_ResourceType == SOUND_EFFECT)
     {
         // For sound effects, load the entire file into memory
-        audioData.resize(dwChunkSize);
+        m_AudioData.resize(dwChunkSize);
 
         // Read the data into our vector
-        hr = ReadChunkData(hFile, audioData.data(), dwChunkSize, dwChunkDataPosition);
+        hr = ReadChunkData(hFile, m_AudioData.data(), dwChunkSize, dwChunkDataPosition);
         if (FAILED(hr))
         {
             CloseHandle(hFile);
@@ -180,18 +178,18 @@ HRESULT SoundResource::Load(const std::wstring& filePath, ResourceType type, boo
         }
 
         // Set up the audio buffer
-        buffer.AudioBytes = dwChunkSize;
-        buffer.pAudioData = audioData.data();
-        buffer.Flags = XAUDIO2_END_OF_STREAM;
+        m_Buffer.AudioBytes = dwChunkSize;
+        m_Buffer.pAudioData = m_AudioData.data();
+        m_Buffer.Flags = XAUDIO2_END_OF_STREAM;
 
         // Set looping for sound effects if requested
-        if (shouldLoop)
+        if (m_ShouldLoop)
         {
-            buffer.LoopCount = XAUDIO2_LOOP_INFINITE;
+            m_Buffer.LoopCount = XAUDIO2_LOOP_INFINITE;
         }
         else
         {
-            buffer.LoopCount = 0;
+            m_Buffer.LoopCount = 0;
         }
 
         CloseHandle(hFile);
@@ -199,11 +197,11 @@ HRESULT SoundResource::Load(const std::wstring& filePath, ResourceType type, boo
     else
     {
         // For streaming audio, keep the file handle open
-        streamingFileHandle = hFile;
+        m_StreamingFileHandle = hFile;
 
         // We'll load data in chunks during playback
-        buffer.AudioBytes = 0;
-        buffer.pAudioData = nullptr;
+        m_Buffer.AudioBytes = 0;
+        m_Buffer.pAudioData = nullptr;
 
         // Streaming audio uses manual looping in the worker thread
     }
@@ -226,7 +224,7 @@ HRESULT SoundResource::Play(IXAudio2* pXAudio2, IXAudio2SourceVoice** ppSourceVo
     // Create a source voice if one wasn't provided
     if (*ppSourceVoice == nullptr)
     {
-        HRESULT hr = pXAudio2->CreateSourceVoice(ppSourceVoice, (WAVEFORMATEX*)&wfx);
+        HRESULT hr = pXAudio2->CreateSourceVoice(ppSourceVoice, (WAVEFORMATEX*)&m_Wfx);
         if (FAILED(hr))
             return hr;
     }
@@ -236,10 +234,10 @@ HRESULT SoundResource::Play(IXAudio2* pXAudio2, IXAudio2SourceVoice** ppSourceVo
     if (FAILED(hr))
         return hr;
 
-    if (resourceType == SOUND_EFFECT)
+    if (m_ResourceType == SOUND_EFFECT)
     {
         // For sound effects, just submit the buffer and play
-        hr = (*ppSourceVoice)->SubmitSourceBuffer(&buffer);
+        hr = (*ppSourceVoice)->SubmitSourceBuffer(&m_Buffer);
         if (FAILED(hr))
             return hr;
 
@@ -257,12 +255,12 @@ HRESULT SoundResource::Play(IXAudio2* pXAudio2, IXAudio2SourceVoice** ppSourceVo
 /// <param name="shouldLoop">Whether the sound should loop</param>
 void SoundResource::SetLooping(bool shouldLoop)
 {
-    this->shouldLoop = shouldLoop;
+    m_ShouldLoop = shouldLoop;
 
-    // If this is a sound effect and not streaming, update the buffer
-    if (resourceType == SOUND_EFFECT && !buffer.pAudioData)
+    // If this is a sound effect and buffer is initialized, update the loop count
+    if (m_ResourceType == SOUND_EFFECT && m_Buffer.pAudioData != nullptr)
     {
-        buffer.LoopCount = shouldLoop ? XAUDIO2_LOOP_INFINITE : 0;
+        m_Buffer.LoopCount = shouldLoop ? XAUDIO2_LOOP_INFINITE : 0;
     }
     // For streaming audio, the looping is handled in the streaming worker thread
 }
@@ -278,7 +276,7 @@ HRESULT SoundResource::Stop(IXAudio2SourceVoice* pSourceVoice)
         return E_INVALIDARG;
 
     // Stop streaming if needed
-    if (resourceType == STREAMING)
+    if (m_ResourceType == STREAMING)
     {
         StopStreaming();
     }
@@ -304,14 +302,7 @@ HRESULT SoundResource::SetVolume(IXAudio2SourceVoice* pSourceVoice, float volume
         return E_INVALIDARG;
 
     // Clamp volume between 0.0 and 1.0
-    if (volume < 0.0f)
-    {
-        volume = 0.0f;
-    }
-    else if (volume > 1.0f)
-    {
-        volume = 1.0f;
-    }
+    volume = (volume < 0.0f) ? 0.0f : (volume > 1.0f) ? 1.0f : volume;
 
     return pSourceVoice->SetVolume(volume);
 }
@@ -323,18 +314,18 @@ HRESULT SoundResource::SetVolume(IXAudio2SourceVoice* pSourceVoice, float volume
 /// <returns>HRESULT indicating success or failure</returns>
 HRESULT SoundResource::StartStreaming(IXAudio2SourceVoice* pSourceVoice)
 {
-    if (streamingFileHandle == INVALID_HANDLE_VALUE)
+    if (m_StreamingFileHandle == INVALID_HANDLE_VALUE)
         return E_FAIL;
 
     // Stop any existing streaming
     StopStreaming();
 
     // Reset file position to the beginning of the data chunk
-    SetFilePointer(streamingFileHandle, dataChunkPosition, NULL, FILE_BEGIN);
+    SetFilePointer(m_StreamingFileHandle, m_DataChunkPosition, NULL, FILE_BEGIN);
 
     // Start streaming thread
-    isStreaming = true;
-    streamingThread = std::thread(&SoundResource::StreamingWorker, this, pSourceVoice);
+    m_IsStreaming = true;
+    m_StreamingThread = std::thread(&SoundResource::StreamingWorker, this, pSourceVoice);
 
     // Start playback
     return pSourceVoice->Start(0);
@@ -345,14 +336,14 @@ HRESULT SoundResource::StartStreaming(IXAudio2SourceVoice* pSourceVoice)
 /// </summary>
 void SoundResource::StopStreaming()
 {
-    if (isStreaming)
+    if (m_IsStreaming)
     {
-        isStreaming = false;
+        m_IsStreaming = false;
 
         // Wait for streaming thread to finish
-        if (streamingThread.joinable())
+        if (m_StreamingThread.joinable())
         {
-            streamingThread.join();
+            m_StreamingThread.join();
         }
     }
 }
@@ -370,7 +361,7 @@ void SoundResource::StreamingWorker(IXAudio2SourceVoice* pSourceVoice)
     DWORD totalBytesRead = 0;
 
     // Get the wave format block alignment to ensure proper buffer sizes
-    const WAVEFORMATEX* pFormat = reinterpret_cast<const WAVEFORMATEX*>(&wfx);
+    const WAVEFORMATEX* pFormat = reinterpret_cast<const WAVEFORMATEX*>(&m_Wfx);
     DWORD blockAlign = pFormat->nBlockAlign;
 
     // Ensure buffer size is large enough and a multiple of the block alignment
@@ -399,17 +390,17 @@ void SoundResource::StreamingWorker(IXAudio2SourceVoice* pSourceVoice)
 
     // Pre-load initial buffers
     {
-        std::lock_guard<std::mutex> lock(streamingMutex);
-        SetFilePointer(streamingFileHandle, dataChunkPosition, NULL, FILE_BEGIN);
+        std::lock_guard<std::mutex> lock(m_StreamingMutex);
+        SetFilePointer(m_StreamingFileHandle, m_DataChunkPosition, NULL, FILE_BEGIN);
 
         // Fill only the first buffer initially to prevent overlap/double playback
-        if (totalBytesRead >= dataChunkSize)
+        if (totalBytesRead >= m_DataChunkSize)
         {
             // Loop back if needed and if looping is enabled
-            if (shouldLoop)
+            if (m_ShouldLoop)
             {
                 totalBytesRead = 0;
-                SetFilePointer(streamingFileHandle, dataChunkPosition, NULL, FILE_BEGIN);
+                SetFilePointer(m_StreamingFileHandle, m_DataChunkPosition, NULL, FILE_BEGIN);
             }
             else
             {
@@ -420,10 +411,10 @@ void SoundResource::StreamingWorker(IXAudio2SourceVoice* pSourceVoice)
 
         // Calculate bytes to read, ensuring it's a multiple of blockAlign
         DWORD bytesToRead = static_cast<DWORD>(bufferSize);
-        if (bytesToRead > (dataChunkSize - totalBytesRead))
-            bytesToRead = static_cast<DWORD>((dataChunkSize - totalBytesRead) / blockAlign) * blockAlign;
+        if (bytesToRead > (m_DataChunkSize - totalBytesRead))
+            bytesToRead = static_cast<DWORD>((m_DataChunkSize - totalBytesRead) / blockAlign) * blockAlign;
 
-        if (!ReadFile(streamingFileHandle, audioBuffers[0].data(), bytesToRead, &bytesRead, nullptr) || bytesRead == 0)
+        if (!ReadFile(m_StreamingFileHandle, audioBuffers[0].data(), bytesToRead, &bytesRead, nullptr) || bytesRead == 0)
         {
             return; // Exit if read fails
         }
@@ -461,7 +452,7 @@ void SoundResource::StreamingWorker(IXAudio2SourceVoice* pSourceVoice)
     pSourceVoice->GetVoiceDetails(&voiceDetails);
 
     // Main streaming loop
-    while (isStreaming)
+    while (m_IsStreaming)
     {
         // Get current buffer state
         pSourceVoice->GetState(&voiceState);
@@ -473,16 +464,16 @@ void SoundResource::StreamingWorker(IXAudio2SourceVoice* pSourceVoice)
             currentBuffer = (currentBuffer + 1) % NUM_BUFFERS;
 
             // Read the next chunk of data
-            std::lock_guard<std::mutex> lock(streamingMutex);
+            std::lock_guard<std::mutex> lock(m_StreamingMutex);
 
             // Check if we need to loop back to beginning
-            if (totalBytesRead >= dataChunkSize)
+            if (totalBytesRead >= m_DataChunkSize)
             {
-                if (shouldLoop)
+                if (m_ShouldLoop)
                 {
                     // Reset for looping
                     totalBytesRead = 0;
-                    SetFilePointer(streamingFileHandle, dataChunkPosition, NULL, FILE_BEGIN);
+                    SetFilePointer(m_StreamingFileHandle, m_DataChunkPosition, NULL, FILE_BEGIN);
                 }
                 else
                 {
@@ -496,10 +487,10 @@ void SoundResource::StreamingWorker(IXAudio2SourceVoice* pSourceVoice)
 
             // Calculate bytes to read (ensure it's aligned to block size)
             DWORD bytesToRead = static_cast<DWORD>(bufferSize);
-            if (bytesToRead > (dataChunkSize - totalBytesRead))
-                bytesToRead = static_cast<DWORD>((dataChunkSize - totalBytesRead) / blockAlign) * blockAlign;
+            if (bytesToRead > (m_DataChunkSize - totalBytesRead))
+                bytesToRead = static_cast<DWORD>((m_DataChunkSize - totalBytesRead) / blockAlign) * blockAlign;
 
-            if (!ReadFile(streamingFileHandle, audioBuffers[currentBuffer].data(), bytesToRead, &bytesRead, nullptr) || bytesRead == 0)
+            if (!ReadFile(m_StreamingFileHandle, audioBuffers[currentBuffer].data(), bytesToRead, &bytesRead, nullptr) || bytesRead == 0)
                 break;
 
             // Ensure we only use complete frames
@@ -512,7 +503,7 @@ void SoundResource::StreamingWorker(IXAudio2SourceVoice* pSourceVoice)
             xaudioBuffer.pAudioData = audioBuffers[currentBuffer].data();
 
             // Set end of stream flag if not looping and this is the last buffer
-            if (!shouldLoop && totalBytesRead >= dataChunkSize)
+            if (!m_ShouldLoop && totalBytesRead >= m_DataChunkSize)
             {
                 xaudioBuffer.Flags = XAUDIO2_END_OF_STREAM;
             }
@@ -547,11 +538,11 @@ void SoundResource::StreamingWorker(IXAudio2SourceVoice* pSourceVoice)
 /// <summary>
 /// Finds a chunk in the file.
 /// </summary>
-/// <param name="hFile"></param>
-/// <param name="fourcc"></param>
-/// <param name="dwChunkSize"></param>
-/// <param name="dwChunkDataPosition"></param>
-/// <returns></returns>
+/// <param name="hFile">File handle</param>
+/// <param name="fourcc">Four character code to find</param>
+/// <param name="dwChunkSize">Size of the chunk</param>
+/// <param name="dwChunkDataPosition">Position of the chunk</param>
+/// <returns>HRESULT indicating success or failure</returns>
 HRESULT SoundResource::FindChunk(HANDLE hFile, DWORD fourcc, DWORD& dwChunkSize, DWORD& dwChunkDataPosition)
 {
     HRESULT hr = S_OK;
@@ -576,7 +567,7 @@ HRESULT SoundResource::FindChunk(HANDLE hFile, DWORD fourcc, DWORD& dwChunkSize,
 
         switch (dwChunkType)
         {
-        case fourccRIFF:
+        case FOURCC_RIFF:
             dwRIFFDataSize = dwChunkDataSize;
             dwChunkDataSize = 4;
             if (0 == ReadFile(hFile, &dwFileType, sizeof(DWORD), &dwRead, NULL))
@@ -609,11 +600,11 @@ HRESULT SoundResource::FindChunk(HANDLE hFile, DWORD fourcc, DWORD& dwChunkSize,
 /// <summary>
 /// Reads chunk data from the file.
 /// </summary>
-/// <param name="hFile"></param>
-/// <param name="buffer"></param>
-/// <param name="buffersize"></param>
-/// <param name="bufferoffset"></param>
-/// <returns></returns>
+/// <param name="hFile">File handle</param>
+/// <param name="buffer">Buffer to read into</param>
+/// <param name="buffersize">Size of the buffer</param>
+/// <param name="bufferoffset">Offset in the file</param>
+/// <returns>HRESULT indicating success or failure</returns>
 HRESULT SoundResource::ReadChunkData(HANDLE hFile, void* buffer, DWORD buffersize, DWORD bufferoffset)
 {
     HRESULT hr = S_OK;
