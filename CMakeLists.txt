@@ -174,17 +174,29 @@ target_link_libraries(PhysicsTest PRIVATE
 # Input Test Executable
 add_executable(InputTest 
     src/input_test.cpp
-    src/InputHandler.cpp
+    ${TEST_SRC} ${IMGUI_SRC}
 )
 
 # Include directories for InputTest
 target_include_directories(InputTest PRIVATE
-    ${SRC_DIR}
+    ${IMGUI_DIR}
+    third_party_libs/box2d
+    ${SOL2_INCLUDE_DIR}
+    ${LUA_SRC_DIR} 
+    ${SRC_DIR} 
+    ${XAUDIO2_INCLUDE_DIR}
     third_party_libs/raylib/src
 )
 
 # Link libraries to InputTest
 target_link_libraries(InputTest PRIVATE 
+    core
+	ui
+    box2d
+	d3d11
+	imgui
+    lua
+    ${XAUDIO2_LIBRARY}
     raylib
 )
 
