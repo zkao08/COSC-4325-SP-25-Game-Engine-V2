@@ -104,6 +104,8 @@ int GameEngine::Run()
         
         // Render frame
         //gRenderer.Render();
+
+        //TODO: run resource management every once in a while
     }
     
     std::cout << "Game loop ended" << std::endl;
