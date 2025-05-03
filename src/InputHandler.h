@@ -1,5 +1,5 @@
 // InputHandler.h
-// Cross-platform input handling using Windows API and XInput
+// Cross-platform input handling using Windows API and XInput with modifier key support
 
 #pragma once
 
@@ -10,6 +10,8 @@
 #include <string>
 #include <map>
 #include <array>
+#include <vector>
+#include <unordered_set>
 
 // Required library for XInput
 #pragma comment(lib, "Xinput.lib")
@@ -101,6 +103,43 @@ namespace KeyCode
     constexpr int SCROLL_LOCK = VK_SCROLL;
     constexpr int PAUSE = VK_PAUSE;
     constexpr int NUM_LOCK = VK_NUMLOCK;
+
+    // Additional keys
+    constexpr int SEMICOLON = VK_OEM_1;     // ; :
+    constexpr int EQUALS = VK_OEM_PLUS;     // = +
+    constexpr int COMMA = VK_OEM_COMMA;     // , <
+    constexpr int MINUS = VK_OEM_MINUS;     // - _
+    constexpr int PERIOD = VK_OEM_PERIOD;   // . >
+    constexpr int SLASH = VK_OEM_2;         // / ?
+    constexpr int GRAVE = VK_OEM_3;         // ` ~
+    constexpr int LBRACKET = VK_OEM_4;      // [ {
+    constexpr int BACKSLASH = VK_OEM_5;     // \ |
+    constexpr int RBRACKET = VK_OEM_6;      // ] }
+    constexpr int QUOTE = VK_OEM_7;         // ' "
+
+    // Numpad keys
+    constexpr int NUMPAD_0 = VK_NUMPAD0;
+    constexpr int NUMPAD_1 = VK_NUMPAD1;
+    constexpr int NUMPAD_2 = VK_NUMPAD2;
+    constexpr int NUMPAD_3 = VK_NUMPAD3;
+    constexpr int NUMPAD_4 = VK_NUMPAD4;
+    constexpr int NUMPAD_5 = VK_NUMPAD5;
+    constexpr int NUMPAD_6 = VK_NUMPAD6;
+    constexpr int NUMPAD_7 = VK_NUMPAD7;
+    constexpr int NUMPAD_8 = VK_NUMPAD8;
+    constexpr int NUMPAD_9 = VK_NUMPAD9;
+    constexpr int NUMPAD_MULTIPLY = VK_MULTIPLY;
+    constexpr int NUMPAD_ADD = VK_ADD;
+    constexpr int NUMPAD_SUBTRACT = VK_SUBTRACT;
+    constexpr int NUMPAD_DECIMAL = VK_DECIMAL;
+    constexpr int NUMPAD_DIVIDE = VK_DIVIDE;
+    constexpr int NUMPAD_SEPARATOR = VK_SEPARATOR;
+
+    // Modifier key masks for combination detection
+    constexpr int SHIFT_MASK = 0x01;
+    constexpr int CTRL_MASK = 0x02;
+    constexpr int ALT_MASK = 0x04;
+    constexpr int WIN_MASK = 0x08;
 }
 
 // Mouse button constants
@@ -151,6 +190,34 @@ struct KeyState
     std::string name;          // Human-readable name of the key
 };
 
+// Structure for key combination (main key + modifiers)
+struct KeyCombo
+{
+    int keyCode;
+    int modifiers;  // Bitmask of modifiers (SHIFT, CTRL, ALT, etc.)
+
+    // Comparison operators for use in maps and sets
+    bool operator==(const KeyCombo& other) const {
+        return keyCode == other.keyCode && modifiers == other.modifiers;
+    }
+
+    bool operator<(const KeyCombo& other) const {
+        if (keyCode != other.keyCode)
+            return keyCode < other.keyCode;
+        return modifiers < other.modifiers;
+    }
+};
+
+// Hash function for KeyCombo to use in unordered containers
+namespace std {
+    template<>
+    struct hash<KeyCombo> {
+        size_t operator()(const KeyCombo& k) const {
+            return std::hash<int>()(k.keyCode) ^ (std::hash<int>()(k.modifiers) << 1);
+        }
+    };
+}
+
 // Structure to store mouse state
 struct MouseState
 {
@@ -200,6 +267,17 @@ public:
     bool IsKeyReleased(int keyCode) const;  // Key was just released
     const std::string& GetKeyName(int keyCode) const;
 
+    // Modifier combination functions
+    bool IsModifierDown(int modifierMask) const;  // Check if specified modifier(s) is down
+    bool IsKeyComboDown(int keyCode, int modifierMask) const; // Check if key+modifier combo is down
+    bool IsKeyComboPressed(int keyCode, int modifierMask) const; // Check if key+modifier combo was just pressed
+    bool IsKeyComboReleased(int keyCode, int modifierMask) const; // Check if key+modifier combo was just released
+
+    // Shift+Key shorthand functions (most common use case)
+    bool IsShiftKeyDown(int keyCode) const;
+    bool IsShiftKeyPressed(int keyCode) const;
+    bool IsShiftKeyReleased(int keyCode) const;
+
     // Mouse functions
     bool IsMouseButtonDown(int button) const;
     bool IsMouseButtonPressed(int button) const;
@@ -222,6 +300,18 @@ public:
     const MouseState& GetMouseState() const;
     const GamepadState& GetGamepadState(int gamepadIndex = 0) const;
 
+    // Get modifiers state
+    bool IsShiftDown() const;
+    bool IsCtrlDown() const;
+    bool IsAltDown() const;
+
+    // Register a key combo action with a name
+    void RegisterKeyCombo(const std::string& name, int keyCode, int modifiers);
+
+    // Check if a named combo is active
+    bool IsComboDown(const std::string& name) const;
+    bool IsComboPressed(const std::string& name) const;
+
 private:
     // Helper methods for initialization
     void InitializeKeyboardMap();
@@ -230,9 +320,24 @@ private:
     void UpdateKeyboardState();
     void UpdateMouseState();
     void UpdateGamepadState();
+    void UpdateModifierState();
+
+    // Utility function to get current modifier state
+    int GetCurrentModifiers() const;
 
     // Map key code to key state
     std::map<int, KeyState> m_KeyboardMap;
+
+    // Keep track of previous frame key combo states
+    std::unordered_set<KeyCombo> m_ActiveKeyCombos;
+    std::unordered_set<KeyCombo> m_PrevActiveKeyCombos;
+
+    // Named key combos
+    std::map<std::string, KeyCombo> m_RegisteredCombos;
+
+    // Current modifier state
+    int m_CurrentModifiers = 0;
+    int m_PreviousModifiers = 0;
 
     // Mouse state
     MouseState m_MouseState;

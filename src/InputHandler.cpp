@@ -46,6 +46,65 @@ namespace
         default:                           return 0;
         }
     }
+
+    // Get character representation including shift state (for key naming)
+    std::string GetCharWithShift(int keyCode, bool shifted)
+    {
+        // Handle special cases for punctuation and symbols
+        switch (keyCode)
+        {
+        case VK_OEM_1:     return shifted ? ":" : ";";
+        case VK_OEM_PLUS:  return shifted ? "+" : "=";
+        case VK_OEM_COMMA: return shifted ? "<" : ",";
+        case VK_OEM_MINUS: return shifted ? "_" : "-";
+        case VK_OEM_PERIOD:return shifted ? ">" : ".";
+        case VK_OEM_2:     return shifted ? "?" : "/";
+        case VK_OEM_3:     return shifted ? "~" : "`";
+        case VK_OEM_4:     return shifted ? "{" : "[";
+        case VK_OEM_5:     return shifted ? "|" : "\\";
+        case VK_OEM_6:     return shifted ? "}" : "]";
+        case VK_OEM_7:     return shifted ? "\"" : "'";
+        }
+
+        // Handle number keys with shift
+        if (keyCode >= '0' && keyCode <= '9')
+        {
+            if (shifted)
+            {
+                // Shift + number gives symbols
+                switch (keyCode)
+                {
+                case '0': return ")";
+                case '1': return "!";
+                case '2': return "@";
+                case '3': return "#";
+                case '4': return "$";
+                case '5': return "%";
+                case '6': return "^";
+                case '7': return "&";
+                case '8': return "*";
+                case '9': return "(";
+                }
+            }
+            else
+            {
+                // Regular numbers
+                return std::string(1, static_cast<char>(keyCode));
+            }
+        }
+
+        // For letters, handle uppercase/lowercase
+        if (keyCode >= 'A' && keyCode <= 'Z')
+        {
+            if (shifted)
+                return std::string(1, static_cast<char>(keyCode)); // Uppercase
+            else
+                return std::string(1, static_cast<char>(keyCode + 32)); // Lowercase (ASCII shift)
+        }
+
+        // Default fallback
+        return "";
+    }
 }
 
 InputHandler::InputHandler() : m_Hwnd(nullptr)
@@ -66,14 +125,37 @@ void InputHandler::Initialize(HWND hwnd)
 
 void InputHandler::Update()
 {
+    // Save previous key combo state
+    m_PrevActiveKeyCombos = m_ActiveKeyCombos;
+    m_ActiveKeyCombos.clear();
+
+    // Save previous modifier state
+    m_PreviousModifiers = m_CurrentModifiers;
+
     // Update keyboard state
     UpdateKeyboardState();
+
+    // Update modifier state
+    UpdateModifierState();
 
     // Update mouse state
     UpdateMouseState();
 
     // Update gamepad state
     UpdateGamepadState();
+
+    // Update active key combos
+    for (const auto& keyPair : m_KeyboardMap)
+    {
+        if (keyPair.second.down)
+        {
+            // For each down key, create combos with the current modifiers
+            KeyCombo combo;
+            combo.keyCode = keyPair.first;
+            combo.modifiers = m_CurrentModifiers;
+            m_ActiveKeyCombos.insert(combo);
+        }
+    }
 }
 
 void InputHandler::ProcessMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -87,28 +169,102 @@ void InputHandler::ProcessMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM
         break;
     }
 
+    case WM_KEYDOWN:
+    case WM_SYSKEYDOWN:
+    {
+        int keyCode = static_cast<int>(wParam);
+        auto it = m_KeyboardMap.find(keyCode);
+        if (it != m_KeyboardMap.end())
+        {
+            it->second.downPrevious = it->second.down;
+            it->second.down = true;
+        }
+        break;
+    }
+
+    case WM_KEYUP:
+    case WM_SYSKEYUP:
+    {
+        int keyCode = static_cast<int>(wParam);
+        auto it = m_KeyboardMap.find(keyCode);
+        if (it != m_KeyboardMap.end())
+        {
+            it->second.downPrevious = it->second.down;
+            it->second.down = false;
+        }
+        break;
+    }
+
+    case WM_LBUTTONDOWN:
+        m_MouseState.buttonsPrev[MouseButton::LEFT] = m_MouseState.buttons[MouseButton::LEFT];
+        m_MouseState.buttons[MouseButton::LEFT] = true;
+        break;
+
+    case WM_LBUTTONUP:
+        m_MouseState.buttonsPrev[MouseButton::LEFT] = m_MouseState.buttons[MouseButton::LEFT];
+        m_MouseState.buttons[MouseButton::LEFT] = false;
+        break;
+
+    case WM_RBUTTONDOWN:
+        m_MouseState.buttonsPrev[MouseButton::RIGHT] = m_MouseState.buttons[MouseButton::RIGHT];
+        m_MouseState.buttons[MouseButton::RIGHT] = true;
+        break;
+
+    case WM_RBUTTONUP:
+        m_MouseState.buttonsPrev[MouseButton::RIGHT] = m_MouseState.buttons[MouseButton::RIGHT];
+        m_MouseState.buttons[MouseButton::RIGHT] = false;
+        break;
+
+    case WM_MBUTTONDOWN:
+        m_MouseState.buttonsPrev[MouseButton::MIDDLE] = m_MouseState.buttons[MouseButton::MIDDLE];
+        m_MouseState.buttons[MouseButton::MIDDLE] = true;
+        break;
+
+    case WM_MBUTTONUP:
+        m_MouseState.buttonsPrev[MouseButton::MIDDLE] = m_MouseState.buttons[MouseButton::MIDDLE];
+        m_MouseState.buttons[MouseButton::MIDDLE] = false;
+        break;
+
+    case WM_XBUTTONDOWN:
+    {
+        int button = HIWORD(wParam) == XBUTTON1 ? MouseButton::X1 : MouseButton::X2;
+        m_MouseState.buttonsPrev[button] = m_MouseState.buttons[button];
+        m_MouseState.buttons[button] = true;
+        break;
+    }
+
+    case WM_XBUTTONUP:
+    {
+        int button = HIWORD(wParam) == XBUTTON1 ? MouseButton::X1 : MouseButton::X2;
+        m_MouseState.buttonsPrev[button] = m_MouseState.buttons[button];
+        m_MouseState.buttons[button] = false;
+        break;
+    }
+
     // Add other input-related message handling if needed
     }
 }
 
 void InputHandler::InitializeKeyboardMap()
 {
-    // Initialize letters
+    // Initialize letters with both standard and shifted (uppercase) names
     for (int i = 'A'; i <= 'Z'; i++)
     {
-        char keyName[2] = { static_cast<char>(i), '\0' };
-        m_KeyboardMap[i] = KeyState{ false, false, keyName };
+        std::string keyName = std::string(1, static_cast<char>(i));
+        std::string lowercaseName = std::string(1, static_cast<char>(i + 32));
+        m_KeyboardMap[i] = KeyState{ false, false, keyName + " (" + lowercaseName + ")" };
     }
 
-    // Initialize numbers
+    // Initialize numbers with both standard and shifted symbol names
     for (int i = '0'; i <= '9'; i++)
     {
-        char keyName[2] = { static_cast<char>(i), '\0' };
-        m_KeyboardMap[i] = KeyState{ false, false, keyName };
+        std::string keyName = std::string(1, static_cast<char>(i));
+        std::string shiftSymbol = GetCharWithShift(i, true);
+        m_KeyboardMap[i] = KeyState{ false, false, keyName + " (" + shiftSymbol + ")" };
     }
 
     // Initialize function keys
-    for (int i = VK_F1; i <= VK_F12; i++)
+    for (int i = VK_F1; i <= VK_F24; i++)
     {
         m_KeyboardMap[i] = KeyState{ false, false, "F" + std::to_string(i - VK_F1 + 1) };
     }
@@ -130,7 +286,7 @@ void InputHandler::InitializeKeyboardMap()
     m_KeyboardMap[VK_RWIN] = KeyState{ false, false, "R WIN" };
     m_KeyboardMap[VK_APPS] = KeyState{ false, false, "MENU" };
     m_KeyboardMap[VK_INSERT] = KeyState{ false, false, "INSERT" };
-    m_KeyboardMap[VK_DELETE] = KeyState{ false, false, "DELETE_KEY" };
+    m_KeyboardMap[VK_DELETE] = KeyState{ false, false, "DELETE" };
     m_KeyboardMap[VK_HOME] = KeyState{ false, false, "HOME" };
     m_KeyboardMap[VK_END] = KeyState{ false, false, "END" };
     m_KeyboardMap[VK_PRIOR] = KeyState{ false, false, "PAGE UP" };
@@ -143,6 +299,37 @@ void InputHandler::InitializeKeyboardMap()
     m_KeyboardMap[VK_SCROLL] = KeyState{ false, false, "SCROLL LOCK" };
     m_KeyboardMap[VK_PAUSE] = KeyState{ false, false, "PAUSE" };
     m_KeyboardMap[VK_NUMLOCK] = KeyState{ false, false, "NUM LOCK" };
+
+    // Initialize additional keys
+    m_KeyboardMap[VK_OEM_1] = KeyState{ false, false, "; (:)" };
+    m_KeyboardMap[VK_OEM_PLUS] = KeyState{ false, false, "= (+)" };
+    m_KeyboardMap[VK_OEM_COMMA] = KeyState{ false, false, ", (<)" };
+    m_KeyboardMap[VK_OEM_MINUS] = KeyState{ false, false, "- (_)" };
+    m_KeyboardMap[VK_OEM_PERIOD] = KeyState{ false, false, ". (>)" };
+    m_KeyboardMap[VK_OEM_2] = KeyState{ false, false, "/ (?)" };
+    m_KeyboardMap[VK_OEM_3] = KeyState{ false, false, "` (~)" };
+    m_KeyboardMap[VK_OEM_4] = KeyState{ false, false, "[ ({)" };
+    m_KeyboardMap[VK_OEM_5] = KeyState{ false, false, "\\ (|)" };
+    m_KeyboardMap[VK_OEM_6] = KeyState{ false, false, "] (})" };
+    m_KeyboardMap[VK_OEM_7] = KeyState{ false, false, "' (\")" };
+
+    // Numpad keys
+    m_KeyboardMap[VK_NUMPAD0] = KeyState{ false, false, "NUMPAD 0" };
+    m_KeyboardMap[VK_NUMPAD1] = KeyState{ false, false, "NUMPAD 1" };
+    m_KeyboardMap[VK_NUMPAD2] = KeyState{ false, false, "NUMPAD 2" };
+    m_KeyboardMap[VK_NUMPAD3] = KeyState{ false, false, "NUMPAD 3" };
+    m_KeyboardMap[VK_NUMPAD4] = KeyState{ false, false, "NUMPAD 4" };
+    m_KeyboardMap[VK_NUMPAD5] = KeyState{ false, false, "NUMPAD 5" };
+    m_KeyboardMap[VK_NUMPAD6] = KeyState{ false, false, "NUMPAD 6" };
+    m_KeyboardMap[VK_NUMPAD7] = KeyState{ false, false, "NUMPAD 7" };
+    m_KeyboardMap[VK_NUMPAD8] = KeyState{ false, false, "NUMPAD 8" };
+    m_KeyboardMap[VK_NUMPAD9] = KeyState{ false, false, "NUMPAD 9" };
+    m_KeyboardMap[VK_MULTIPLY] = KeyState{ false, false, "NUMPAD *" };
+    m_KeyboardMap[VK_ADD] = KeyState{ false, false, "NUMPAD +" };
+    m_KeyboardMap[VK_SUBTRACT] = KeyState{ false, false, "NUMPAD -" };
+    m_KeyboardMap[VK_DECIMAL] = KeyState{ false, false, "NUMPAD ." };
+    m_KeyboardMap[VK_DIVIDE] = KeyState{ false, false, "NUMPAD /" };
+    m_KeyboardMap[VK_SEPARATOR] = KeyState{ false, false, "NUMPAD SEPARATOR" };
 }
 
 void InputHandler::UpdateKeyboardState()
@@ -159,6 +346,25 @@ void InputHandler::UpdateKeyboardState()
         int keyCode = keyPair.first;
         keyPair.second.down = (GetAsyncKeyState(keyCode) & 0x8000) != 0;
     }
+}
+
+void InputHandler::UpdateModifierState()
+{
+    // Start with no modifiers
+    m_CurrentModifiers = 0;
+
+    // Check each modifier key
+    if (IsKeyDown(KeyCode::SHIFT_LEFT) || IsKeyDown(KeyCode::SHIFT_RIGHT))
+        m_CurrentModifiers |= KeyCode::SHIFT_MASK;
+
+    if (IsKeyDown(KeyCode::CONTROL_LEFT) || IsKeyDown(KeyCode::CONTROL_RIGHT))
+        m_CurrentModifiers |= KeyCode::CTRL_MASK;
+
+    if (IsKeyDown(KeyCode::ALT_LEFT) || IsKeyDown(KeyCode::ALT_RIGHT))
+        m_CurrentModifiers |= KeyCode::ALT_MASK;
+
+    if (IsKeyDown(KeyCode::SUPER_LEFT) || IsKeyDown(KeyCode::SUPER_RIGHT))
+        m_CurrentModifiers |= KeyCode::WIN_MASK;
 }
 
 void InputHandler::UpdateMouseState()
@@ -184,12 +390,21 @@ void InputHandler::UpdateMouseState()
     m_MouseState.deltaX = m_MouseState.x - m_MouseState.prevX;
     m_MouseState.deltaY = m_MouseState.y - m_MouseState.prevY;
 
-    // Update button states
-    m_MouseState.buttons[MouseButton::LEFT] = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
-    m_MouseState.buttons[MouseButton::RIGHT] = (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0;
-    m_MouseState.buttons[MouseButton::MIDDLE] = (GetAsyncKeyState(VK_MBUTTON) & 0x8000) != 0;
-    m_MouseState.buttons[MouseButton::X1] = (GetAsyncKeyState(VK_XBUTTON1) & 0x8000) != 0;
-    m_MouseState.buttons[MouseButton::X2] = (GetAsyncKeyState(VK_XBUTTON2) & 0x8000) != 0;
+    // Update button states (if not already updated by event processing)
+    if (!m_MouseState.buttons[MouseButton::LEFT])
+        m_MouseState.buttons[MouseButton::LEFT] = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
+
+    if (!m_MouseState.buttons[MouseButton::RIGHT])
+        m_MouseState.buttons[MouseButton::RIGHT] = (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0;
+
+    if (!m_MouseState.buttons[MouseButton::MIDDLE])
+        m_MouseState.buttons[MouseButton::MIDDLE] = (GetAsyncKeyState(VK_MBUTTON) & 0x8000) != 0;
+
+    if (!m_MouseState.buttons[MouseButton::X1])
+        m_MouseState.buttons[MouseButton::X1] = (GetAsyncKeyState(VK_XBUTTON1) & 0x8000) != 0;
+
+    if (!m_MouseState.buttons[MouseButton::X2])
+        m_MouseState.buttons[MouseButton::X2] = (GetAsyncKeyState(VK_XBUTTON2) & 0x8000) != 0;
 }
 
 void InputHandler::UpdateGamepadState()
@@ -290,6 +505,56 @@ const std::string& InputHandler::GetKeyName(int keyCode) const
         return it->second.name;
     }
     return m_UnknownKey;
+}
+
+bool InputHandler::IsModifierDown(int modifierMask) const
+{
+    return (m_CurrentModifiers & modifierMask) == modifierMask;
+}
+
+bool InputHandler::IsKeyComboDown(int keyCode, int modifierMask) const
+{
+    // First check if the key is down
+    if (!IsKeyDown(keyCode))
+        return false;
+
+    // Then check if the modifiers match exactly
+    return (m_CurrentModifiers == modifierMask);
+}
+
+bool InputHandler::IsKeyComboPressed(int keyCode, int modifierMask) const
+{
+    // Create the combo to look for
+    KeyCombo currentCombo = { keyCode, modifierMask };
+
+    // Check if it's in current active combos but not in previous active combos
+    return (m_ActiveKeyCombos.find(currentCombo) != m_ActiveKeyCombos.end() &&
+        m_PrevActiveKeyCombos.find(currentCombo) == m_PrevActiveKeyCombos.end());
+}
+
+bool InputHandler::IsKeyComboReleased(int keyCode, int modifierMask) const
+{
+    // Create the combo to look for
+    KeyCombo currentCombo = { keyCode, modifierMask };
+
+    // Check if it's not in current active combos but was in previous active combos
+    return (m_ActiveKeyCombos.find(currentCombo) == m_ActiveKeyCombos.end() &&
+        m_PrevActiveKeyCombos.find(currentCombo) != m_PrevActiveKeyCombos.end());
+}
+
+bool InputHandler::IsShiftKeyDown(int keyCode) const
+{
+    return IsKeyComboDown(keyCode, KeyCode::SHIFT_MASK);
+}
+
+bool InputHandler::IsShiftKeyPressed(int keyCode) const
+{
+    return IsKeyComboPressed(keyCode, KeyCode::SHIFT_MASK);
+}
+
+bool InputHandler::IsShiftKeyReleased(int keyCode) const
+{
+    return IsKeyComboReleased(keyCode, KeyCode::SHIFT_MASK);
 }
 
 bool InputHandler::IsMouseButtonDown(int button) const
@@ -431,4 +696,54 @@ const GamepadState& InputHandler::GetGamepadState(int gamepadIndex) const
 
     // Return the first gamepad state as fallback
     return m_GamepadStates[0];
+}
+
+bool InputHandler::IsShiftDown() const
+{
+    return IsModifierDown(KeyCode::SHIFT_MASK);
+}
+
+bool InputHandler::IsCtrlDown() const
+{
+    return IsModifierDown(KeyCode::CTRL_MASK);
+}
+
+bool InputHandler::IsAltDown() const
+{
+    return IsModifierDown(KeyCode::ALT_MASK);
+}
+
+int InputHandler::GetCurrentModifiers() const
+{
+    return m_CurrentModifiers;
+}
+
+void InputHandler::RegisterKeyCombo(const std::string& name, int keyCode, int modifiers)
+{
+    KeyCombo combo;
+    combo.keyCode = keyCode;
+    combo.modifiers = modifiers;
+    m_RegisteredCombos[name] = combo;
+}
+
+bool InputHandler::IsComboDown(const std::string& name) const
+{
+    auto it = m_RegisteredCombos.find(name);
+    if (it != m_RegisteredCombos.end())
+    {
+        const KeyCombo& combo = it->second;
+        return IsKeyComboDown(combo.keyCode, combo.modifiers);
+    }
+    return false;
+}
+
+bool InputHandler::IsComboPressed(const std::string& name) const
+{
+    auto it = m_RegisteredCombos.find(name);
+    if (it != m_RegisteredCombos.end())
+    {
+        const KeyCombo& combo = it->second;
+        return IsKeyComboPressed(combo.keyCode, combo.modifiers);
+    }
+    return false;
 }
