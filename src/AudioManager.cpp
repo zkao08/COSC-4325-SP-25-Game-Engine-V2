@@ -105,8 +105,6 @@ bool AudioManager::startUp()
 
     // Set initial master volume
     m_MasteringVoice->SetVolume(m_MasterVolume);
-
-    std::cout << "AudioManager initialized successfully" << std::endl;
     return true;
 }
 

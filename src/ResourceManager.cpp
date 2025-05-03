@@ -37,7 +37,6 @@ ResourceManager::ResourceManager()
 bool ResourceManager::startUp(Renderer* renderer)
 {
     m_Renderer = renderer;
-    std::cout << "ResourceManager initialized" << std::endl;
     return true;
 }
 

@@ -44,7 +44,7 @@ bool GameEngine::Initialize()
         // Initialize subsystems
         // Initialize app and renderer
         //TODO: replace with actual renderer initialization
-        gDebugManager.LogStartupMessage("Initializing renderer...");
+        //gDebugManager.LogStartupMessage("Initializing renderer...");
 
         // Initialize physics
         gDebugManager.LogStartupMessage("Initializing physics system...");
