@@ -12,6 +12,13 @@
 *           - Windows (Win32, Win64)
 *           - Linux (X11/Wayland desktop mode)
 *           - Others (not tested)
+*       > PLATFORM_DESKTOP_RGFW (RGFW backend):
+*           - Windows (Win32, Win64)
+*           - Linux (X11/Wayland desktop mode)
+*           - macOS/OSX (x64, arm64)
+*           - Others (not tested)
+*       > PLATFORM_WEB_RGFW:
+*           - HTML5 (WebAssembly)
 *       > PLATFORM_WEB:
 *           - HTML5 (WebAssembly)
 *       > PLATFORM_DRM:
@@ -63,7 +70,7 @@
 *
 *   LICENSE: zlib/libpng
 *
-*   Copyright (c) 2013-2024 Ramon Santamaria (@raysan5) and contributors
+*   Copyright (c) 2013-2025 Ramon Santamaria (@raysan5) and contributors
 *
 *   This software is provided "as-is", without any express or implied warranty. In no event
 *   will the authors be held liable for any damages arising from the use of this software.
@@ -85,12 +92,12 @@
 //----------------------------------------------------------------------------------
 // Feature Test Macros required for this module
 //----------------------------------------------------------------------------------
-#if (defined(__linux__) || defined(PLATFORM_WEB)) && (_XOPEN_SOURCE < 500)
+#if (defined(__linux__) || defined(PLATFORM_WEB) || defined(PLATFORM_WEB_RGFW)) && (_XOPEN_SOURCE < 500)
     #undef _XOPEN_SOURCE
     #define _XOPEN_SOURCE 500 // Required for: readlink if compiled with c99 without gnu ext.
 #endif
 
-#if (defined(__linux__) || defined(PLATFORM_WEB)) && (_POSIX_C_SOURCE < 199309L)
+#if (defined(__linux__) || defined(PLATFORM_WEB) || defined(PLATFORM_WEB_RGFW)) && (_POSIX_C_SOURCE < 199309L)
     #undef _POSIX_C_SOURCE
     #define _POSIX_C_SOURCE 199309L // Required for: CLOCK_MONOTONIC if compiled with c99 without gnu ext.
 #endif
@@ -158,9 +165,10 @@
     #ifndef MAX_PATH
         #define MAX_PATH 1025
     #endif
-__declspec(dllimport) unsigned long __stdcall GetModuleFileNameA(void *hModule, void *lpFilename, unsigned long nSize);
-__declspec(dllimport) unsigned long __stdcall GetModuleFileNameW(void *hModule, void *lpFilename, unsigned long nSize);
-__declspec(dllimport) int __stdcall WideCharToMultiByte(unsigned int cp, unsigned long flags, void *widestr, int cchwide, void *str, int cbmb, void *defchar, int *used_default);
+struct HINSTANCE__;
+__declspec(dllimport) unsigned long __stdcall GetModuleFileNameA(struct HINSTANCE__ *hModule, char *lpFilename, unsigned long nSize);
+__declspec(dllimport) unsigned long __stdcall GetModuleFileNameW(struct HINSTANCE__ *hModule, wchar_t *lpFilename, unsigned long nSize);
+__declspec(dllimport) int __stdcall WideCharToMultiByte(unsigned int cp, unsigned long flags, const wchar_t *widestr, int cchwide, char *str, int cbmb, const char *defchar, int *used_default);
 __declspec(dllimport) unsigned int __stdcall timeBeginPeriod(unsigned int uPeriod);
 __declspec(dllimport) unsigned int __stdcall timeEndPeriod(unsigned int uPeriod);
 #elif defined(__linux__)
@@ -225,6 +233,9 @@ __declspec(dllimport) unsigned int __stdcall timeEndPeriod(unsigned int uPeriod)
 #endif
 #ifndef MAX_GAMEPADS
     #define MAX_GAMEPADS                   4        // Maximum number of gamepads supported
+#endif
+#ifndef MAX_GAMEPAD_NAME_LENGTH
+    #define MAX_GAMEPAD_NAME_LENGTH      128        // Maximum number of characters of gamepad name (byte size)
 #endif
 #ifndef MAX_GAMEPAD_AXIS
     #define MAX_GAMEPAD_AXIS               8        // Maximum number of axis supported (per gamepad)
@@ -345,7 +356,7 @@ typedef struct CoreData {
             int lastButtonPressed;          // Register last gamepad button pressed
             int axisCount[MAX_GAMEPADS];    // Register number of available gamepad axis
             bool ready[MAX_GAMEPADS];       // Flag to know if gamepad is ready
-            char name[MAX_GAMEPADS][64];    // Gamepad name holder
+            char name[MAX_GAMEPADS][MAX_GAMEPAD_NAME_LENGTH];               // Gamepad name holder
             char currentButtonState[MAX_GAMEPADS][MAX_GAMEPAD_BUTTONS];     // Current gamepad buttons state
             char previousButtonState[MAX_GAMEPADS][MAX_GAMEPAD_BUTTONS];    // Previous gamepad buttons state
             float axisState[MAX_GAMEPADS][MAX_GAMEPAD_AXIS];                // Gamepad axis state
@@ -501,7 +512,7 @@ static void RecordAutomationEvent(void); // Record frame events (to internal eve
 
 #if defined(_WIN32) && !defined(PLATFORM_DESKTOP_RGFW)
 // NOTE: We declare Sleep() function symbol to avoid including windows.h (kernel32.lib linkage required)
-void __stdcall Sleep(unsigned long msTimeout);              // Required for: WaitTime()
+__declspec(dllimport) void __stdcall Sleep(unsigned long msTimeout);              // Required for: WaitTime()
 #endif
 
 #if !defined(SUPPORT_MODULE_RTEXT)
@@ -540,7 +551,7 @@ const char *TextFormat(const char *text, ...);              // Formatting of tex
     #include "platforms/rcore_desktop_glfw.c"
 #elif defined(PLATFORM_DESKTOP_SDL)
     #include "platforms/rcore_desktop_sdl.c"
-#elif defined(PLATFORM_DESKTOP_RGFW)
+#elif (defined(PLATFORM_DESKTOP_RGFW) || defined(PLATFORM_WEB_RGFW))
     #include "platforms/rcore_desktop_rgfw.c"
 #elif defined(PLATFORM_WEB)
     #include "platforms/rcore_web.c"
@@ -611,6 +622,8 @@ void InitWindow(int width, int height, const char *title)
     TRACELOG(LOG_INFO, "Platform backend: DESKTOP (SDL)");
 #elif defined(PLATFORM_DESKTOP_RGFW)
     TRACELOG(LOG_INFO, "Platform backend: DESKTOP (RGFW)");
+#elif defined(PLATFORM_WEB_RGFW)
+    TRACELOG(LOG_INFO, "Platform backend: WEB (RGFW) (HTML5)");
 #elif defined(PLATFORM_WEB)
     TRACELOG(LOG_INFO, "Platform backend: WEB (HTML5)");
 #elif defined(PLATFORM_DRM)
@@ -668,7 +681,13 @@ void InitWindow(int width, int height, const char *title)
 
     // Initialize platform
     //--------------------------------------------------------------
-    InitPlatform();
+    int result = InitPlatform();
+
+    if (result != 0)
+    {
+        TRACELOG(LOG_WARNING, "SYSTEM: Failed to initialize Platform");
+        return;
+    }
     //--------------------------------------------------------------
 
     // Initialize rlgl default data (buffers and shaders)
@@ -1100,7 +1119,7 @@ void BeginTextureMode(RenderTexture2D target)
     //rlScalef(0.0f, -1.0f, 0.0f);  // Flip Y-drawing (?)
 
     // Setup current width/height for proper aspect ratio
-    // calculation when using BeginMode3D()
+    // calculation when using BeginTextureMode()
     CORE.Window.currentFbo.width = target.texture.width;
     CORE.Window.currentFbo.height = target.texture.height;
     CORE.Window.usingFbo = true;
@@ -1302,6 +1321,8 @@ Shader LoadShader(const char *vsFileName, const char *fsFileName)
     if (vsFileName != NULL) vShaderStr = LoadFileText(vsFileName);
     if (fsFileName != NULL) fShaderStr = LoadFileText(fsFileName);
 
+    if ((vShaderStr == NULL) && (fShaderStr == NULL)) TraceLog(LOG_WARNING, "SHADER: Shader files provided are not valid, using default shader");
+
     shader = LoadShaderFromMemory(vShaderStr, fShaderStr);
 
     UnloadFileText(vShaderStr);
@@ -1317,9 +1338,10 @@ Shader LoadShaderFromMemory(const char *vsCode, const char *fsCode)
 
     shader.id = rlLoadShaderCode(vsCode, fsCode);
 
-    // After shader loading, we TRY to set default location names
-    if (shader.id > 0)
+    if (shader.id == rlGetShaderIdDefault()) shader.locs = rlGetShaderLocsDefault();
+    else if (shader.id > 0)
     {
+        // After custom shader loading, we TRY to set default location names
         // Default shader attribute locations have been binded before linking:
         //          vertex position location    = 0
         //          vertex texcoord location    = 1
@@ -1346,6 +1368,7 @@ Shader LoadShaderFromMemory(const char *vsCode, const char *fsCode)
         shader.locs[SHADER_LOC_VERTEX_COLOR] = rlGetLocationAttrib(shader.id, RL_DEFAULT_SHADER_ATTRIB_NAME_COLOR);
         shader.locs[SHADER_LOC_VERTEX_BONEIDS] = rlGetLocationAttrib(shader.id, RL_DEFAULT_SHADER_ATTRIB_NAME_BONEIDS);
         shader.locs[SHADER_LOC_VERTEX_BONEWEIGHTS] = rlGetLocationAttrib(shader.id, RL_DEFAULT_SHADER_ATTRIB_NAME_BONEWEIGHTS);
+        shader.locs[SHADER_LOC_VERTEX_INSTANCE_TX] = rlGetLocationAttrib(shader.id, RL_DEFAULT_SHADER_ATTRIB_NAME_INSTANCE_TX);
 
         // Get handles to GLSL uniform locations (vertex shader)
         shader.locs[SHADER_LOC_MATRIX_MVP] = rlGetLocationUniform(shader.id, RL_DEFAULT_SHADER_UNIFORM_NAME_MVP);
@@ -1856,12 +1879,15 @@ void TakeScreenshot(const char *fileName)
     // Security check to (partially) avoid malicious code
     if (strchr(fileName, '\'') != NULL) { TRACELOG(LOG_WARNING, "SYSTEM: Provided fileName could be potentially malicious, avoid [\'] character"); return; }
 
-    Vector2 scale = GetWindowScaleDPI();
+    // Apply a scale if we are doing HIGHDPI auto-scaling
+    Vector2 scale = { 1.0f, 1.0f };
+    if (IsWindowState(FLAG_WINDOW_HIGHDPI)) scale = GetWindowScaleDPI();
+
     unsigned char *imgData = rlReadScreenPixels((int)((float)CORE.Window.render.width*scale.x), (int)((float)CORE.Window.render.height*scale.y));
     Image image = { imgData, (int)((float)CORE.Window.render.width*scale.x), (int)((float)CORE.Window.render.height*scale.y), 1, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8 };
 
     char path[512] = { 0 };
-    strcpy(path, TextFormat("%s/%s", CORE.Storage.basePath, GetFileName(fileName)));
+    strcpy(path, TextFormat("%s/%s", CORE.Storage.basePath, fileName));
 
     ExportImage(image, path);           // WARNING: Module required: rtextures
     RL_FREE(imgData);
@@ -1879,6 +1905,8 @@ void TakeScreenshot(const char *fileName)
 // To configure window states after creation, just use SetWindowState()
 void SetConfigFlags(unsigned int flags)
 {
+    if (CORE.Window.ready) TRACELOG(LOG_WARNING, "WINDOW: SetConfigFlags called after window initialization, Use \"SetWindowState\" to set flags instead");
+
     // Selected flags are set but not evaluated at this point,
     // flag evaluation happens at InitWindow() or SetWindowState()
     CORE.Window.flags |= flags;
@@ -1920,7 +1948,7 @@ bool IsFileExtension(const char *fileName, const char *ext)
     {
 #if defined(SUPPORT_MODULE_RTEXT) && defined(SUPPORT_TEXT_MANIPULATION)
         int extCount = 0;
-        const char **checkExts = TextSplit(ext, ';', &extCount); // WARNING: Module required: rtext
+        char **checkExts = TextSplit(ext, ';', &extCount); // WARNING: Module required: rtext
 
         char fileExtLower[MAX_FILE_EXTENSION_LENGTH + 1] = { 0 };
         strncpy(fileExtLower, TextToLower(fileExt), MAX_FILE_EXTENSION_LENGTH); // WARNING: Module required: rtext
@@ -2062,7 +2090,7 @@ const char *GetDirectoryPath(const char *filePath)
 
     // In case provided path does not contain a root drive letter (C:\, D:\) nor leading path separator (\, /),
     // we add the current directory path to dirPath
-    if (filePath[1] != ':' && filePath[0] != '\\' && filePath[0] != '/')
+    if ((filePath[1] != ':') && (filePath[0] != '\\') && (filePath[0] != '/'))
     {
         // For security, we set starting path to current directory,
         // obtained path will be concatenated to this
@@ -2331,6 +2359,7 @@ bool ChangeDirectory(const char *dir)
     bool result = CHDIR(dir);
 
     if (result != 0) TRACELOG(LOG_WARNING, "SYSTEM: Failed to change to directory: %s", dir);
+    else TRACELOG(LOG_INFO, "SYSTEM: Working Directory: %s", dir);
 
     return (result == 0);
 }
@@ -2765,7 +2794,8 @@ unsigned int *ComputeMD5(unsigned char *data, int dataSize)
 
 // Compute SHA-1 hash code
 // NOTE: Returns a static int[5] array (20 bytes)
-unsigned int *ComputeSHA1(unsigned char *data, int dataSize) {
+unsigned int *ComputeSHA1(unsigned char *data, int dataSize)
+{
     #define ROTATE_LEFT(x, c) (((x) << (c)) | ((x) >> (32 - (c))))
 
     static unsigned int hash[5] = { 0 };  // Hash to be returned
@@ -2800,17 +2830,16 @@ unsigned int *ComputeSHA1(unsigned char *data, int dataSize) {
     {
         // Break chunk into sixteen 32-bit words w[j], 0 <= j <= 15
         unsigned int w[80] = {0};
-        for (int i = 0; i < 16; i++) {
-            w[i] = (msg[offset + (i * 4) + 0] << 24) |
-                   (msg[offset + (i * 4) + 1] << 16) |
-                   (msg[offset + (i * 4) + 2] << 8) |
-                   (msg[offset + (i * 4) + 3]);
+        for (int i = 0; i < 16; i++)
+        {
+            w[i] = (msg[offset + (i*4) + 0] << 24) |
+                   (msg[offset + (i*4) + 1] << 16) |
+                   (msg[offset + (i*4) + 2] << 8) |
+                   (msg[offset + (i*4) + 3]);
         }
 
         // Message schedule: extend the sixteen 32-bit words into eighty 32-bit words:
-        for (int i = 16; i < 80; ++i) {
-            w[i] = ROTATE_LEFT(w[i-3] ^ w[i-8] ^ w[i-14] ^ w[i-16], 1);
-        }
+        for (int i = 16; i < 80; i++) w[i] = ROTATE_LEFT(w[i-3] ^ w[i-8] ^ w[i-14] ^ w[i-16], 1);
 
         // Initialize hash value for this chunk
         unsigned int a = hash[0];
@@ -2824,16 +2853,23 @@ unsigned int *ComputeSHA1(unsigned char *data, int dataSize) {
             unsigned int f = 0;
             unsigned int k = 0;
 
-            if (i < 20) {
+            if (i < 20)
+            {
                 f = (b & c) | ((~b) & d);
                 k = 0x5A827999;
-            } else if (i < 40) {
+            }
+            else if (i < 40)
+            {
                 f = b ^ c ^ d;
                 k = 0x6ED9EBA1;
-            } else if (i < 60) {
+            }
+            else if (i < 60)
+            {
                 f = (b & c) | (b & d) | (c & d);
                 k = 0x8F1BBCDC;
-            } else {
+            }
+            else
+            {
                 f = b ^ c ^ d;
                 k = 0xCA62C1D6;
             }
@@ -2982,7 +3018,7 @@ bool ExportAutomationEventList(AutomationEventList list, const char *fileName)
     byteCount += sprintf(txtData + byteCount, "# more info and bugs-report:  github.com/raysan5/raylib\n");
     byteCount += sprintf(txtData + byteCount, "# feedback and support:       ray[at]raylib.com\n");
     byteCount += sprintf(txtData + byteCount, "#\n");
-    byteCount += sprintf(txtData + byteCount, "# Copyright (c) 2023-2024 Ramon Santamaria (@raysan5)\n");
+    byteCount += sprintf(txtData + byteCount, "# Copyright (c) 2023-2025 Ramon Santamaria (@raysan5)\n");
     byteCount += sprintf(txtData + byteCount, "#\n\n");
 
     // Add events data
@@ -3315,7 +3351,8 @@ float GetGamepadAxisMovement(int gamepad, int axis)
 {
     float value = (axis == GAMEPAD_AXIS_LEFT_TRIGGER || axis == GAMEPAD_AXIS_RIGHT_TRIGGER)? -1.0f : 0.0f;
 
-    if ((gamepad < MAX_GAMEPADS) && CORE.Input.Gamepad.ready[gamepad] && (axis < MAX_GAMEPAD_AXIS)) {
+    if ((gamepad < MAX_GAMEPADS) && CORE.Input.Gamepad.ready[gamepad] && (axis < MAX_GAMEPAD_AXIS))
+    {
         float movement = value < 0.0f ? CORE.Input.Gamepad.axisState[gamepad][axis] : fabsf(CORE.Input.Gamepad.axisState[gamepad][axis]);
 
         if (movement > value) value = CORE.Input.Gamepad.axisState[gamepad][axis];
@@ -3657,12 +3694,16 @@ static void ScanDirectoryFiles(const char *basePath, FilePathList *files, const 
                 (strcmp(dp->d_name, "..") != 0))
             {
             #if defined(_WIN32)
-                sprintf(path, "%s\\%s", basePath, dp->d_name);
+                int pathLength = snprintf(path, MAX_FILEPATH_LENGTH - 1, "%s\\%s", basePath, dp->d_name);
             #else
-                sprintf(path, "%s/%s", basePath, dp->d_name);
+                int pathLength = snprintf(path, MAX_FILEPATH_LENGTH - 1, "%s/%s", basePath, dp->d_name);
             #endif
 
-                if (filter != NULL)
+                if ((pathLength < 0) || (pathLength >= MAX_FILEPATH_LENGTH))
+                {
+                    TRACELOG(LOG_WARNING, "FILEIO: Path longer than %d characters (%s...)", MAX_FILEPATH_LENGTH, basePath);
+                }
+                else if (filter != NULL)
                 {
                     if (IsPathFile(path))
                     {
@@ -3674,7 +3715,7 @@ static void ScanDirectoryFiles(const char *basePath, FilePathList *files, const 
                     }
                     else
                     {
-                        if (TextFindIndex(filter, DIRECTORY_FILTER_TAG) >= 0)
+                        if (strstr(filter, DIRECTORY_FILTER_TAG) != NULL)
                         {
                             strcpy(files->paths[files->count], path);
                             files->count++;
@@ -3711,12 +3752,16 @@ static void ScanDirectoryFilesRecursively(const char *basePath, FilePathList *fi
             {
                 // Construct new path from our base path
             #if defined(_WIN32)
-                sprintf(path, "%s\\%s", basePath, dp->d_name);
+                int pathLength = snprintf(path, MAX_FILEPATH_LENGTH - 1, "%s\\%s", basePath, dp->d_name);
             #else
-                sprintf(path, "%s/%s", basePath, dp->d_name);
+                int pathLength = snprintf(path, MAX_FILEPATH_LENGTH - 1, "%s/%s", basePath, dp->d_name);
             #endif
 
-                if (IsPathFile(path))
+                if ((pathLength < 0) || (pathLength >= MAX_FILEPATH_LENGTH))
+                {
+                    TRACELOG(LOG_WARNING, "FILEIO: Path longer than %d characters (%s...)", MAX_FILEPATH_LENGTH, basePath);
+                }
+                else if (IsPathFile(path))
                 {
                     if (filter != NULL)
                     {
@@ -3740,7 +3785,7 @@ static void ScanDirectoryFilesRecursively(const char *basePath, FilePathList *fi
                 }
                 else
                 {
-                    if ((filter != NULL) && (TextFindIndex(filter, DIRECTORY_FILTER_TAG) >= 0))
+                    if ((filter != NULL) && (strstr(filter, DIRECTORY_FILTER_TAG) != NULL))
                     {
                         strcpy(files->paths[files->count], path);
                         files->count++;

@@ -19,6 +19,9 @@ target_include_directories(lua PUBLIC ${LUA_SRC_DIR})
 # Add subdirectories for each of the libraries
 add_subdirectory(third_party_libs/box2d)
 add_subdirectory(third_party_libs/raylib)
+add_subdirectory(third_party_libs/imgui)
+add_subdirectory(src/Core)
+add_subdirectory(src/UI)
 
 # Sol2 is header-only, so just include its directory
 set(SOL2_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party_libs/sol")
@@ -97,7 +100,11 @@ target_include_directories(GameEngine PRIVATE
 
 # Link libraries to your game engine executable
 target_link_libraries(GameEngine PRIVATE 
+	core
+	ui
     box2d
+	d3d11
+	imgui
     lua
     ${XAUDIO2_LIBRARY}
 	raylib
@@ -108,61 +115,112 @@ target_link_libraries(GameEngine PRIVATE
 # -------------------------------
 
 # Audio Test Executable
-#add_executable(AudioTest 
-#    src/audio_test.cpp
-#    src/AudioManager.cpp
-#    src/AudioLuaAPI.cpp
-#    src/SoundResource.cpp
-#)
+# Gather all .cpp files
+file(GLOB_RECURSE TEST_SRC "${SRC_DIR}/*.cpp")
+
+# Remove main.cpp
+list(FILTER TEST_SRC EXCLUDE REGEX ".*/main\\.cpp$")
+list(FILTER TEST_SRC EXCLUDE REGEX ".*_test\\.cpp$")
+
+add_executable(AudioTest 
+    src/audio_test.cpp
+    ${TEST_SRC} ${IMGUI_SRC}
+)
 
 # Include directories for AudioTest
-#target_include_directories(AudioTest PRIVATE
-#    ${IMGUI_DIR}
-#    third_party_libs/box2d
-#    ${SOL2_INCLUDE_DIR}
-#    ${LUA_SRC_DIR} 
-#    ${SRC_DIR} 
-#    ${XAUDIO2_INCLUDE_DIR}
-#)
+target_include_directories(AudioTest PRIVATE
+    ${IMGUI_DIR}
+    third_party_libs/box2d
+    ${SOL2_INCLUDE_DIR}
+    ${LUA_SRC_DIR} 
+    ${SRC_DIR} 
+    ${XAUDIO2_INCLUDE_DIR}
+    third_party_libs/raylib/src
+)
 
 # Link libraries to AudioTest
-#target_link_libraries(AudioTest PRIVATE 
-#    lua
-#    ${XAUDIO2_LIBRARY}
-#	raylib
-#)
-
-# You can add more test executables here following the same pattern
-# For example:
+target_link_libraries(AudioTest PRIVATE 
+    core
+	ui
+    box2d
+	d3d11
+	imgui
+    lua
+    ${XAUDIO2_LIBRARY}
+    raylib
+)
 
 # Physics Test Executable
-# add_executable(PhysicsTest 
-#     src/physics_test.cpp
-#     src/Physics/PhysicsSystem.cpp
-#     # Add other required source files
-# )
-# 
-# target_include_directories(PhysicsTest PRIVATE
-#     ${SRC_DIR}
-#     third_party_libs/box2d
-# )
-# 
-# target_link_libraries(PhysicsTest PRIVATE
-#     box2d
-# )
+add_executable(PhysicsTest 
+    src/physics_test.cpp
+    src/PhysicsWorld.cpp
+)
 
-# Rendering Test Executable 
-# add_executable(RenderingTest 
-#     src/rendering_test.cpp
-#     src/Rendering/RenderSystem.cpp
-#     # Add other required source files
-# )
-# 
-# target_include_directories(RenderingTest PRIVATE
-#     ${IMGUI_DIR}
-#     ${SRC_DIR}
-# )
-# 
-# target_link_libraries(RenderingTest PRIVATE
-#     # Add required libraries
-# )
+# Include directories for PhysicsTest
+target_include_directories(PhysicsTest PRIVATE
+    ${IMGUI_DIR}
+    third_party_libs/box2d
+    ${SOL2_INCLUDE_DIR}
+    ${LUA_SRC_DIR} 
+    ${SRC_DIR} 
+)
+
+# Link libraries to PhysicsTest
+target_link_libraries(PhysicsTest PRIVATE 
+    box2d
+    raylib
+)
+
+# Input Test Executable
+add_executable(InputTest 
+    src/input_test.cpp
+    ${TEST_SRC} ${IMGUI_SRC}
+)
+
+# Include directories for InputTest
+target_include_directories(InputTest PRIVATE
+    ${IMGUI_DIR}
+    third_party_libs/box2d
+    ${SOL2_INCLUDE_DIR}
+    ${LUA_SRC_DIR} 
+    ${SRC_DIR} 
+    ${XAUDIO2_INCLUDE_DIR}
+    third_party_libs/raylib/src
+)
+
+# Link libraries to InputTest
+target_link_libraries(InputTest PRIVATE 
+    core
+	ui
+    box2d
+	d3d11
+	imgui
+    lua
+    ${XAUDIO2_LIBRARY}
+    raylib
+)
+
+# Render Test Executable
+add_executable(RenderTest 
+    src/render_test.cpp
+)
+
+# Include directories for RenderTest
+target_include_directories(RenderTest PRIVATE
+    ${IMGUI_DIR}
+    third_party_libs/box2d
+    ${SOL2_INCLUDE_DIR}
+    ${LUA_SRC_DIR} 
+    ${SRC_DIR} 
+    ${XAUDIO2_INCLUDE_DIR}
+    third_party_libs/raylib/src
+)
+
+# Link libraries to RenderTest
+target_link_libraries(RenderTest PRIVATE 
+    core
+    ui
+    imgui
+    raylib
+    d3d11
+)
