@@ -13,7 +13,8 @@ int main() {
     InitWindow(1000, 800, "Box2D + Raylib Physics Test");
     SetTargetFPS(60);
 
-    PhysicsWorld world(0.0f, -4.0f);
+    PhysicsWorld world;
+    world.startUp(0.0f, -4.0f);
 
     // --- Create ground (static box)
     PhysicsShapeParams groundParams;
@@ -253,5 +254,6 @@ int main() {
     }
 
     CloseWindow();
+    world.shutDown();
     return 0;
 }
