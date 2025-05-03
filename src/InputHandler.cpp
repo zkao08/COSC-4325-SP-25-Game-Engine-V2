@@ -107,10 +107,18 @@ namespace
     }
 }
 
+/// <summary>
+/// Get the singleton instance
+/// </summary>
+InputHandler& InputHandler::GetInstance()
+{
+    static InputHandler instance;
+    return instance;
+}
+
 InputHandler::InputHandler() : m_Hwnd(nullptr)
 {
-    // Initialize keyboard map with key names
-    InitializeKeyboardMap();
+    // Do nothing
 }
 
 InputHandler::~InputHandler()
@@ -118,9 +126,18 @@ InputHandler::~InputHandler()
     // Nothing to clean up
 }
 
-void InputHandler::Initialize(HWND hwnd)
+bool InputHandler::startUp(HWND hwnd)
 {
+    // Initialize keyboard map with key names
+    InitializeKeyboardMap();
+
     m_Hwnd = hwnd;
+    return true;
+}
+
+void InputHandler::shutDown()
+{
+	// Nothing to clean up
 }
 
 void InputHandler::Update()
@@ -390,21 +407,12 @@ void InputHandler::UpdateMouseState()
     m_MouseState.deltaX = m_MouseState.x - m_MouseState.prevX;
     m_MouseState.deltaY = m_MouseState.y - m_MouseState.prevY;
 
-    // Update button states (if not already updated by event processing)
-    if (!m_MouseState.buttons[MouseButton::LEFT])
-        m_MouseState.buttons[MouseButton::LEFT] = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
-
-    if (!m_MouseState.buttons[MouseButton::RIGHT])
-        m_MouseState.buttons[MouseButton::RIGHT] = (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0;
-
-    if (!m_MouseState.buttons[MouseButton::MIDDLE])
-        m_MouseState.buttons[MouseButton::MIDDLE] = (GetAsyncKeyState(VK_MBUTTON) & 0x8000) != 0;
-
-    if (!m_MouseState.buttons[MouseButton::X1])
-        m_MouseState.buttons[MouseButton::X1] = (GetAsyncKeyState(VK_XBUTTON1) & 0x8000) != 0;
-
-    if (!m_MouseState.buttons[MouseButton::X2])
-        m_MouseState.buttons[MouseButton::X2] = (GetAsyncKeyState(VK_XBUTTON2) & 0x8000) != 0;
+    // Update button states
+    m_MouseState.buttons[MouseButton::LEFT] = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
+    m_MouseState.buttons[MouseButton::RIGHT] = (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0;
+    m_MouseState.buttons[MouseButton::MIDDLE] = (GetAsyncKeyState(VK_MBUTTON) & 0x8000) != 0;
+    m_MouseState.buttons[MouseButton::X1] = (GetAsyncKeyState(VK_XBUTTON1) & 0x8000) != 0;
+    m_MouseState.buttons[MouseButton::X2] = (GetAsyncKeyState(VK_XBUTTON2) & 0x8000) != 0;
 }
 
 void InputHandler::UpdateGamepadState()

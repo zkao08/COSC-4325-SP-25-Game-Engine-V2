@@ -57,8 +57,21 @@ class PhysicsWorld {
         b2BodyId CreateTriangle(const PhysicsShapeParams& params);
         b2BodyId CreateCapsule(const PhysicsShapeParams& params);
     public:
-	    PhysicsWorld(float gravityX = 0.0f, float gravityY = -9.8f);
+	    PhysicsWorld();
 	    ~PhysicsWorld();
+
+        // Core system methods
+        bool startUp(float gravityX, float gravityY);
+        void shutDown();
+
+        // Singleton accessor
+        static PhysicsWorld& GetInstance();
+
+        // Delete copy and move constructors/assignments
+        PhysicsWorld(const PhysicsWorld&) = delete;
+        PhysicsWorld& operator=(const PhysicsWorld&) = delete;
+        PhysicsWorld(PhysicsWorld&&) = delete;
+        PhysicsWorld& operator=(PhysicsWorld&&) = delete;
 
         // Getter Functions
         b2Vec2 GetPosition(b2BodyId id) const;

@@ -315,7 +315,7 @@ int main()
 {
     // 1. Initialize the renderer (needed for ResourceManager)
     Renderer* renderer = nullptr; // In a real app, this would be your actual renderer
-    ResourceManager::GetInstance().Initialize(renderer);
+    ResourceManager::GetInstance().startUp(renderer);
 
     // 2. Initialize the audio manager
     if (!gAudioManager.startUp()) {
@@ -338,7 +338,7 @@ int main()
     gAudioManager.shutDown();
 
     // Shutdown ResourceManager
-    ResourceManager::GetInstance().Shutdown();
+    ResourceManager::GetInstance().shutDown();
 
     std::cout << "\n=== Audio Engine Test Complete ===\n" << std::endl;
     return 0;

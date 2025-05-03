@@ -1,17 +1,37 @@
 #include "PhysicsWorld.h"
 
+/// <summary>
+/// Get the singleton instance
+/// </summary>
+PhysicsWorld& PhysicsWorld::GetInstance()
+{
+	static PhysicsWorld instance;
+	return instance;
+}
+
 // Operator overloading == for DestroyObject() function
 inline bool operator==(const b2BodyId& a, const b2BodyId& b) {
 	return a.index1 == b.index1 && a.generation == b.generation;
 }
 
-PhysicsWorld::PhysicsWorld(float gravityX, float gravityY) {
-	b2WorldDef worldDef = b2DefaultWorldDef();
-	worldDef.gravity = { gravityX, gravityY };
-	worldId = b2CreateWorld(&worldDef);
+PhysicsWorld::PhysicsWorld() {
+	// Do nothing, call startUp instead
 }
 
 PhysicsWorld::~PhysicsWorld() {
+	// Do nothing, call shutDown instead
+}
+
+bool PhysicsWorld::startUp(float gravityX, float gravityY) 
+{
+	b2WorldDef worldDef = b2DefaultWorldDef();
+	worldDef.gravity = { gravityX, gravityY };
+	worldId = b2CreateWorld(&worldDef);
+	return true;
+}
+
+void PhysicsWorld::shutDown()
+{
 	b2DestroyWorld(worldId);
 }
 

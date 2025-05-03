@@ -34,7 +34,7 @@ ResourceManager::ResourceManager()
 /// <summary>
 /// Initialize the resource manager with a renderer
 /// </summary>
-bool ResourceManager::Initialize(Renderer* renderer)
+bool ResourceManager::startUp(Renderer* renderer)
 {
     m_Renderer = renderer;
     std::cout << "ResourceManager initialized" << std::endl;
@@ -44,7 +44,7 @@ bool ResourceManager::Initialize(Renderer* renderer)
 /// <summary>
 /// Shutdown the resource manager and unload all resources
 /// </summary>
-void ResourceManager::Shutdown()
+void ResourceManager::shutDown()
 {
     UnloadAllResources();
     std::cout << "ResourceManager shut down" << std::endl;
@@ -487,4 +487,14 @@ void ResourceManager::CleanupSoundCache()
         std::cout << "Sound cache cleanup: removed " << removed << " sounds, "
             << m_SoundResources.size() << " remaining" << std::endl;
     }
+}
+
+/// <summary>
+/// Calls cleanup methods for both sound and texture caches
+/// Should be called regularly during game loop
+/// </summary>
+void ResourceManager::PerformMaintenance()
+{
+	CleanupSoundCache();
+	CleanupTextureCache();
 }

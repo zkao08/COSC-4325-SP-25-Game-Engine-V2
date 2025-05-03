@@ -252,8 +252,18 @@ public:
     InputHandler();
     ~InputHandler();
 
-    // Initialization
-    void Initialize(HWND hwnd);
+    // Singleton accessor
+    static InputHandler& GetInstance();
+
+    // Delete copy and move constructors/assignments
+    InputHandler(const InputHandler&) = delete;
+    InputHandler& operator=(const InputHandler&) = delete;
+    InputHandler(InputHandler&&) = delete;
+    InputHandler& operator=(InputHandler&&) = delete;
+
+    // Core system methods
+    bool startUp(HWND hwnd);
+    void shutDown();
 
     // Call once per frame to update all input states
     void Update();

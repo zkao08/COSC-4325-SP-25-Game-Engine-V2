@@ -62,7 +62,7 @@ int main(int argc, char* argv[])
     }
 
     // Initialize input handler
-    g_Input.Initialize(g_hwnd);
+    g_Input.startUp(g_hwnd);
 
     // Show the window
     ShowWindow(g_hwnd, SW_SHOW);
