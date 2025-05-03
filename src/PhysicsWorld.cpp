@@ -1,28 +1,33 @@
 #include "PhysicsWorld.h"
 
-// Operator overloading == for DestroyObject() function
+// Operator overloading == for DestroyObject() to compare body IDs
 inline bool operator==(const b2BodyId& a, const b2BodyId& b) {
 	return a.index1 == b.index1 && a.generation == b.generation;
 }
 
+// Constructor: create a Box2D world with specified gravity
 PhysicsWorld::PhysicsWorld(float gravityX, float gravityY) {
 	b2WorldDef worldDef = b2DefaultWorldDef();
 	worldDef.gravity = { gravityX, gravityY };
 	worldId = b2CreateWorld(&worldDef);
 }
 
+// Destructor: clean up the Box2D world
 PhysicsWorld::~PhysicsWorld() {
 	b2DestroyWorld(worldId);
 }
 
+// Advance the simulation by deltaTime, subdivided into stepCount iterations
 void PhysicsWorld::Step(float deltaTime, int stepCount) {
 	b2World_Step(worldId, deltaTime, stepCount);
 }
 
+// Accessor for all created objects (useful for editor or debugging)
 const std::vector<PlacedObject>& PhysicsWorld::GetPlacedObjects() const {
 	return placedObjects;
 }
 
+// Destroy a body and remove it from our placedObjects list
 void PhysicsWorld::DestroyObject(b2BodyId id) {
 	b2DestroyBody(id);
 
@@ -35,6 +40,7 @@ void PhysicsWorld::DestroyObject(b2BodyId id) {
 	);
 }
 
+// Create a shape based on params, store it, and return its ID
 b2BodyId PhysicsWorld::CreateShape(const PhysicsShapeParams& params) {
 	b2BodyId body;
 
@@ -55,20 +61,22 @@ b2BodyId PhysicsWorld::CreateShape(const PhysicsShapeParams& params) {
 			return {}; // Invalid
 	}
 
+	// Track this new object
 	placedObjects.push_back({
 		body,
 		params,
-		"shape",   // optional: change this per shape type
+		"shape",
 		static_cast<int>(placedObjects.size()) // unique editor ID
 		});
 
 	return body;
 }
 
+// Box creation: define body and attach a polygon fixture
 b2BodyId PhysicsWorld::CreateBox(const PhysicsShapeParams& params) {
 	b2BodyDef bodyDef = b2DefaultBodyDef(); // creating base default body definition
 
-	// Setting body type
+	// Choose static/kinematic/dynamic
 	switch (params.bodyType) {
 		case PhysicsBodyType::Static:
 			bodyDef.type = b2_staticBody;
@@ -81,7 +89,7 @@ b2BodyId PhysicsWorld::CreateBox(const PhysicsShapeParams& params) {
 			break;
 	}
 
-	// Setting body rotation and position
+	// Set transform and damping
 	bodyDef.position = { params.x, params.y };
 	bodyDef.rotation = b2MakeRot(params.rotation * (B2_PI/180.0f)); // converting to radians
 	bodyDef.angularDamping = params.angularDamping;
@@ -89,15 +97,17 @@ b2BodyId PhysicsWorld::CreateBox(const PhysicsShapeParams& params) {
 
 	b2BodyId bodyId = b2CreateBody(worldId, &bodyDef);
 
-	b2Polygon box = b2MakeBox(params.width * 0.5f, params.height * 0.5f); // creating box polygon
-	b2ShapeDef shapeDef = b2DefaultShapeDef(); // creating the shape (box)
+	// Create box fixture
+	b2Polygon box = b2MakeBox(params.width * 0.5f, params.height * 0.5f);
+	b2ShapeDef shapeDef = b2DefaultShapeDef();
 	shapeDef.friction = params.friction;
 	shapeDef.density = (params.bodyType == PhysicsBodyType::Dynamic) ? params.density : 0.0f;
 
-	b2CreatePolygonShape(bodyId, &shapeDef, &box); // creating polygon shape and attaching the body
+	b2CreatePolygonShape(bodyId, &shapeDef, &box);
 	return bodyId;
 }
 
+// Circle creation: define body and attach a circular fixture
 b2BodyId PhysicsWorld::CreateCircle(const PhysicsShapeParams& params) {
 	b2BodyDef bodyDef = b2DefaultBodyDef();
 
@@ -120,6 +130,7 @@ b2BodyId PhysicsWorld::CreateCircle(const PhysicsShapeParams& params) {
 
 	b2BodyId bodyId = b2CreateBody(worldId, &bodyDef);
 
+	// Define circle fixture
 	b2Circle circle = { circle.center = {0.0f, 0.0f}, params.radius };
 	b2ShapeDef shapeDef = b2DefaultShapeDef();
 	shapeDef.friction = params.friction;
@@ -129,6 +140,7 @@ b2BodyId PhysicsWorld::CreateCircle(const PhysicsShapeParams& params) {
 	return bodyId;
 }
 
+// Triangle creation: compute hull, then attach polygon fixture
 b2BodyId PhysicsWorld::CreateTriangle(const PhysicsShapeParams& params) {
 	b2BodyDef bodyDef = b2DefaultBodyDef();
 	
@@ -150,15 +162,14 @@ b2BodyId PhysicsWorld::CreateTriangle(const PhysicsShapeParams& params) {
 
 	b2BodyId bodyId = b2CreateBody(worldId, &bodyDef);
 
-	// Define triangle points
-	const int VERTS = 3; // number of verticies (3 for a triangle)
+	// Local triangle vertices
+	const int VERTS = 3;
 	b2Vec2 vertices[VERTS] = {
 		{ -params.width * 0.5f, -params.height * 0.5f },
 		{  params.width * 0.5f, -params.height * 0.5f },
 		{  0.0f,                 params.height * 0.5f }
 	};
 
-	// Compute convex hull
 	b2Hull hull = b2ComputeHull(vertices, VERTS);
 	// hull check if failed
 	if (hull.count < 3) {
@@ -177,6 +188,7 @@ b2BodyId PhysicsWorld::CreateTriangle(const PhysicsShapeParams& params) {
 	return bodyId;
 }
 
+// Capsule creation: combine box and two circles into one body
 b2BodyId PhysicsWorld::CreateCapsule(const PhysicsShapeParams& params) {
 	b2BodyDef bodyDef = b2DefaultBodyDef();
 
@@ -229,18 +241,21 @@ b2BodyId PhysicsWorld::CreateCapsule(const PhysicsShapeParams& params) {
 	return bodyId;
 }
 
+// Apply a force at the body's center and wake it
 void PhysicsWorld::ApplyForce(b2BodyId id, float forceX, float forceY) {
 	b2Vec2 point = b2Body_GetPosition(id);
 	b2Vec2 force = { forceX, forceY };
 	b2Body_ApplyForce(id, force, point, true);
 }
 
+// Set horizontal velocity, keeping existing vertical speed (gravity)
 void PhysicsWorld::SetVelocity(b2BodyId id, float velX) {
 	b2Vec2 currentVel = b2Body_GetLinearVelocity(id);
 	b2Vec2 newVel = { velX, currentVel.y }; // Keep gravity affecting Y
 	b2Body_SetLinearVelocity(id, newVel);
 }
 
+// Change world gravity and wake all dynamic bodies
 void PhysicsWorld::SetGravity(float gravityX, float gravityY) {
 	b2Vec2 gravity = { gravityX, gravityY };
 	b2World_SetGravity(worldId, gravity);
@@ -253,20 +268,25 @@ void PhysicsWorld::SetGravity(float gravityX, float gravityY) {
 	}
 }
 
+// Get world position of a body
 b2Vec2 PhysicsWorld::GetPosition(b2BodyId id) const {
 	return b2Body_GetPosition(id);
 }
 
+// Get body rotation (converted from sin/cos to degrees)
 float PhysicsWorld::GetRotation(b2BodyId id) const {
 	b2Rot rot = b2Body_GetRotation(id);
 	// atan2f(sin, cos) gives angle in radians
 	return atan2f(rot.s, rot.c) * (180.0f / B2_PI);
 }
 
+// Get current linear velocity
+
 b2Vec2 PhysicsWorld::GetVelocity(b2BodyId id) const {
 	return b2Body_GetLinearVelocity(id);
 }
 
+// Get current gravity vector from world
 b2Vec2 PhysicsWorld::GetGravity() const {
 	return b2World_GetGravity(worldId);
 }
