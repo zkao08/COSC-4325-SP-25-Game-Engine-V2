@@ -173,12 +173,14 @@ HRESULT AudioManager::PlaySound(const std::string& soundId, float volume)
 
             // Check if the voice is valid and reset it
             XAUDIO2_VOICE_STATE state;
-            try {
+            try 
+            {
                 pSourceVoice->GetState(&state);
                 pSourceVoice->Stop(0);
                 pSourceVoice->FlushSourceBuffers();
             }
-            catch (...) {
+            catch (...) 
+            {
                 // If the voice is invalid, create a new one
                 pSourceVoice = nullptr;
             }
