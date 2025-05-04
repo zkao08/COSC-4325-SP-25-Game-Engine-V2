@@ -1,29 +1,4 @@
 #include "Application.h"
-#include "Window.h"
-#include "Timer.h"
-#include "Renderer.h"
-#include "Shader.h"
-#include "Rect.h"
-#include "Camera.h"
-#include "RasterState.h"
-#include "RenderTarget.h"
-#include "Grid.h"
-#include "Game.h"
-#include "Object.h"
-
-#include "Dock.h"
-#include "ObjectWindow.h"
-#include "MainMenuBar.h"
-#include "NavigatorWindow.h"
-#include "PropertiesWindow.h"
-#include "ViewportWindow.h"
-
-#include <DirectXMath.h>
-#include <windowsx.h>
-#include <Windows.h>
-#include <string>
-#include <iostream>
-#include <math.h>
 
 const int TARGET_RESOLUTION_X = 1920;
 const int TARGET_RESOLUTION_Y = 1080;
@@ -31,10 +6,11 @@ const int TARGET_RESOLUTION_Y = 1080;
 static int scaledResolutionX;
 static int scaledResolutionY;
 
-static float scaleFactor;
-
-Application::Application() {
+Application::Application(std::string title, Object* game_object, bool dev_mode) {
 	GetResolution(scaledResolutionX, scaledResolutionY);
+
+	m_ApplicationTitle = title;
+	m_DevMode = dev_mode;
 
 	scaledResolutionX *= 2;
 	scaledResolutionY *= 2;
@@ -44,7 +20,7 @@ Application::Application() {
 
 	// Create window
 	m_Window = std::make_unique<Window>(this);
-	m_WindowCreated = m_Window->Create(m_ApplicationTitle.c_str(), TARGET_RESOLUTION_X, TARGET_RESOLUTION_Y, false);
+	m_WindowCreated = m_Window->Create(title.c_str(), TARGET_RESOLUTION_X, TARGET_RESOLUTION_Y, false);
 
 	// Create renderer
 	m_Renderer = std::make_unique<Renderer>(this);
@@ -66,81 +42,70 @@ Application::Application() {
 	m_RasterState = std::make_unique<RasterState>(m_Renderer.get());
 
 	// Create game state
-	m_Game = std::make_unique<Game>();
+	m_Game = std::make_unique<Game>(game_object, m_Renderer.get());
 }
 
-int Application::Execute() {
-	int result = 0;
-
-	Timer timer;
-	timer.Start();
-
+int Application::Initialize() {
 	scaleFactor = m_Renderer->GetScaleFactor((float)scaledResolutionX, (float)scaledResolutionY);
 
-	// Rect
-	/*std::unique_ptr<Rect> newRect = std::make_unique<Rect>(m_Renderer.get());
-	newRect->Create(L"../../../assets/WoodTexture.jpg", 1, 1, 0);
-	std::unique_ptr<Rect> newRect2 = std::make_unique<Rect>(m_Renderer.get());
-	newRect2->Create(L"../../../assets/ThinTriangle.png", 0, 0, 0);*/
+	return 1;
+}
 
-	//std::unique_ptr<Object> obj = std::make_unique<Object>(m_Renderer.get(), (char*)"Test");
-	//m_Game->AddObject(obj.get());
+int Application::Render(float deltaTime) {
+	int status = NONE;
 
-	// Main application loop
-	while (m_Running)
-	{
-		timer.Tick();
-		this->CalculateFrameStats(timer.DeltaTime());
+	this->CalculateFrameStats(deltaTime);
 
-		MSG msg = {};
-		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
-			if (msg.message == WM_QUIT)
-				m_Running = false;
+	MSG msg = {};
+	if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+		if (msg.message == WM_QUIT)
+			m_Running = false;
 
-			TranslateMessage(&msg);
-			DispatchMessageW(&msg);
-		}
-		else {
-			std::vector<Object*> objects = m_Game->GetObjects();
+		TranslateMessage(&msg);
+		DispatchMessageW(&msg);
+	}
+	else {
+		m_Shader->Use();
+		m_RasterState->Use();
 
-			m_Shader->Use();
-			m_RasterState->Use();
+		// Binds the render-to-texture render target to the pipeline
+		m_RenderTarget->Use();
+		// Update the model view projection constant buffer
+		this->ComputeModelViewProjectionMatrix();
 
-			// Binds the render-to-texture render target to the pipeline
-			m_RenderTarget->Use();
-			// Update the model view projection constant buffer
-			this->ComputeModelViewProjectionMatrix();
-			// Render the model
-			//obj->Update();
-
-			for (int i = 0; i < objects.size(); i++) {
-				if (!objects[i]->markedDeleted)
-					objects[i]->Update();
-			}
-
+		if (m_DevMode) {
+			m_Game->GetGameObject()->Update(true);
 			m_Renderer->Clear();
 
 			Dock::SetDockingBehavior();
 
-			result = MainMenuBar::Render();
-			if (result != 1)
-				break;
+			int result = MainMenuBar::Render();
+			if (result == CLOSE_APP)
+				status = CLOSE_APP;
+			else if (result == RUN_GAME) {
+				GameEngine::CreateRuntime("Runtime", m_Game->GetGameObject());
+			}
 
 			NavigatorWindow::Render(m_Renderer.get(), m_Game.get(), scaleFactor);
 			PropertiesWindow::Render(m_Game.get(), scaleFactor);
-			ViewportWindow::Render(m_Renderer.get(), scaleFactor, (ImTextureID)(intptr_t)m_RenderTarget->GetTexture());
+			ViewportWindow::Render(m_Renderer.get(), scaleFactor, (ImTextureID)(intptr_t)m_RenderTarget->GetTexture(), m_Camera.get());
 			ObjectWindow::Render(m_Renderer.get(), m_Game.get(), scaleFactor);
 
 			ImVec2 viewportWindowSize = ViewportWindow::GetSize();
-			m_Camera->UpdateAspectRatio(viewportWindowSize.x, viewportWindowSize.x);
-			m_CameraPlane->UpdateAspectRatio(viewportWindowSize.x, viewportWindowSize.x);
-
-			// Display the rendered scene
-			m_Renderer->Present();
+			m_Camera->UpdateAspectRatio((int)viewportWindowSize.x, (int)viewportWindowSize.x);
+			m_CameraPlane->UpdateAspectRatio((int)viewportWindowSize.x, (int)viewportWindowSize.x);
 		}
+		else {
+			m_Renderer->Clear();
+			m_Game->GetGameObject()->Update(false);
+			m_Game->GetPhysicsWorld()->Step(deltaTime);
+		}
+
+		// Display the rendered scene
+		m_Renderer->Present();
 	}
 
-	return 0;
+	return status;
 }
 
 LRESULT Application::HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -151,7 +116,8 @@ LRESULT Application::HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 	switch (msg)
 	{
 	case WM_DESTROY:
-		PostQuitMessage(0);
+		if (m_DevMode)
+			PostQuitMessage(0);
 		return 0;
 
 	case WM_SIZE:
@@ -192,10 +158,13 @@ void Application::OnResized(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
 	// Resize render target
 	m_RenderTarget->Create(window_width, window_height);
+
+	m_Camera->UpdateAspectRatio(window_width, window_height);
+	m_CameraPlane->UpdateAspectRatio(window_width, window_height);
 }
 
 void Application::OnMouseMove(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, float delta_z) {
-	if (!ViewportWindow::IsHovered())
+	if (m_DevMode && !ViewportWindow::IsHovered())
 		return;
 
 	static int previous_mouse_x = 0;
@@ -225,7 +194,7 @@ void Application::OnMouseMove(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,
 }
 
 void Application::OnMouseScroll(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-	if (!ViewportWindow::IsHovered())
+	if (m_DevMode && !ViewportWindow::IsHovered())
 		return;
 
 	static int previous_mouse_z = 0;
@@ -238,7 +207,7 @@ void Application::OnMouseScroll(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 }
 
 void Application::OnMouseDown(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-	if (!ViewportWindow::IsHovered())
+	if (m_DevMode && !ViewportWindow::IsHovered())
 		return;
 
 	int mouse_x = static_cast<int>(GET_X_LPARAM(lParam));
@@ -253,7 +222,7 @@ void Application::OnMouseDown(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 }
 
 void Application::OnKeyDown(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-	if (!ViewportWindow::IsFocused())
+	if (m_DevMode && !ViewportWindow::IsFocused())
 		return;
 
 	if (GetKeyState('R') & 0x8000) {
@@ -355,7 +324,7 @@ void Application::MouseToWorldCoordinates(int mouse_x, int mouse_y, HWND window,
 
 	mouse_x -= ViewportWindow::GetSize().x;
 	mouse_y -= ViewportWindow::GetSize().y;
-	
+
 	// Normalize mouse coordinates
 	float normalizedX = (2.0f * mouse_x) / screen_width - 1.0f;
 	float normalizedY = 1.0f - (2.0f * mouse_y) / screen_height; // Invert Y

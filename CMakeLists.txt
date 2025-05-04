@@ -18,8 +18,10 @@ target_include_directories(lua PUBLIC ${LUA_SRC_DIR})
 
 # Add subdirectories for each of the libraries
 add_subdirectory(third_party_libs/box2d)
+include_directories(third_party_libs/box2d/include)
 add_subdirectory(third_party_libs/raylib)
 add_subdirectory(third_party_libs/imgui)
+add_subdirectory(src/Components)
 add_subdirectory(src/Core)
 add_subdirectory(src/UI)
 
@@ -96,10 +98,14 @@ target_include_directories(GameEngine PRIVATE
     ${SRC_DIR} 
     ${XAUDIO2_INCLUDE_DIR}
 	third_party_libs/raylib/src
+    ${CMAKE_SOURCE_DIR}/src/Core
+    ${CMAKE_SOURCE_DIR}/src/UI
+    ${CMAKE_SOURCE_DIR}/src/Components
 )
 
 # Link libraries to your game engine executable
 target_link_libraries(GameEngine PRIVATE 
+    components
 	core
 	ui
     box2d
@@ -136,10 +142,14 @@ target_include_directories(AudioTest PRIVATE
     ${SRC_DIR} 
     ${XAUDIO2_INCLUDE_DIR}
     third_party_libs/raylib/src
+    ${CMAKE_SOURCE_DIR}/src/Core
+    ${CMAKE_SOURCE_DIR}/src/UI
+    ${CMAKE_SOURCE_DIR}/src/Components
 )
 
 # Link libraries to AudioTest
 target_link_libraries(AudioTest PRIVATE 
+    components
     core
 	ui
     box2d
@@ -153,7 +163,7 @@ target_link_libraries(AudioTest PRIVATE
 # Physics Test Executable
 add_executable(PhysicsTest 
     src/physics_test.cpp
-    src/PhysicsWorld.cpp
+    src/Components/PhysicsWorld.cpp
 )
 
 # Include directories for PhysicsTest
@@ -163,12 +173,18 @@ target_include_directories(PhysicsTest PRIVATE
     ${SOL2_INCLUDE_DIR}
     ${LUA_SRC_DIR} 
     ${SRC_DIR} 
+    ${CMAKE_SOURCE_DIR}/src/Core
+    ${CMAKE_SOURCE_DIR}/src/UI
+    ${CMAKE_SOURCE_DIR}/src/Components
 )
 
 # Link libraries to PhysicsTest
 target_link_libraries(PhysicsTest PRIVATE 
     box2d
     raylib
+    core
+    ui
+    components
 )
 
 # Input Test Executable
@@ -186,10 +202,14 @@ target_include_directories(InputTest PRIVATE
     ${SRC_DIR} 
     ${XAUDIO2_INCLUDE_DIR}
     third_party_libs/raylib/src
+    ${CMAKE_SOURCE_DIR}/src/Core
+    ${CMAKE_SOURCE_DIR}/src/UI
+    ${CMAKE_SOURCE_DIR}/src/Components
 )
 
 # Link libraries to InputTest
 target_link_libraries(InputTest PRIVATE 
+    components
     core
 	ui
     box2d
@@ -214,10 +234,14 @@ target_include_directories(RenderTest PRIVATE
     ${SRC_DIR} 
     ${XAUDIO2_INCLUDE_DIR}
     third_party_libs/raylib/src
+    ${CMAKE_SOURCE_DIR}/src/Core
+    ${CMAKE_SOURCE_DIR}/src/UI
+    ${CMAKE_SOURCE_DIR}/src/Components
 )
 
 # Link libraries to RenderTest
 target_link_libraries(RenderTest PRIVATE 
+    components
     core
     ui
     imgui

@@ -13,25 +13,19 @@
 
 Rect::Rect(Renderer* renderer) : m_Renderer(renderer) {}
 
-void Rect::Create() {
-	CreateVertexBuffer(0, 0);
-	CreateIndexBuffer();
-	LoadTexture(L"../../../assets/Square.png");
-}
-
 void Rect::Create(std::wstring texture_path, float pos_x, float pos_y, float size_x, float size_y, float rotation)
 {
-	CreateVertexBuffer(pos_x, pos_y, size_x, size_y);
-	CreateIndexBuffer();
-	LoadTexture(texture_path);
+	this->CreateVertexBuffer(pos_x, pos_y, size_x, size_y);
+	this->CreateIndexBuffer();
+	this->LoadTexture(texture_path);
 }
 
 void Rect::CreateVertexBuffer(float pos_x, float pos_y, float size_x, float size_y, float rotation)
 {
 	ComPtr<ID3D11Device> device = m_Renderer->GetDevice();
 
-	const float width = size_x;
-	const float height = size_y;
+	const float width = size_x / 2.0f;  // Half width
+	const float height = size_y / 2.0f; // Half height
 	const float depth = 0.1f;
 
 	float pos_z = 0.0f;
@@ -39,23 +33,26 @@ void Rect::CreateVertexBuffer(float pos_x, float pos_y, float size_x, float size
 	// Rotation matrix (in radians)
 	DirectX::XMMATRIX rotationMatrix = DirectX::XMMatrixRotationZ(rotation * (DirectX::XM_PI / 180.0f));
 
-	// Vertex data with translation applied
+	// Vertex data defined relative to the center
 	std::vector<Vertex> vertices =
 	{
-		{ VertexPosition(pos_x - width, pos_y - height, pos_z - depth), VertexTextureUV(0.0f, 1.0f) },
-		{ VertexPosition(pos_x - width, pos_y + height, pos_z - depth), VertexTextureUV(0.0f, 0.0f) },
-		{ VertexPosition(pos_x + width, pos_y + height, pos_z - depth), VertexTextureUV(1.0f, 0.0f) },
-		{ VertexPosition(pos_x + width, pos_y - height, pos_z - depth), VertexTextureUV(1.0f, 1.0f) },
+		{ VertexPosition(-width, -height, pos_z - depth), VertexTextureUV(0.0f, 1.0f) },
+		{ VertexPosition(-width, height, pos_z - depth), VertexTextureUV(0.0f, 0.0f) },
+		{ VertexPosition(width, height, pos_z - depth), VertexTextureUV(1.0f, 0.0f) },
+		{ VertexPosition(width, -height, pos_z - depth), VertexTextureUV(1.0f, 1.0f) },
 	};
 
-	// Apply rotation to vertices
+	// Apply rotation and translation to vertices
 	for (auto& vertex : vertices)
 	{
 		// Create a vector for the vertex position
 		DirectX::XMVECTOR position = DirectX::XMVectorSet(vertex.position.x, vertex.position.y, vertex.position.z, 1.0f);
 
-		// Apply the rotation
-		position = XMVector3Transform(position, rotationMatrix);
+		// Apply the rotation around the origin (0, 0)
+		position = DirectX::XMVector3Transform(position, rotationMatrix);
+
+		// Translate back to the specified position
+		position = DirectX::XMVectorAdd(position, DirectX::XMVectorSet(pos_x, pos_y, 0.0f, 0.0f));
 
 		// Update the vertex position
 		vertex.position.x = DirectX::XMVectorGetX(position);
@@ -73,6 +70,7 @@ void Rect::CreateVertexBuffer(float pos_x, float pos_y, float size_x, float size
 
 	DX::Check(device->CreateBuffer(&vertexbuffer_desc, &vertex_subdata, m_VertexBuffer.ReleaseAndGetAddressOf()));
 }
+
 
 void Rect::CreateIndexBuffer()
 {
@@ -101,20 +99,24 @@ void Rect::CreateIndexBuffer()
 
 void Rect::LoadTexture(std::wstring path)
 {
-	// Get string path for resource ID
-	std::string pathStr = PathUtils::WStringToString(path);
-	std::string id = "texture_" + pathStr;
+	if (path == lastTexture)
+		return;
 
-	// Load or get texture from ResourceManager
-	auto texture = ResourceManager::GetInstance().LoadTexture(id, pathStr);
-	if (texture)
+	lastTexture = path;
+
+	// Check if file exists
+	if (!std::filesystem::exists(path))
 	{
-		m_DiffuseTexture = texture->GetTexture();
+		std::cout << "Error loading file." << std::endl;
+		return;
 	}
-	else
-	{
-		std::cout << "Error loading texture: " << pathStr << std::endl;
-	}
+
+	// Load texture into a resource shader view
+	ComPtr<ID3D11Device> device = m_Renderer->GetDevice();
+	ComPtr<ID3D11DeviceContext> context = m_Renderer->GetContext();
+
+	ComPtr<ID3D11Resource> resource = nullptr;
+	DX::Check(DirectX::CreateWICTextureFromFile(device.Get(), context.Get(), path.c_str(), resource.ReleaseAndGetAddressOf(), m_DiffuseTexture.ReleaseAndGetAddressOf()));
 }
 
 void Rect::Render()
@@ -126,8 +128,7 @@ void Rect::Render()
 	UINT offset = 0;
 
 	// Set the blend state
-	FLOAT blendFactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f }; // Optional: set blend factor
-	context->OMSetBlendState(m_Renderer->GetBlendState().Get(), blendFactor, 0xffffffff);
+	context->OMSetBlendState(m_Renderer->GetBlendState().Get(), nullptr, 0xffffffff);
 
 	// Bind the vertex buffer to the pipeline's Input Assembler stage
 	context->IASetVertexBuffers(0, 1, m_VertexBuffer.GetAddressOf(), &stride, &offset);

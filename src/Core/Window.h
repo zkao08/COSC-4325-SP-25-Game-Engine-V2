@@ -2,42 +2,41 @@
 
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
 
+#include "Application.h"
+#include "Utility.h"
+
+#include <Windows.h>
 #include <string>
 
 class Application;
 
-std::wstring ConvertToWString(const std::string& str);
-std::string ConvertToString(const std::wstring& str);
+class Window {
+	private:
+		Application* m_Application = nullptr;
+		HWND m_Hwnd = NULL;
+		HINSTANCE m_Hinstance = nullptr;
+		std::string m_Title;
+	public:
+		Window(Application* application);
+		virtual ~Window();
 
-class Window
-{
-	Application* m_Application = nullptr;
+		// Create the window
+		bool Create(const std::string title, int width, int height, bool fullscreen);
 
-public:
-	Window(Application* application);
-	virtual ~Window();
+		// Destroys the window
+		void Destroy();
 
-	// Create the window
-	bool Create(const char* title, int width, int height, bool fullscreen);
+		// Get window size
+		void GetSize(int* width, int* height);
+		void GetSize(int& width, int& height);
 
-	// Destroys the window
-	void Destroy();
+		// Get native window handle
+		inline HWND GetHwnd() const { return m_Hwnd; }
 
-	// Get window size
-	void GetSize(int* width, int* height);
-	void GetSize(int& width, int& height);
+		// Get application
+		inline Application* GetApplication() const { return m_Application; }
 
-	// Get native window handle
-	inline HWND GetHwnd() const { return m_Hwnd; }
-
-	// Get application
-	inline Application* GetApplication() const { return m_Application; }
-
-	// Set title
-	void SetTitle(const std::string& title);
-
-private:
-	HWND m_Hwnd = NULL;
+		// Set title
+		void SetTitle(const std::string& title);
 };

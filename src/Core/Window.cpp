@@ -33,52 +33,25 @@ namespace
 	}
 }
 
-std::wstring ConvertToWString(const std::string& str)
-{
-	if (str.empty())
-		return std::wstring();
-
-	int str_size = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), static_cast<int>(str.size()), nullptr, 0);
-
-	std::wstring conversion(str_size, 0);
-	MultiByteToWideChar(CP_UTF8, 0, str.c_str(), static_cast<int>(str.size()), (LPWSTR)conversion.data(), str_size);
-	return conversion;
-}
-
-std::string ConvertToString(const std::wstring& str)
-{
-	if (str.empty())
-		return std::string();
-
-	int str_size = WideCharToMultiByte(CP_UTF8, 0, str.c_str(), static_cast<int>(str.size()), NULL, 0, NULL, NULL);
-
-	std::string conversion;
-	conversion.resize(str_size);
-
-	WideCharToMultiByte(CP_UTF8, 0, str.c_str(), static_cast<int>(str.size()), (LPSTR)conversion.data(), str_size, NULL, NULL);
-	return conversion;
-}
-
 Window::Window(Application* application) : m_Application(application) {}
 
-Window::~Window()
-{
+Window::~Window() {
 	this->Destroy();
 }
 
-bool Window::Create(const char* title, int width, int height, bool fullscreen)
+bool Window::Create(const std::string title, int width, int height, bool fullscreen)
 {
-	HINSTANCE hInstance = GetModuleHandle(NULL);
-	std::wstring window_name = ConvertToWString(title);
+	m_Hinstance = GetModuleHandle(NULL);
+	m_Title = title;
 
 	// Setup window class
 	WNDCLASS wc = {};
 	wc.style = CS_VREDRAW | CS_HREDRAW;
 	wc.lpfnWndProc = ::MainWndProc;
-	wc.hInstance = hInstance;
+	wc.hInstance = m_Hinstance;
 	wc.hIcon = LoadIcon(0, IDI_APPLICATION);
 	wc.hCursor = LoadCursor(0, IDC_ARROW);
-	wc.lpszClassName = (LPCSTR)window_name.c_str();
+	wc.lpszClassName = title.c_str();
 
 	if (!RegisterClass(&wc))
 	{
@@ -88,13 +61,7 @@ bool Window::Create(const char* title, int width, int height, bool fullscreen)
 
 	// Create window
 
-	// This mess is needed to properly convert a weird string-like data type to another weird string-like data type that CreateWindow() needs.
-	int size_needed = WideCharToMultiByte(CP_UTF8, 0, window_name.c_str(), (int)window_name.size(), NULL, 0, NULL, NULL);
-	std::string str(size_needed, 0);
-	WideCharToMultiByte(CP_UTF8, 0, window_name.c_str(), (int)window_name.size(), &str[0], size_needed, NULL, NULL);
-	LPCSTR lpWindowName = str.c_str();
-
-	m_Hwnd = CreateWindow(wc.lpszClassName, lpWindowName, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, width, height, NULL, NULL, hInstance, this);
+	m_Hwnd = CreateWindow(wc.lpszClassName, title.c_str(), WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, width, height, NULL, NULL, m_Hinstance, this);
 	if (m_Hwnd == NULL)
 	{
 		MessageBox(NULL, "CreateWindow Failed", "Error", MB_OK);
@@ -116,6 +83,7 @@ bool Window::Create(const char* title, int width, int height, bool fullscreen)
 
 void Window::Destroy()
 {
+	UnregisterClass(m_Title.c_str(), m_Hinstance);
 	DestroyWindow(m_Hwnd);
 }
 

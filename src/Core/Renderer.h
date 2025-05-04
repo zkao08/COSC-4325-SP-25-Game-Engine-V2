@@ -31,6 +31,8 @@ class Renderer
 	Application* m_Application = nullptr;
 
 public:
+	float savedScaleFactor = 1.0f;
+
 	Renderer(Application* application);
 	~Renderer();
 
@@ -51,6 +53,7 @@ public:
 
 	bool CreateImageButton(char* id, char* path, ImVec2 size);
 
+	float GetScaleFactor();
 	float GetScaleFactor(float width, float height);
 
 	ComPtr<ID3D11Device> GetDevice();

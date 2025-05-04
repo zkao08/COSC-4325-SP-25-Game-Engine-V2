@@ -1,26 +1,26 @@
 #pragma once
 
+#include "PhysicsWorld.h"
+
+#include "Renderer.h"
 #include "Object.h"
+
 #include <vector>
 #include <string>
+#include <memory>
 #include <DirectXMath.h>
 
 class Game {
 	private:
-		std::vector<Object*> objectList;
 		std::vector<Object*> selectedObjects;
-
-		Object* DeleteObjectRecursive(std::string name, std::vector<Object*> list);
-		Object* GetObjectRecursive(std::string name, std::vector<Object*> list);
-		void CleanObjectList();
-		void CleanObjectListRecursive(Object* object);
+		Object* gameObject;
+		PhysicsWorld* physicsWorld;
 	public:
+		Game(Object* game_object = nullptr, Renderer* renderer = nullptr);
 		~Game();
-		void AddObject(Object* object);
-		void DeleteObject(std::string name);
 
-		Object* GetObject(std::string name);
-		std::vector<Object*> GetObjects();
+		Object* GetGameObject();
+		PhysicsWorld* GetPhysicsWorld();
 		std::vector<Object*> GetSelectedObjects();
 
 		void SelectObject(Object* object);
