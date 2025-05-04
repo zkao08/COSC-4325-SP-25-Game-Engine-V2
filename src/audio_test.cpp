@@ -140,6 +140,7 @@ void TestAudioMemoryManagement()
     std::cout << "\nFinal resource cleanup by configuring to 7 max resources:" << std::endl;
     ResourceManager::GetInstance().ConfigureSoundCache(7, 2);
     ResourceManager::GetInstance().UnloadUnusedSounds(2);
+    gAudioManager.StopAllSounds();
 
     std::cout << "\n=== Memory Management Test Complete ===\n" << std::endl;
 }
@@ -326,13 +327,16 @@ int main()
     std::cout << "=== Audio Engine Testing ===\n" << std::endl;
 
     // Run standard audio tests
-    //TestAudio();
+    TestAudio();
+	std::this_thread::sleep_for(std::chrono::seconds(2));
 
     // Run memory management tests
-    //TestAudioMemoryManagement();
+    TestAudioMemoryManagement();
+	std::this_thread::sleep_for(std::chrono::seconds(2));
 
     // Run Lua API tests
     TestLuaApi();
+	std::this_thread::sleep_for(std::chrono::seconds(2));
 
     std::cout << "\nShutting down AudioManager" << std::endl;
     gAudioManager.shutDown();
