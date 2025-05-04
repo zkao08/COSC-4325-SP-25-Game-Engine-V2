@@ -47,21 +47,48 @@ struct PlacedObject {
 };
 
 class PhysicsWorld {
-private:
-	b2WorldId worldId;
-    std::vector<PlacedObject> placedObjects;
+    private:
+	    b2WorldId worldId;
+        std::vector<PlacedObject> placedObjects;
 
-    // Internal per-shape creation
-    b2BodyId CreateBox(const PhysicsShapeParams& params);
-    b2BodyId CreateCircle(const PhysicsShapeParams& params);
-    b2BodyId CreateTriangle(const PhysicsShapeParams& params);
-    b2BodyId CreateCapsule(const PhysicsShapeParams& params);
-public:
-	PhysicsWorld(float gravityX = 0.0f, float gravityY = -9.8f);
-	~PhysicsWorld();
+        // Internal per-shape creation
+        b2BodyId CreateBox(const PhysicsShapeParams& params);
+        b2BodyId CreateCircle(const PhysicsShapeParams& params);
+        b2BodyId CreateTriangle(const PhysicsShapeParams& params);
+        b2BodyId CreateCapsule(const PhysicsShapeParams& params);
+    public:
+	    PhysicsWorld();
+	    ~PhysicsWorld();
 
-	void Step(float deltaTime, int stepCount = 4);
-    b2BodyId CreateShape(const PhysicsShapeParams& params);
-    const std::vector<PlacedObject>& GetPlacedObjects() const;
-    void DestroyObject(b2BodyId id);
+        // Core system methods
+        bool startUp(float gravityX, float gravityY);
+        void shutDown();
+
+        // Singleton accessor
+        static PhysicsWorld& GetInstance();
+
+        // Delete copy and move constructors/assignments
+        PhysicsWorld(const PhysicsWorld&) = delete;
+        PhysicsWorld& operator=(const PhysicsWorld&) = delete;
+        PhysicsWorld(PhysicsWorld&&) = delete;
+        PhysicsWorld& operator=(PhysicsWorld&&) = delete;
+
+        // Getter Functions
+        b2Vec2 GetPosition(b2BodyId id) const;
+        float GetRotation(b2BodyId id) const;
+        b2Vec2 GetVelocity(b2BodyId id) const;
+        b2Vec2 GetGravity() const;
+
+        // World Modifications
+	    void Step(float deltaTime, int stepCount = 4);
+        void SetGravity(float gravityX, float gravityY);
+
+        // Shape creation and storing/deleting
+        b2BodyId CreateShape(const PhysicsShapeParams& params);
+        const std::vector<PlacedObject>& GetPlacedObjects() const;
+        void DestroyObject(b2BodyId id);
+
+        // Movement Control
+        void ApplyForce(b2BodyId id, float forceX, float forceY);
+        void SetVelocity(b2BodyId id, float velX);
 };

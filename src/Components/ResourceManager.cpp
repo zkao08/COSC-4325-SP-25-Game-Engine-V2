@@ -34,17 +34,16 @@ ResourceManager::ResourceManager()
 /// <summary>
 /// Initialize the resource manager with a renderer
 /// </summary>
-bool ResourceManager::Initialize(Renderer* renderer)
+bool ResourceManager::startUp(Renderer* renderer)
 {
     m_Renderer = renderer;
-    std::cout << "ResourceManager initialized" << std::endl;
     return true;
 }
 
 /// <summary>
 /// Shutdown the resource manager and unload all resources
 /// </summary>
-void ResourceManager::Shutdown()
+void ResourceManager::shutDown()
 {
     UnloadAllResources();
     std::cout << "ResourceManager shut down" << std::endl;
@@ -70,7 +69,7 @@ std::shared_ptr<TextureResource> ResourceManager::LoadTexture(const std::string&
     std::string absolutePath = PathUtils::GetAbsolutePath(filePath);
 
     // Load new texture
-    ID3D11ShaderResourceView* texturePtr = NULL;
+    ID3D11ShaderResourceView* texturePtr = nullptr;
     int width = 0, height = 0;
 
     // Use existing renderer method to load texture
@@ -487,4 +486,14 @@ void ResourceManager::CleanupSoundCache()
         std::cout << "Sound cache cleanup: removed " << removed << " sounds, "
             << m_SoundResources.size() << " remaining" << std::endl;
     }
+}
+
+/// <summary>
+/// Calls cleanup methods for both sound and texture caches
+/// Should be called regularly during game loop
+/// </summary>
+void ResourceManager::PerformMaintenance()
+{
+	CleanupSoundCache();
+	CleanupTextureCache();
 }

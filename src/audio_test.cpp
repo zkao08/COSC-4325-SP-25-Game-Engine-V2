@@ -140,6 +140,7 @@ void TestAudioMemoryManagement()
     std::cout << "\nFinal resource cleanup by configuring to 7 max resources:" << std::endl;
     ResourceManager::GetInstance().ConfigureSoundCache(7, 2);
     ResourceManager::GetInstance().UnloadUnusedSounds(2);
+    gAudioManager.StopAllSounds();
 
     std::cout << "\n=== Memory Management Test Complete ===\n" << std::endl;
 }
@@ -153,7 +154,7 @@ int TestAudio()
     gAudioManager.SetMasterVolume(0.7f);
 
     // 3. Play background music with streaming (using 50% volume)
-    std::string bgmPath = "assets/audio/bgm/test_bgm.wav";
+    std::string bgmPath = "assets/audio/bgm/Darkling.wav";
     std::string bgmId = "bgm_test";
     std::cout << "Playing streaming BGM at 50% volume..." << std::endl;
 
@@ -315,7 +316,7 @@ int main()
 {
     // 1. Initialize the renderer (needed for ResourceManager)
     Renderer* renderer = nullptr; // In a real app, this would be your actual renderer
-    ResourceManager::GetInstance().Initialize(renderer);
+    ResourceManager::GetInstance().startUp(renderer);
 
     // 2. Initialize the audio manager
     if (!gAudioManager.startUp()) {
@@ -326,19 +327,22 @@ int main()
     std::cout << "=== Audio Engine Testing ===\n" << std::endl;
 
     // Run standard audio tests
-    //TestAudio();
+    TestAudio();
+	std::this_thread::sleep_for(std::chrono::seconds(2));
 
     // Run memory management tests
-    //TestAudioMemoryManagement();
+    TestAudioMemoryManagement();
+	std::this_thread::sleep_for(std::chrono::seconds(2));
 
     // Run Lua API tests
     TestLuaApi();
+	std::this_thread::sleep_for(std::chrono::seconds(2));
 
     std::cout << "\nShutting down AudioManager" << std::endl;
     gAudioManager.shutDown();
 
     // Shutdown ResourceManager
-    ResourceManager::GetInstance().Shutdown();
+    ResourceManager::GetInstance().shutDown();
 
     std::cout << "\n=== Audio Engine Test Complete ===\n" << std::endl;
     return 0;

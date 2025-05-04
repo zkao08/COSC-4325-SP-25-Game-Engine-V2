@@ -13,7 +13,8 @@ int main() {
     InitWindow(1000, 800, "Box2D + Raylib Physics Test");
     SetTargetFPS(60);
 
-    PhysicsWorld world(0.0f, -4.0f);
+    PhysicsWorld world;
+    world.startUp(0.0f, -4.0f);
 
     // --- Create ground (static box)
     PhysicsShapeParams groundParams;
@@ -92,8 +93,6 @@ int main() {
     b2BodyId box = world.CreateBox({ 4.0f, 10.0f, 1.0f, 1.0f, 0.0f, 0.5f, 1.0f, PhysicsBodyType::Dynamic });
     b2BodyId box2 = world.CreateBox({ 4.5f, 12.0f, 1.0f, 1.0f, 45.0f, 0.5f, 1.0f, PhysicsBodyType::Dynamic });*/
 
-
-
     while (!WindowShouldClose()) {
         // --- Fixed Timestep Physics Simulation ---
         double now = GetTime();
@@ -101,6 +100,16 @@ int main() {
         lastTime = now;
         if (frameTime > 0.25f) frameTime = 0.25f;
         accumulator += frameTime;
+
+        // --- Handle Input for box movement ---
+        const float moveForce = 1.0f;
+        if (IsKeyDown(KEY_RIGHT)) world.SetVelocity(box, moveForce);
+        if (IsKeyDown(KEY_LEFT))  world.SetVelocity(box, -moveForce);
+        /*if (IsKeyDown(KEY_UP))    world.ApplyForce(box, 0.0f, moveForce);
+        if (IsKeyDown(KEY_DOWN))  world.ApplyForce(box, 0.0f, -moveForce);*/
+        if (IsKeyDown(KEY_UP))    world.SetGravity(0.0f, 4.0f);
+        if (IsKeyDown(KEY_DOWN))  world.SetGravity(0.0f, -4.0f);
+
 
         while (accumulator >= PHYSICS_TIMESTEP) {
             world.Step(PHYSICS_TIMESTEP);
@@ -131,12 +140,13 @@ int main() {
 
         b2Vec2 groundPos = b2Body_GetPosition(ground);
         b2Vec2 posCircle = b2Body_GetPosition(circle);
-        std::cout << "POSITION OF circle: (" << posCircle.x << ", " << posCircle.y << ")" << std::endl;
+        //std::cout << "POSITION OF circle: (" << posCircle.x << ", " << posCircle.y << ")" << std::endl;
 
         b2Vec2 posTri = b2Body_GetPosition(triangle);
         b2Rot rotTri = b2Body_GetRotation(triangle);
         float angleTri = atan2f(rotTri.s, rotTri.c);
-        std::cout << "ROTATION OF triangle IN DEGREES: " << angleTri * RAD2DEG << std::endl;
+        //std::cout << "ROTATION OF triangle IN DEGREES: " << angleTri * RAD2DEG << std::endl;
+        //std::cout << "ROTATION OF box2 IN DEGREES: " << world.GetRotation(box2) << std::endl;
 
         // --- Calculations for Triangle ---
         // Triangle local vertices
@@ -227,10 +237,23 @@ int main() {
         DrawCircleV({ (posCap.x - dx) * SCALE, 600 - (posCap.y - dy) * SCALE }, radiusPx, ORANGE);
 
 
+        //Debug info overlay:
+        b2Vec2 shapePos = world.GetPosition(box2);
+        float rotDeg = world.GetRotation(box2);
+        b2Vec2 vel = world.GetVelocity(box2);
+        b2Vec2 grav = world.GetGravity();
+
+        DrawText(TextFormat("Pos:  %.2f, %.2f", shapePos.x, shapePos.y), 10, 10, 20, BLACK);
+        DrawText(TextFormat("Rot:  %.1f", rotDeg), 10, 30, 20, BLACK);
+        DrawText(TextFormat("Vel:  %.2f, %.2f", vel.x, vel.y), 10, 50, 20, BLACK);
+        DrawText(TextFormat("Grav: %.2f, %.2f", grav.x, grav.y), 10, 70, 20, BLACK);
+
+
         EndDrawing();
         // -------- DRAWING ENDS HERE --------
     }
 
     CloseWindow();
+    world.shutDown();
     return 0;
 }

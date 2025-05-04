@@ -105,8 +105,6 @@ bool AudioManager::startUp()
 
     // Set initial master volume
     m_MasteringVoice->SetVolume(m_MasterVolume);
-
-    std::cout << "AudioManager initialized successfully" << std::endl;
     return true;
 }
 
@@ -175,12 +173,14 @@ HRESULT AudioManager::PlaySound(const std::string& soundId, float volume)
 
             // Check if the voice is valid and reset it
             XAUDIO2_VOICE_STATE state;
-            try {
+            try 
+            {
                 pSourceVoice->GetState(&state);
                 pSourceVoice->Stop(0);
                 pSourceVoice->FlushSourceBuffers();
             }
-            catch (...) {
+            catch (...) 
+            {
                 // If the voice is invalid, create a new one
                 pSourceVoice = nullptr;
             }
@@ -622,13 +622,22 @@ void AudioManager::CleanupSourceVoicePool(bool forceCleanup)
     if (m_SourceVoices.size() <= m_MaxSourceVoices && !forceCleanup)
         return;
 
-    size_t targetCount = m_SourceVoices.size() - m_MaxSourceVoices;
-    if (targetCount <= 0 && !forceCleanup)
-        return;
-
-    // If forcing cleanup, remove at least one voice
-    if (forceCleanup && targetCount <= 0)
+    // Calculate how many voices to remove, using proper signed arithmetic
+    size_t targetCount = 0;
+    if (m_SourceVoices.size() > m_MaxSourceVoices) 
+    {
+        targetCount = m_SourceVoices.size() - m_MaxSourceVoices;
+    }
+    else if (forceCleanup) 
+    {
+        // If forcing cleanup and not over limit, remove at least one voice
         targetCount = 1;
+    }
+    else 
+    {
+        // Nothing to do
+        return;
+    }
 
     // Get current time
     auto currentTime = std::chrono::steady_clock::now();

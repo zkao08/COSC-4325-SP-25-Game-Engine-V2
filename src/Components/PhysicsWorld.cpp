@@ -1,17 +1,37 @@
 #include "PhysicsWorld.h"
 
+/// <summary>
+/// Get the singleton instance
+/// </summary>
+PhysicsWorld& PhysicsWorld::GetInstance()
+{
+	static PhysicsWorld instance;
+	return instance;
+}
+
 // Operator overloading == for DestroyObject() function
 inline bool operator==(const b2BodyId& a, const b2BodyId& b) {
 	return a.index1 == b.index1 && a.generation == b.generation;
 }
 
-PhysicsWorld::PhysicsWorld(float gravityX, float gravityY) {
-	b2WorldDef worldDef = b2DefaultWorldDef();
-	worldDef.gravity = { gravityX, gravityY };
-	worldId = b2CreateWorld(&worldDef);
+PhysicsWorld::PhysicsWorld() {
+	// Do nothing, call startUp instead
 }
 
 PhysicsWorld::~PhysicsWorld() {
+	// Do nothing, call shutDown instead
+}
+
+bool PhysicsWorld::startUp(float gravityX, float gravityY) 
+{
+	b2WorldDef worldDef = b2DefaultWorldDef();
+	worldDef.gravity = { gravityX, gravityY };
+	worldId = b2CreateWorld(&worldDef);
+	return true;
+}
+
+void PhysicsWorld::shutDown()
+{
 	b2DestroyWorld(worldId);
 }
 
@@ -227,4 +247,46 @@ b2BodyId PhysicsWorld::CreateCapsule(const PhysicsShapeParams& params) {
 	b2CreateCircleShape(bodyId, &shapeDef, &bottomCircle);
 
 	return bodyId;
+}
+
+void PhysicsWorld::ApplyForce(b2BodyId id, float forceX, float forceY) {
+	b2Vec2 point = b2Body_GetPosition(id);
+	b2Vec2 force = { forceX, forceY };
+	b2Body_ApplyForce(id, force, point, true);
+}
+
+void PhysicsWorld::SetVelocity(b2BodyId id, float velX) {
+	b2Vec2 currentVel = b2Body_GetLinearVelocity(id);
+	b2Vec2 newVel = { velX, currentVel.y }; // Keep gravity affecting Y
+	b2Body_SetLinearVelocity(id, newVel);
+}
+
+void PhysicsWorld::SetGravity(float gravityX, float gravityY) {
+	b2Vec2 gravity = { gravityX, gravityY };
+	b2World_SetGravity(worldId, gravity);
+
+	// Wake up all dynamic bodies so gravity affects them immediately
+	for (const PlacedObject& obj : placedObjects) {
+		if (obj.params.bodyType == PhysicsBodyType::Dynamic) {
+			b2Body_SetAwake(obj.bodyId, true);
+		}
+	}
+}
+
+b2Vec2 PhysicsWorld::GetPosition(b2BodyId id) const {
+	return b2Body_GetPosition(id);
+}
+
+float PhysicsWorld::GetRotation(b2BodyId id) const {
+	b2Rot rot = b2Body_GetRotation(id);
+	// atan2f(sin, cos) gives angle in radians
+	return atan2f(rot.s, rot.c) * (180.0f / B2_PI);
+}
+
+b2Vec2 PhysicsWorld::GetVelocity(b2BodyId id) const {
+	return b2Body_GetLinearVelocity(id);
+}
+
+b2Vec2 PhysicsWorld::GetGravity() const {
+	return b2World_GetGravity(worldId);
 }
