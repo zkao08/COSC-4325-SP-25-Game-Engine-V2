@@ -38,9 +38,9 @@ int NavigatorWindow::Render(Renderer* renderer, Game* game, float scale) {
 
     ImGui::Separator();
 
-    for (int i = 0; i < game->GetGameObject()->children.size(); i++) {
-        if (!game->GetGameObject()->children[i]->markedDeleted)
-            GenerateItemTreeNodes(game->GetGameObject()->children[i], game, i);
+    for (int i = 0; i < game->GetGameObject()->children->size(); i++) {
+        if (!game->GetGameObject()->children->at(i)->markedDeleted)
+            GenerateItemTreeNodes(game->GetGameObject()->children->at(i), game, i);
     }
 
     if (rightClicked && game->GetSelectedObjects().size() != 0 && heldObject == nullptr) {
@@ -49,7 +49,7 @@ int NavigatorWindow::Render(Renderer* renderer, Game* game, float scale) {
                 ObjectWindow::Toggle(true);
             }
             if (ImGui::MenuItem("Duplicate")) {
-                Object* clone = new Object(game->GetSelectedObjects()[0], renderer, game->GetPhysicsWorld());
+                Object* clone = new Object(game->GetSelectedObjects()[0], renderer, game->GetPhysicsWorld(), game->devMode);
                 game->GetSelectedObjects()[0]->parent->AddAfterChild(game->GetSelectedObjects()[0], clone);
                 game->DeselectObjects();
                 game->SelectObject(clone);
@@ -84,7 +84,7 @@ void NavigatorWindow::GenerateItemTreeNodes(Object* item, Game* game, int id) {
             flags |= ImGuiTreeNodeFlags_Selected;
     }
 
-    if (item->children.size() == 0)
+    if (item->children->size() == 0)
         flags |= ImGuiTreeNodeFlags_Leaf;
 
     bool open = ImGui::TreeNodeEx(StringToChar(fullId).get(), flags);
@@ -94,8 +94,8 @@ void NavigatorWindow::GenerateItemTreeNodes(Object* item, Game* game, int id) {
     bool mouseRightDown = ImGui::IsMouseDown(ImGuiMouseButton_Right);
 
     if (open) {
-        for (int i = 0; i < item->children.size(); i++) {
-            GenerateItemTreeNodes(item->children[i], game, i);
+        for (int i = 0; i < item->children->size(); i++) {
+            GenerateItemTreeNodes(item->children->at(i), game, i);
         }
         ImGui::TreePop();
     }

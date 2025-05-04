@@ -42,7 +42,7 @@ Application::Application(std::string title, Object* game_object, bool dev_mode) 
 	m_RasterState = std::make_unique<RasterState>(m_Renderer.get());
 
 	// Create game state
-	m_Game = std::make_unique<Game>(game_object, m_Renderer.get());
+	m_Game = std::make_unique<Game>(game_object, m_Renderer.get(), dev_mode);
 }
 
 int Application::Initialize() {
@@ -52,6 +52,9 @@ int Application::Initialize() {
 }
 
 int Application::Render(float deltaTime) {
+	if (!m_Running)
+		return NONE;
+
 	int status = NONE;
 
 	this->CalculateFrameStats(deltaTime);
@@ -97,7 +100,7 @@ int Application::Render(float deltaTime) {
 		}
 		else {
 			m_Renderer->Clear();
-			m_Game->GetGameObject()->Update(false);
+			m_Game->GetGameObject()->Update(false, m_Game->GetGameObject(), m_Window->GetHwnd());
 			m_Game->GetPhysicsWorld()->Step(deltaTime);
 		}
 
@@ -118,6 +121,10 @@ LRESULT Application::HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 	case WM_DESTROY:
 		if (m_DevMode)
 			PostQuitMessage(0);
+		else {
+			m_Game->SetAllEnabled(false);
+			m_Running = false;
+		}
 		return 0;
 
 	case WM_SIZE:

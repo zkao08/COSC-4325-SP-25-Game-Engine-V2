@@ -12,6 +12,8 @@
 #include <string>
 #include <map>
 
+class Game;
+
 class ObjectWindow {
     public:
         static void Render(Renderer* renderer, Game* game, float scale);

@@ -14,6 +14,9 @@
 
 #include <memory>
 
+class Game;
+class Object;
+
 class NavigatorWindow {
     private:
         static Object* heldObject;

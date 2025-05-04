@@ -2,12 +2,18 @@
 
 float LimitRotation(float rotation);
 
-Object::Object(std::string new_name) {
+bool scriptRunning = false;
+
+Object::Object(std::string new_name, bool dev_mode) {
+	devMode = dev_mode;
 	this->properties["Name"].Data = new_name;
+	this->children = new std::vector<Object*>;
 }
 
-Object::Object(Object* target_object, Renderer* renderer, PhysicsWorld* physics_world) {
+Object::Object(Object* target_object, Renderer* renderer, PhysicsWorld* physics_world, bool dev_mode) {
+	devMode = dev_mode;
 	this->properties = target_object->properties;
+	this->children = new std::vector<Object*>;
 	if (renderer != nullptr && this->properties.find("Texture") != this->properties.end()) {
 		Vector2 position = StringToVector2(this->properties["Position"].Data);
 		Vector2 size = StringToVector2(this->properties["Size"].Data);
@@ -16,26 +22,30 @@ Object::Object(Object* target_object, Renderer* renderer, PhysicsWorld* physics_
 		std::wstring wStr(this->properties["Texture"].Data.begin(), this->properties["Texture"].Data.end());
 		this->shape = std::make_unique<Rect>(renderer);
 		this->shape->Create(wStr, position.x, position.y, size.x, size.y, rotation);
-		
+
 		this->CreatePhysicsBody(physics_world, renderer->GetScaleFactor());
 	}
-	for (int i = 0; i < target_object->children.size(); i++) {
-		Object* child = new Object(target_object->children[i], renderer, physics_world);
+	for (int i = 0; i < target_object->children->size(); i++) {
+		Object* child = new Object(target_object->children->at(i), renderer, physics_world, dev_mode);
 		this->AddChild(child);
 	}
 }
 
-Object::Object(Renderer* renderer, std::string new_name, PhysicsWorld* physics_world) {
+Object::Object(Renderer* renderer, std::string new_name, PhysicsWorld* physics_world, bool dev_mode) {
+	devMode = dev_mode;
 	this->properties["Name"].Data = new_name;
+	this->children = new std::vector<Object*>;
 	this->shape = std::make_unique<Rect>(renderer);
 	this->shape->Create();
 
 	this->CreatePhysicsBody(physics_world, renderer->GetScaleFactor());
 }
 
-Object::Object(Renderer* renderer, std::string new_name, std::map<std::string, PropertyData> new_properties, PhysicsWorld* physics_world) {
+Object::Object(Renderer* renderer, std::string new_name, std::map<std::string, PropertyData> new_properties, PhysicsWorld* physics_world, bool dev_mode) {
+	devMode = dev_mode;
 	this->properties = new_properties;
 	this->properties["Name"].Data = new_name;
+	this->children = new std::vector<Object*>;
 
 	if (this->properties.find("Texture") != this->properties.end()) {
 		std::wstring wStr(this->properties["Texture"].Data.begin(), this->properties["Texture"].Data.end());
@@ -47,12 +57,33 @@ Object::Object(Renderer* renderer, std::string new_name, std::map<std::string, P
 }
 
 Object::~Object() {
-	for (int i = 0; i < children.size(); i++) {
-		if (!children[i]->markedDeleted)
-			delete children[i];
+	for (int i = 0; i < this->children->size(); i++) {
+		if (!this->children->at(i)->markedDeleted)
+			delete this->children->at(i);
 	}
 
-	children.clear();
+	delete children;
+}
+
+std::string Object::GetProperty(std::string property) {
+	if (!enabled || markedDeleted || this->properties.find(property) == this->properties.end())
+		return "";
+
+	return this->properties[property].Data;
+}
+
+void Object::SetProperty(std::string property, std::string value) {
+	if (!enabled || markedDeleted || this->properties.find(property) == this->properties.end())
+		return;
+
+	this->properties[property].Data = value;
+}
+
+void Object::Delete() {
+	if (this->GetParent() == nullptr)
+		delete this;
+	else
+		this->GetParent()->DeleteChild(this);
 }
 
 void Object::CreatePhysicsBody(PhysicsWorld* physics_world, float scaleFactor) {
@@ -60,7 +91,7 @@ void Object::CreatePhysicsBody(PhysicsWorld* physics_world, float scaleFactor) {
 		std::cout << "Cannot create physics body as the physics world is null." << std::endl;
 		return;
 	}
-	else if (this->properties["Collidable"].Data == "false")
+	if (!enabled || markedDeleted || this->properties.find("Collidable") == this->properties.end() || this->properties["Collidable"].Data == "false")
 		return;
 
 	Vector2 position = StringToVector2(this->properties["Position"].Data);
@@ -80,26 +111,40 @@ void Object::CreatePhysicsBody(PhysicsWorld* physics_world, float scaleFactor) {
 	physicsBody = physics_world->CreateShape(physicsShapeParams);
 }
 
+Object* Object::GetParent() {
+	return this->parent;
+}
+
 void Object::AddChild(Object* child) {
+	if (!enabled || markedDeleted)
+		return;
 	child->parent = this;
-	children.push_back(child);
+	children->push_back(child);
 }
 
 void Object::AddAfterChild(Object* child_target, Object* child) {
-	std::vector<Object*> newChildren;
+	if (!enabled || markedDeleted)
+		return;
+
+	std::vector<Object*>* newChildren = new std::vector<Object*>;
+	std::vector<Object*>* oldChildren = children;
 
 	child->parent = this;
 
-	for (int i = 0; i < children.size(); i++) {
-		newChildren.push_back(children[i]);
-		if (children[i] == child_target)
-			newChildren.push_back(child);
+	for (int i = 0; i < children->size(); i++) {
+		newChildren->push_back(children->at(i));
+		if (children->at(i) == child_target)
+			newChildren->push_back(child);
 	}
 
 	children = newChildren;
+	delete oldChildren;
 }
 
-void Object::Update(bool dev_mode) {
+void Object::Update(bool dev_mode, Object* game, HWND hwnd) {
+	if (!enabled || markedDeleted)
+		return;
+
 	if (this->properties.find("Parent") != this->properties.end() && this->parent != nullptr) {
 		this->properties["Parent"].Data = this->parent->properties["Name"].Data;
 	}
@@ -116,40 +161,50 @@ void Object::Update(bool dev_mode) {
 		}
 	}
 	else {
-		/*if (this->properties.find("Rotation") != this->properties.end()) {
-			b2Rot rotation = b2Body_GetRotation(this->physicsBody);
-			float radians = atan2f(rotation.s, rotation.c) * (M_PI / 180);
-			this->properties["Rotation"].Data = std::to_string(radians);
-		}*/
 		if (this->shape.get() != nullptr) {
-			b2Vec2 position = b2Body_GetPosition(this->physicsBody);
-			b2Rot rotation = b2Body_GetRotation(this->physicsBody);
-			float radians = atan2f(rotation.s, rotation.c) * (360 / M_PI) / 2;
-			this->properties["Position"].Data = std::to_string(position.x) + "," + std::to_string(position.y);
-			this->properties["Rotation"].Data = std::to_string(radians);
+			if (b2Body_IsValid(physicsBody)) {
+				b2Vec2 position = b2Body_GetPosition(this->physicsBody);
+				b2Rot rotation = b2Body_GetRotation(this->physicsBody);
+				float radians = atan2f(rotation.s, rotation.c) * (360 / M_PI) / 2;
+				this->properties["Position"].Data = std::to_string(position.x) + "," + std::to_string(position.y);
+				this->properties["Rotation"].Data = std::to_string(radians);
+				if (this->properties["Static"].Data == "true" && b2Body_GetType(this->physicsBody) != b2BodyType::b2_staticBody)
+					b2Body_SetType(this->physicsBody, b2BodyType::b2_staticBody);
+				else if (b2Body_GetType(this->physicsBody) != b2BodyType::b2_dynamicBody)
+					b2Body_SetType(this->physicsBody, b2BodyType::b2_dynamicBody);
+
+			}
 			shape->SetTransform(StringToVector2(this->properties["Position"].Data), StringToVector2(this->properties["Size"].Data), std::stof(RoundString(this->properties["Rotation"].Data)));
 			shape->LoadTexture(StringToWString(this->properties["Texture"].Data));
 			shape->Render();
 		}
+
+		if (!ranScript) {
+			std::thread scriptThread(&Object::ExecuteScript, this, this->properties["Script"].Data, game, hwnd);
+			scriptThread.detach();
+		}
 	}
 
-	for (int i = 0; i < children.size(); i++) {
-		children[i]->Update(dev_mode);
+	for (int i = 0; i < children->size(); i++) {
+		children->at(i)->Update(dev_mode, game, hwnd);
 	}
 }
 
 Object* Object::GetChild(std::string name, bool recursive) {
+	if (!enabled || markedDeleted)
+		return nullptr;
+
 	return GetChildRecursive(name, this->children, recursive);
 }
 
-Object* Object::GetChildRecursive(std::string name, std::vector<Object*> list, bool recursive) {
+Object* Object::GetChildRecursive(std::string name, std::vector<Object*>* list, bool recursive) {
 	Object* obj = nullptr;
 
-	for (int i = 0; i < list.size(); i++) {
-		if (list[i]->properties["Name"].Data == name)
-			return list[i];
+	for (int i = 0; i < list->size(); i++) {
+		if (list->at(i)->properties["Name"].Data == name)
+			return list->at(i);
 		else if (recursive)
-			obj = GetChildRecursive(name, list[i]->children, recursive);
+			obj = GetChildRecursive(name, list->at(i)->children, recursive);
 		else
 			return nullptr;
 	}
@@ -158,19 +213,22 @@ Object* Object::GetChildRecursive(std::string name, std::vector<Object*> list, b
 }
 
 void Object::DeleteChild(Object* object, bool recursive) {
+	if (!enabled || markedDeleted)
+		return;
+
 	DeleteChildRecursive(object, this->children, recursive);
 	CleanChildren();
 }
 
-Object* Object::DeleteChildRecursive(Object* object, std::vector<Object*> list, bool recursive) {
-	for (int i = 0; i < list.size(); i++) {
-		if (!list[i]->markedDeleted && list[i] == object) {
-			Object* obj = list[i];
+Object* Object::DeleteChildRecursive(Object* object, std::vector<Object*>* list, bool recursive) {
+	for (int i = 0; i < list->size(); i++) {
+		if (!list->at(i)->markedDeleted && list->at(i) == object) {
+			Object* obj = list->at(i);
 			obj->markedDeleted = true;
 			return nullptr;
 		}
 		else if (recursive)
-			object = DeleteChildRecursive(object, list[i]->children, recursive);
+			object = DeleteChildRecursive(object, list->at(i)->children, recursive);
 		else
 			return nullptr;
 	}
@@ -180,9 +238,12 @@ Object* Object::DeleteChildRecursive(Object* object, std::vector<Object*> list, 
 
 // Note that this is not the same as DeleteChild(). This removes it from the parent object, but does not delete it. Mainly used to transfer objects.
 void Object::RemoveChild(Object* child) {
-	for (int i = 0; i < children.size(); i++) {
-		if (children[i] == child) {
-			children.erase(children.begin() + i);
+	if (!enabled || markedDeleted)
+		return;
+
+	for (int i = 0; i < children->size(); i++) {
+		if (children->at(i) == child) {
+			children->erase(children->begin() + i);
 			break;
 		}
 	}
@@ -191,52 +252,289 @@ void Object::RemoveChild(Object* child) {
 }
 
 void Object::CleanChildren() {
-	std::vector<Object*> newList;
+	if (!enabled || markedDeleted)
+		return;
 
-	for (int i = 0; i < this->children.size(); i++) {
-		if (this->children[i]->markedDeleted)
-			delete this->children[i];
+	std::vector<Object*>* newList = new std::vector<Object*>;
+	std::vector<Object*>* oldList = this->children;
+
+	for (int i = 0; i < this->children->size(); i++) {
+		if (this->children->at(i)->markedDeleted)
+			delete this->children->at(i);
 		else {
-			CleanChildrenRecursive(this->children[i]);
-			newList.push_back(this->children[i]);
+			CleanChildrenRecursive(this->children->at(i));
+			newList->push_back(this->children->at(i));
 		}
 	}
 
 	this->children = newList;
-	newList.clear();
+	delete oldList;
 }
 
 void Object::CleanChildrenRecursive(Object* object) {
-	std::vector<Object*> newList;
+	std::vector<Object*>* newList = new std::vector<Object*>;
+	std::vector<Object*>* oldList = object->children;
 
-	for (int i = 0; i < object->children.size(); i++) {
-		if (object->children[i]->markedDeleted)
-			delete object->children[i];
+	for (int i = 0; i < object->children->size(); i++) {
+		if (object->children->at(i)->markedDeleted)
+			delete object->children->at(i);
 		else {
-			CleanChildrenRecursive(object->children[i]);
-			newList.push_back(object->children[i]);
+			CleanChildrenRecursive(object->children->at(i));
+			newList->push_back(object->children->at(i));
 		}
 	}
 
 	object->children = newList;
-	newList.clear();
+	delete oldList;
 }
 
 bool Object::IsDescendant(Object* object) {
+	if (!enabled || markedDeleted)
+		return false;
+
 	return (IsDescendantRecursive(object, this) != nullptr);
 }
 
 Object* Object::IsDescendantRecursive(Object* object_to_find, Object* object_to_search) {
 	Object* obj = nullptr;
 
-	for (int i = 0; i < object_to_search->children.size(); i++) {
-		if (object_to_search->children[i] == object_to_find)
+	for (int i = 0; i < object_to_search->children->size(); i++) {
+		if (object_to_search->children->at(i) == object_to_find)
 			return object_to_find;
 		else
-			obj = IsDescendantRecursive(object_to_find, object_to_search->children[i]);
+			obj = IsDescendantRecursive(object_to_find, object_to_search->children->at(i));
 	}
 
 	return obj;
+}
+
+void Object::ExecuteScript(std::string file_path, Object* game, HWND hwnd) {
+	if (!enabled || markedDeleted)
+		return;
+
+	sol::state lua;
+
+	lua.open_libraries(sol::lib::base);
+	lua.open_libraries(sol::lib::os);
+
+	if (this->properties.find("Script") == this->properties.end() || this->properties["Script"].Data == "")
+		return;
+
+	if (ranScript)
+		return;
+
+	ranScript = true;
+
+	if (file_path == "")
+		file_path = this->properties["Script"].Data;
+
+	lua.new_usertype<Object>("Object",
+		"GetParent", &Object::GetParent,
+		"GetProperty", &Object::GetProperty,
+		"SetProperty", &Object::SetProperty,
+		"Delete", &Object::Delete,
+		"enabled", &Object::enabled
+	);
+
+	lua.new_usertype<InputHandler>("Input",
+		"IsKeyDown", &InputHandler::IsKeyDown,
+		"IsKeyPressed", &InputHandler::IsKeyPressed,
+		"IsKeyReleased", &InputHandler::IsKeyReleased,
+		"GetKeyName", &InputHandler::GetKeyName,
+		"IsMouseButtonDown", &InputHandler::IsMouseButtonDown,
+		"IsMouseButtonPressed", &InputHandler::IsMouseButtonPressed,
+		"IsMouseButtonReleased", &InputHandler::IsMouseButtonReleased,
+		"GetMouseX", &InputHandler::GetMouseX,
+		"GetMouseY", &InputHandler::GetMouseY,
+		"GetMouseDeltaX", &InputHandler::GetMouseDeltaX,
+		"GetMouseDeltaY", &InputHandler::GetMouseDeltaY,
+		"GetMouseWheelDelta", &InputHandler::GetMouseWheelDelta,
+		"GetMouseState", &InputHandler::GetMouseState,
+		"IsGamepadAvailable", &InputHandler::IsGamepadAvailable,
+		"IsGamepadButtonDown", &InputHandler::IsGamepadButtonDown,
+		"IsGamepadButtonPressed", &InputHandler::IsGamepadButtonPressed,
+		"IsGamepadButtonReleased", &InputHandler::IsGamepadButtonReleased,
+		"GetGamepadAxisValue", &InputHandler::GetGamepadAxisValue,
+		"GetGamepadName", &InputHandler::GetGamepadName,
+		"GetGamepadState", &InputHandler::GetGamepadState
+	);
+
+	// Create tables for each namespace
+	sol::table keyCode = lua.create_table();
+	sol::table mouseButton = lua.create_table();
+	sol::table gamepadButton = lua.create_table();
+	sol::table gamepadAxis = lua.create_table();
+
+	// Register KeyCode constants
+	keyCode["A"] = KeyCode::A;
+	keyCode["B"] = KeyCode::B;
+	keyCode["C"] = KeyCode::C;
+	keyCode["D"] = KeyCode::D;
+	keyCode["E"] = KeyCode::E;
+	keyCode["F"] = KeyCode::F;
+	keyCode["G"] = KeyCode::G;
+	keyCode["H"] = KeyCode::H;
+	keyCode["I"] = KeyCode::I;
+	keyCode["J"] = KeyCode::J;
+	keyCode["K"] = KeyCode::K;
+	keyCode["L"] = KeyCode::L;
+	keyCode["M"] = KeyCode::M;
+	keyCode["N"] = KeyCode::N;
+	keyCode["O"] = KeyCode::O;
+	keyCode["P"] = KeyCode::P;
+	keyCode["Q"] = KeyCode::Q;
+	keyCode["R"] = KeyCode::R;
+	keyCode["S"] = KeyCode::S;
+	keyCode["T"] = KeyCode::T;
+	keyCode["U"] = KeyCode::U;
+	keyCode["V"] = KeyCode::V;
+	keyCode["W"] = KeyCode::W;
+	keyCode["X"] = KeyCode::X;
+	keyCode["Y"] = KeyCode::Y;
+	keyCode["Z"] = KeyCode::Z;
+
+	// Numbers
+	keyCode["NUM_0"] = KeyCode::NUM_0;
+	keyCode["NUM_1"] = KeyCode::NUM_1;
+	keyCode["NUM_2"] = KeyCode::NUM_2;
+	keyCode["NUM_3"] = KeyCode::NUM_3;
+	keyCode["NUM_4"] = KeyCode::NUM_4;
+	keyCode["NUM_5"] = KeyCode::NUM_5;
+	keyCode["NUM_6"] = KeyCode::NUM_6;
+	keyCode["NUM_7"] = KeyCode::NUM_7;
+	keyCode["NUM_8"] = KeyCode::NUM_8;
+	keyCode["NUM_9"] = KeyCode::NUM_9;
+
+	// Function keys
+	keyCode["F1"] = KeyCode::F1;
+	keyCode["F2"] = KeyCode::F2;
+	keyCode["F3"] = KeyCode::F3;
+	keyCode["F4"] = KeyCode::F4;
+	keyCode["F5"] = KeyCode::F5;
+	keyCode["F6"] = KeyCode::F6;
+	keyCode["F7"] = KeyCode::F7;
+	keyCode["F8"] = KeyCode::F8;
+	keyCode["F9"] = KeyCode::F9;
+	keyCode["F10"] = KeyCode::F10;
+	keyCode["F11"] = KeyCode::F11;
+	keyCode["F12"] = KeyCode::F12;
+
+	// Special keys
+	keyCode["ESCAPE"] = KeyCode::ESCAPE;
+	keyCode["SPACE"] = KeyCode::SPACE;
+	keyCode["ENTER"] = KeyCode::ENTER;
+	keyCode["BACKSPACE"] = KeyCode::BACKSPACE;
+	keyCode["TAB"] = KeyCode::TAB;
+	keyCode["CAPS_LOCK"] = KeyCode::CAPS_LOCK;
+	keyCode["SHIFT_LEFT"] = KeyCode::SHIFT_LEFT;
+	keyCode["SHIFT_RIGHT"] = KeyCode::SHIFT_RIGHT;
+	keyCode["CONTROL_LEFT"] = KeyCode::CONTROL_LEFT;
+	keyCode["CONTROL_RIGHT"] = KeyCode::CONTROL_RIGHT;
+	keyCode["ALT_LEFT"] = KeyCode::ALT_LEFT;
+	keyCode["ALT_RIGHT"] = KeyCode::ALT_RIGHT;
+	keyCode["SUPER_LEFT"] = KeyCode::SUPER_LEFT;
+	keyCode["SUPER_RIGHT"] = KeyCode::SUPER_RIGHT;
+	keyCode["MENU"] = KeyCode::MENU;
+	keyCode["INSERT"] = KeyCode::INSERT;
+	keyCode["DELETE_KEY"] = KeyCode::DELETE_KEY;
+	keyCode["HOME"] = KeyCode::HOME;
+	keyCode["END"] = KeyCode::END;
+	keyCode["PAGE_UP"] = KeyCode::PAGE_UP;
+	keyCode["PAGE_DOWN"] = KeyCode::PAGE_DOWN;
+	keyCode["UP"] = KeyCode::UP;
+	keyCode["DOWN"] = KeyCode::DOWN;
+	keyCode["LEFT"] = KeyCode::LEFT;
+	keyCode["RIGHT"] = KeyCode::RIGHT;
+	keyCode["PRINT_SCREEN"] = KeyCode::PRINT_SCREEN;
+	keyCode["SCROLL_LOCK"] = KeyCode::SCROLL_LOCK;
+	keyCode["PAUSE"] = KeyCode::PAUSE;
+	keyCode["NUM_LOCK"] = KeyCode::NUM_LOCK;
+
+	// Additional keys
+	keyCode["SEMICOLON"] = KeyCode::SEMICOLON;
+	keyCode["EQUALS"] = KeyCode::EQUALS;
+	keyCode["COMMA"] = KeyCode::COMMA;
+	keyCode["MINUS"] = KeyCode::MINUS;
+	keyCode["PERIOD"] = KeyCode::PERIOD;
+	keyCode["SLASH"] = KeyCode::SLASH;
+	keyCode["GRAVE"] = KeyCode::GRAVE;
+	keyCode["LBRACKET"] = KeyCode::LBRACKET;
+	keyCode["BACKSLASH"] = KeyCode::BACKSLASH;
+	keyCode["RBRACKET"] = KeyCode::RBRACKET;
+	keyCode["QUOTE"] = KeyCode::QUOTE;
+
+	// Numpad keys
+	keyCode["NUMPAD_0"] = KeyCode::NUMPAD_0;
+	keyCode["NUMPAD_1"] = KeyCode::NUMPAD_1;
+	keyCode["NUMPAD_2"] = KeyCode::NUMPAD_2;
+	keyCode["NUMPAD_3"] = KeyCode::NUMPAD_3;
+	keyCode["NUMPAD_4"] = KeyCode::NUMPAD_4;
+	keyCode["NUMPAD_5"] = KeyCode::NUMPAD_5;
+	keyCode["NUMPAD_6"] = KeyCode::NUMPAD_6;
+	keyCode["NUMPAD_7"] = KeyCode::NUMPAD_7;
+	keyCode["NUMPAD_8"] = KeyCode::NUMPAD_8;
+	keyCode["NUMPAD_9"] = KeyCode::NUMPAD_9;
+	keyCode["NUMPAD_MULTIPLY"] = KeyCode::NUMPAD_MULTIPLY;
+	keyCode["NUMPAD_ADD"] = KeyCode::NUMPAD_ADD;
+	keyCode["NUMPAD_SUBTRACT"] = KeyCode::NUMPAD_SUBTRACT;
+	keyCode["NUMPAD_DECIMAL"] = KeyCode::NUMPAD_DECIMAL;
+	keyCode["NUMPAD_DIVIDE"] = KeyCode::NUMPAD_DIVIDE;
+	keyCode["NUMPAD_SEPARATOR"] = KeyCode::NUMPAD_SEPARATOR;
+
+	// Modifier key masks
+	keyCode["SHIFT_MASK"] = KeyCode::SHIFT_MASK;
+	keyCode["CTRL_MASK"] = KeyCode::CTRL_MASK;
+	keyCode["ALT_MASK"] = KeyCode::ALT_MASK;
+	keyCode["WIN_MASK"] = KeyCode::WIN_MASK;
+
+	// Register MouseButton constants
+	mouseButton["LEFT"] = MouseButton::LEFT;
+	mouseButton["RIGHT"] = MouseButton::RIGHT;
+	mouseButton["MIDDLE"] = MouseButton::MIDDLE;
+	mouseButton["X1"] = MouseButton::X1;
+	mouseButton["X2"] = MouseButton::X2;
+
+	// Register GamepadButton constants
+	gamepadButton["A"] = GamepadButton::A;
+	gamepadButton["B"] = GamepadButton::B;
+	gamepadButton["X"] = GamepadButton::X;
+	gamepadButton["Y"] = GamepadButton::Y;
+	gamepadButton["LEFT_SHOULDER"] = GamepadButton::LEFT_SHOULDER;
+	gamepadButton["RIGHT_SHOULDER"] = GamepadButton::RIGHT_SHOULDER;
+	gamepadButton["BACK"] = GamepadButton::BACK;
+	gamepadButton["START"] = GamepadButton::START;
+	gamepadButton["LEFT_THUMB"] = GamepadButton::LEFT_THUMB;
+	gamepadButton["RIGHT_THUMB"] = GamepadButton::RIGHT_THUMB;
+	gamepadButton["DPAD_UP"] = GamepadButton::DPAD_UP;
+	gamepadButton["DPAD_RIGHT"] = GamepadButton::DPAD_RIGHT;
+	gamepadButton["DPAD_DOWN"] = GamepadButton::DPAD_DOWN;
+	gamepadButton["DPAD_LEFT"] = GamepadButton::DPAD_LEFT;
+
+	// Register GamepadAxis constants
+	gamepadAxis["LEFT_X"] = GamepadAxis::LEFT_X;
+	gamepadAxis["LEFT_Y"] = GamepadAxis::LEFT_Y;
+	gamepadAxis["RIGHT_X"] = GamepadAxis::RIGHT_X;
+	gamepadAxis["RIGHT_Y"] = GamepadAxis::RIGHT_Y;
+	gamepadAxis["LEFT_TRIGGER"] = GamepadAxis::LEFT_TRIGGER;
+	gamepadAxis["RIGHT_TRIGGER"] = GamepadAxis::RIGHT_TRIGGER;
+
+	lua.set("script", this);
+	if (game != nullptr)
+		lua.set("game", game);
+
+	lua.set("Input", &InputHandler::GetInstance());
+
+	AudioLuaAPI::Initialize(lua);
+
+	try {
+		lua.script_file(file_path);
+		scriptRunning = true;
+	}
+	catch (const sol::error& e) {
+		std::cerr << "Error loading Lua file in Object \"" << this->properties["Name"].Data << "\":" << e.what() << std::endl;
+	}
+
+	scriptRunning = false;
 }
 
 float LimitRotation(float rotation) {

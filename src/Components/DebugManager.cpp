@@ -318,7 +318,7 @@ void DebugManager::SetEnabled(bool enabled)
     else
     {
         // Hide console
-        ShowWindow(GetConsoleWindow(), SW_HIDE);
+        ShowWindow(GetConsoleWindow(), SW_SHOW);
     }
 }
 

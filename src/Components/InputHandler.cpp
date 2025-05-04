@@ -137,7 +137,7 @@ bool InputHandler::startUp(HWND hwnd)
 
 void InputHandler::shutDown()
 {
-	// Nothing to clean up
+    // Nothing to clean up
 }
 
 void InputHandler::Update()

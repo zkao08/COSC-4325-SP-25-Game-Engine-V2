@@ -19,6 +19,8 @@ target_include_directories(lua PUBLIC ${LUA_SRC_DIR})
 # Add subdirectories for each of the libraries
 add_subdirectory(third_party_libs/box2d)
 include_directories(third_party_libs/box2d/include)
+include_directories(third_party_libs/lua/src)
+include_directories(third_party_libs/sol)
 add_subdirectory(third_party_libs/raylib)
 add_subdirectory(third_party_libs/imgui)
 add_subdirectory(src/Components)
@@ -91,23 +93,23 @@ target_sources(GameEngine PRIVATE ${GAME_HEADERS})
 
 # Include directories for the main game engine
 target_include_directories(GameEngine PRIVATE
-    ${IMGUI_DIR}
-    third_party_libs/box2d
-    ${SOL2_INCLUDE_DIR}
-    ${LUA_SRC_DIR} 
-    ${SRC_DIR} 
-    ${XAUDIO2_INCLUDE_DIR}
-	third_party_libs/raylib/src
     ${CMAKE_SOURCE_DIR}/src/Core
     ${CMAKE_SOURCE_DIR}/src/UI
     ${CMAKE_SOURCE_DIR}/src/Components
+    ${IMGUI_DIR}
+    third_party_libs/box2d
+    ${LUA_SRC_DIR} 
+    ${SOL2_INCLUDE_DIR}
+    ${SRC_DIR} 
+    ${XAUDIO2_INCLUDE_DIR}
+	third_party_libs/raylib/src
 )
 
 # Link libraries to your game engine executable
 target_link_libraries(GameEngine PRIVATE 
+    core
+    ui
     components
-	core
-	ui
     box2d
 	d3d11
 	imgui

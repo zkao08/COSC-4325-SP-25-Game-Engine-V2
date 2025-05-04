@@ -55,7 +55,7 @@ bool GameEngine::Initialize()
         gDebugManager.LogStartupMessage("Physics system initialized successfully");
 
         // Initialize input
-        gDebugManager.LogStartupMessage("Initializing input system...");
+        /*gDebugManager.LogStartupMessage("Initializing input system...");
         HWND hwnd = GetConsoleWindow(); // TODO: replace with actual window handle
         if (!gInputSystem.startUp(hwnd))
         {
@@ -63,7 +63,7 @@ bool GameEngine::Initialize()
             gDebugManager.LogStartupMessage("Input system initialization failed!");
             return false;
         }
-        gDebugManager.LogStartupMessage("Input system initialized successfully");
+        gDebugManager.LogStartupMessage("Input system initialized successfully");*/
 
         // Initialize audio
         gDebugManager.LogStartupMessage("Initializing audio manager...");
@@ -202,8 +202,9 @@ void GameEngine::Shutdown()
 void GameEngine::Update(float deltaTime)
 {
     // Update game logic for game objects
-    if (gRuntime != nullptr)
+    if (gRuntime.get() != nullptr) {
         gRuntime->Render(deltaTime);
+    }
 }
 
 void GameEngine::CreateRuntime(std::string title, Object* gameObject)
@@ -213,6 +214,9 @@ void GameEngine::CreateRuntime(std::string title, Object* gameObject)
     }
 
     gRuntime = std::make_unique<Application>(title, gameObject, false);
+    HWND hwnd = gRuntime->GetWindow()->GetHwnd();
+
+    InputHandler::GetInstance().startUp(hwnd);
 }
 
 void GameEngine::DestroyRuntime() {

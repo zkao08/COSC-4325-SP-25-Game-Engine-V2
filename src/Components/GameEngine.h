@@ -8,6 +8,7 @@
 #include "ResourceManager.h"
 #include "Timer.h"
 #include "DebugManager.h"
+#include "Game.h"
 #include <Windows.h>
 #include <iostream>
 #include <memory>
@@ -16,6 +17,7 @@
 
 class Application;
 class Object;
+class Game;
 
 class GameEngine
 {
@@ -37,6 +39,8 @@ private:
     const float RESOURCE_MANAGEMENT_INTERVAL = 10.0f; // seconds
 
 public:
+    static bool m_RuntimeRunning;
+
     GameEngine();
     ~GameEngine();
 

@@ -34,6 +34,7 @@
 
 class Window;
 class Renderer;
+class Game;
 
 class Application
 {
@@ -70,7 +71,7 @@ private:
 	void MouseToWorldCoordinates(int mouse_x, int mouse_y, HWND window, int screen_width, int screen_height, const DirectX::XMMATRIX& projection_matrix, const DirectX::XMMATRIX& view_matrix, float& world_x, float& world_y);
 
 public:
-	bool m_DevMode = false;
+	bool m_DevMode;
 	float scaleFactor = 0.0f;
 
 	int m_MouseX;

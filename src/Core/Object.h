@@ -5,16 +5,21 @@
 
 #define _USE_MATH_DEFINES
 
+#include "GameEngine.h"
 #include "PhysicsWorld.h"
+#include "InputHandler.h"
+#include "AudioLuaAPI.h"
 #include "Renderer.h"
 #include "Rect.h"
 #include "Vector2.h"
 #include "Utility.h"
 
+#include <sol/sol.hpp>
 #include <math.h>
 #include <vector>
 #include <string>
 #include <memory>
+#include <thread>
 #include <map>
 
 #include <wrl\client.h>
@@ -26,40 +31,51 @@ struct PropertyData {
 };
 
 class Object {
-	private:
-		Object* DeleteChildRecursive(Object* object, std::vector<Object*> list, bool recursive = false);
-		Object* GetChildRecursive(std::string name, std::vector<Object*> list, bool recursive = false);
-		void CleanChildren();
-		void CleanChildrenRecursive(Object* object);
-		Object* IsDescendantRecursive(Object* object_to_find, Object* Object_to_search);
-	public:
-		Object* parent = nullptr;
-		std::vector<Object*> children;
-		std::unique_ptr<Rect> shape = nullptr;
-		b2BodyId physicsBody;
-		bool markedDeleted = false;
+private:
+	Object* DeleteChildRecursive(Object* object, std::vector<Object*>* list, bool recursive = false);
+	Object* GetChildRecursive(std::string name, std::vector<Object*>* list, bool recursive = false);
+	void CleanChildren();
+	void CleanChildrenRecursive(Object* object);
+	Object* IsDescendantRecursive(Object* object_to_find, Object* Object_to_search);
+	void ExecuteScript(std::string file_path = "", Object* game = nullptr, HWND hwnd = nullptr);
 
-		std::map<std::string, PropertyData> properties{
-			{"Name", {"char", "Object"}},
-			{"Type", {"const_char", "Object"}},
-			{"Parent", {"const_char", "null"}}
-		};
+	bool devMode = false;
+	bool ranScript = false;
+public:
+	Object* parent = nullptr;
+	std::vector<Object*>* children;
+	std::unique_ptr<Rect> shape = nullptr;
+	b2BodyId physicsBody;
+	bool enabled = true;
+	bool markedDeleted = false;
 
-		Object(std::string new_name);
-		Object(Object* target_object, Renderer* renderer = nullptr, PhysicsWorld* physics_world = nullptr);
-		Object(Renderer* renderer, std::string new_name, PhysicsWorld* physics_world = nullptr);
-		Object(Renderer* renderer, std::string new_name, std::map<std::string, PropertyData>, PhysicsWorld* physics_world = nullptr);
-		~Object();
+	std::map<std::string, PropertyData> properties{
+		{"Name", {"char", "Object"}},
+		{"Type", {"const_char", "Object"}},
+		{"Parent", {"const_char", "null"}}
+	};
 
-		void CreatePhysicsBody(PhysicsWorld* physics_world = nullptr, float scaleFactor = 1.0f);
+	Object(std::string new_name, bool dev_mode = false);
+	Object(Object* target_object, Renderer* renderer = nullptr, PhysicsWorld* physics_world = nullptr, bool dev_mode = false);
+	Object(Renderer* renderer, std::string new_name, PhysicsWorld* physics_world = nullptr, bool dev_mode = false);
+	Object(Renderer* renderer, std::string new_name, std::map<std::string, PropertyData>, PhysicsWorld* physics_world = nullptr, bool dev_mode = false);
+	~Object();
 
-		void AddChild(Object* child);
-		void AddAfterChild(Object* child_target, Object* child);
-		Object* GetChild(std::string name, bool recursive = false);
-		void DeleteChild(Object* child, bool recursive = false);
-		void RemoveChild(Object* child);
+	std::string GetProperty(std::string property);
+	void SetProperty(std::string property, std::string value);
+	void Delete();
 
-		bool IsDescendant(Object* object);
+	void CreatePhysicsBody(PhysicsWorld* physics_world = nullptr, float scaleFactor = 1.0f);
 
-		void Update(bool dev_mode = false);
+	Object* GetParent();
+
+	void AddChild(Object* child);
+	void AddAfterChild(Object* child_target, Object* child);
+	Object* GetChild(std::string name, bool recursive = false);
+	void DeleteChild(Object* child, bool recursive = false);
+	void RemoveChild(Object* child);
+
+	bool IsDescendant(Object* object);
+
+	void Update(bool dev_mode = false, Object* game = nullptr, HWND hwnd = nullptr);
 };

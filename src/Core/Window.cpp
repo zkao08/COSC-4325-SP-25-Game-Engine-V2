@@ -55,8 +55,11 @@ bool Window::Create(const std::string title, int width, int height, bool fullscr
 
 	if (!RegisterClass(&wc))
 	{
-		MessageBox(NULL, "RegisterClass Failed", "Error", MB_OK);
-		throw std::exception();
+		UnregisterClass(title.c_str(), m_Hinstance);
+		if (!RegisterClass(&wc)) {
+			MessageBox(NULL, "RegisterClass Failed", "Error", MB_OK);
+			throw std::exception();
+		}
 	}
 
 	// Create window
