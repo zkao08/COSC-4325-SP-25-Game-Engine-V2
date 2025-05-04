@@ -61,8 +61,8 @@ public:
     ResourceManager& operator=(ResourceManager&&) = delete;
 
     // Initialization
-    bool Initialize(Renderer* renderer);
-    void Shutdown();
+    bool startUp(Renderer* renderer);
+    void shutDown();
 
     // Texture methods
     std::shared_ptr<TextureResource> LoadTexture(const std::string& id, const std::string& filePath);
@@ -84,6 +84,9 @@ public:
     void ConfigureTextureCache(size_t maxTextures, size_t minAgeSeconds = 10);
     void ConfigureSoundCache(size_t maxSounds, size_t minAgeSeconds = 10);
 
+    // Regular cleanup methods
+    void PerformMaintenance();
+
 private:
     // Private constructor for singleton
     ResourceManager();
@@ -98,11 +101,11 @@ private:
     std::unordered_map<std::string, std::chrono::steady_clock::time_point> m_SoundUsageTimestamps;
 
     // Cache settings for textures
-    size_t m_MaxCachedTextures = 100;
+    size_t m_MaxCachedTextures = 128;
     size_t m_MinTextureAgeSeconds = 10;
 
     // Cache settings for sounds
-    size_t m_MaxCachedSounds = 50;
+    size_t m_MaxCachedSounds = 128;
     size_t m_MinSoundAgeSeconds = 10;
 
     // Thread safety

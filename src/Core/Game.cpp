@@ -3,7 +3,8 @@
 #include <iostream>
 
 Game::Game(Object* game_object, Renderer* renderer) {
-	physicsWorld = new PhysicsWorld(0.0f, -9.8f);
+	physicsWorld = new PhysicsWorld();
+	physicsWorld->startUp(0.0f, -9.8f);
 
 	if (game_object != nullptr)
 		gameObject = new Object(game_object, renderer, physicsWorld);
