@@ -1,18 +1,27 @@
 #include "Game.h"
 
-Game::Game() {
-	gameObject = std::make_unique<Object>("Game");
+#include <iostream>
+
+Game::Game(Object* game_object, Renderer* renderer) {
+	physicsWorld = new PhysicsWorld(0.0f, -9.8f);
+
+	if (game_object != nullptr)
+		gameObject = new Object(game_object, renderer, physicsWorld);
+	else
+		gameObject = new Object("Game");
 }
 
 Game::~Game() {
-	for (int i = 0; i < gameObject->children.size(); i++)
-		delete gameObject->children[i];
-
-	gameObject->children.clear();
+	delete gameObject;
+	delete physicsWorld;
 }
 
 Object* Game::GetGameObject() {
-	return gameObject.get();
+	return gameObject;
+}
+
+PhysicsWorld* Game::GetPhysicsWorld() {
+	return physicsWorld;
 }
 
 std::vector<Object*> Game::GetSelectedObjects() {

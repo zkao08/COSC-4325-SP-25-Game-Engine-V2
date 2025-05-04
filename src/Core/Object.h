@@ -3,11 +3,15 @@
 
 #pragma once
 
+#define _USE_MATH_DEFINES
+
+#include "PhysicsWorld.h"
 #include "Renderer.h"
 #include "Rect.h"
 #include "Vector2.h"
 #include "Utility.h"
 
+#include <math.h>
 #include <vector>
 #include <string>
 #include <memory>
@@ -32,6 +36,7 @@ class Object {
 		Object* parent = nullptr;
 		std::vector<Object*> children;
 		std::unique_ptr<Rect> shape = nullptr;
+		b2BodyId physicsBody;
 		bool markedDeleted = false;
 
 		std::map<std::string, PropertyData> properties{
@@ -41,9 +46,12 @@ class Object {
 		};
 
 		Object(std::string new_name);
-		Object(Renderer* renderer, std::string new_name);
-		Object(Renderer* renderer, std::string new_name, std::map<std::string, PropertyData>);
+		Object(Object* target_object, Renderer* renderer = nullptr, PhysicsWorld* physics_world = nullptr);
+		Object(Renderer* renderer, std::string new_name, PhysicsWorld* physics_world = nullptr);
+		Object(Renderer* renderer, std::string new_name, std::map<std::string, PropertyData>, PhysicsWorld* physics_world = nullptr);
 		~Object();
+
+		void CreatePhysicsBody(PhysicsWorld* physics_world = nullptr, float scaleFactor = 1.0f);
 
 		void AddChild(Object* child);
 		void AddAfterChild(Object* child_target, Object* child);
@@ -53,5 +61,5 @@ class Object {
 
 		bool IsDescendant(Object* object);
 
-		void Update();
+		void Update(bool dev_mode = false);
 };

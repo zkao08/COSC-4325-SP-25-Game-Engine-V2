@@ -1,328 +1,453 @@
+// main.cpp
+// DirectX window test application for InputHandler class
+
+#include <Windows.h>
+#include <d3d11.h>
+#include <DirectXMath.h>
+#include <iostream>
+#include <string>
+#include <sstream>
+#include <vector>
 #include "InputHandler.h"
+#include <iomanip>
+#include <chrono>
+#include <thread>
 
-// Helper function to draw input status
-void DrawInputStatus(const char* label, bool isPressed, int x, int y, int fontSize) {
-    Color textColor = isPressed ? GREEN : GRAY;
-    DrawText(label, x, y, fontSize, textColor);
-}
+// Link the required DirectX libraries
+#pragma comment(lib, "d3d11.lib")
+#pragma comment(lib, "dxgi.lib")
 
-int main() {
-    // Initialize window with increased dimensions
-    const int screenWidth = 1800;
-    const int screenHeight = 1000;
-    InitWindow(screenWidth, screenHeight, "Raylib Complete Input Monitor");
-    SetTargetFPS(60);
+// Window and DirectX globals
+HWND g_hwnd = NULL;
+ID3D11Device* g_pDevice = nullptr;
+ID3D11DeviceContext* g_pDeviceContext = nullptr;
+IDXGISwapChain* g_pSwapChain = nullptr;
+ID3D11RenderTargetView* g_pRenderTargetView = nullptr;
+InputHandler g_Input;
+bool g_Running = true;
 
-    // Create input handler
-    InputHandler inputHandler;
+// Font information struct for rendering text
+struct FontVertex
+{
+    DirectX::XMFLOAT3 Position;
+    DirectX::XMFLOAT2 TexCoord;
+};
 
-    // Main game loop
-    while (!WindowShouldClose()) {
-        // Update all inputs
-        inputHandler.Update();
+// Function Prototypes
+LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
+HRESULT InitializeWindow(HINSTANCE hInstance, int nCmdShow, HWND& hWnd);
+HRESULT InitializeDirectX(HWND hWnd);
+void Render();
+void CleanupDirectX();
+void RenderText(const std::string& text, float x, float y, float scale);
 
-        // Get mouse position
-        Vector2 mousePos = GetMousePosition();
+// Standard main function entry point
+int main(int argc, char* argv[])
+{
+    // Get application instance
+    HINSTANCE hInstance = GetModuleHandle(NULL);
 
-        // Drawing
-        BeginDrawing();
-        ClearBackground(RAYWHITE);
-
-        // Draw mouse position
-        DrawText(TextFormat("Mouse Position: (%.0f, %.0f)", mousePos.x, mousePos.y), 10, 10, 24, DARKGRAY);
-
-        // Draw shift status
-        DrawText(TextFormat("Shift: %s", inputHandler.IsShiftPressed() ? "PRESSED" : "NOT PRESSED"), 400, 10, 24,
-            inputHandler.IsShiftPressed() ? GREEN : DARKGRAY);
-
-        // Draw GUI panels for different input devices
-        int keyboardPanelWidth = 950;
-        int keyboardPanelHeight = 580;
-        int otherPanelWidth = 500;
-        int gamepadPanelHeight = 700;
-        int mousePanelHeight = 200;
-        int fontSize = 22;
-
-        // Panel for keyboard
-        DrawRectangle(10, 40, keyboardPanelWidth, keyboardPanelHeight, Fade(LIGHTGRAY, 0.5f));
-        DrawRectangleLines(10, 40, keyboardPanelWidth, keyboardPanelHeight, DARKGRAY);
-        DrawText("KEYBOARD", 20, 50, 24, BLACK);
-
-        // Draw alphabet, numbers, and symbols with bigger font
-        DrawText("Letters & Numbers:", 20, 85, 20, DARKGRAY);
-
-        // Grid layout for alphabet and numbers
-        int charsPerRow = 10;
-        int letterX = 20;
-        int letterY = 110;
-        int charWidth = 65;
-        int charHeight = 45;
-        int charIndex = 0;
-
-        // Get keyboard map
-        const auto& keyboardMap = inputHandler.GetKeyboardMap();
-
-        // Draw alphabet (A-Z)
-        for (char c = 'A'; c <= 'Z'; c++) {
-            auto it = keyboardMap.find(c);
-            if (it != keyboardMap.end()) {
-                int row = charIndex / charsPerRow;
-                int col = charIndex % charsPerRow;
-                DrawInputStatus(it->second.name, it->second.isPressed,
-                    letterX + col * (charWidth - 15), letterY + row * (charHeight),
-                    fontSize);
-                charIndex++;
-            }
-        }
-
-        // Reset for numbers
-        letterY += (charIndex / charsPerRow + 1) * charHeight;
-        charIndex = 0;
-
-        // Draw numbers (0-9)
-        DrawText("Numbers:", 20, letterY, 20, DARKGRAY);
-        letterY += 25;
-
-        for (char c = '0'; c <= '9'; c++) {
-            auto it = keyboardMap.find(c);
-            if (it != keyboardMap.end()) {
-                DrawInputStatus(it->second.name, it->second.isPressed,
-                    letterX + charIndex * (charWidth - 15), letterY,
-                    fontSize);
-                charIndex++;
-            }
-        }
-
-        // Reset for symbols
-        letterY += charHeight + 20;
-        charIndex = 0;
-
-        // Draw symbols
-        DrawText("Symbols:", 20, letterY, 20, DARKGRAY);
-        letterY += 25;
-
-        // First row of symbols
-        const char* symbols1 = "`-=[]\\;',./";
-        for (int i = 0; symbols1[i] != '\0'; i++) {
-            auto it = keyboardMap.find(symbols1[i]);
-            if (it != keyboardMap.end()) {
-                DrawInputStatus(it->second.name, it->second.isPressed,
-                    letterX + charIndex * (charWidth - 20), letterY,
-                    fontSize);
-                charIndex++;
-                if (charIndex == charsPerRow) {
-                    letterY += charHeight;
-                    charIndex = 0;
-                }
-            }
-        }
-
-        // Check if we need to move to a new row
-        if (charIndex > 0) {
-            letterY += charHeight;
-            charIndex = 0;
-        }
-
-        // Draw special keys section
-        letterY = 110;
-        letterX = 550;
-        charIndex = 0;
-
-        DrawText("Special Keys:", letterX, 85, 20, DARKGRAY);
-
-        // Function keys (F1-F12)
-        for (int i = KEY_F1; i <= KEY_F12; i++) {
-            auto it = keyboardMap.find(i);
-            if (it != keyboardMap.end()) {
-                DrawInputStatus(it->second.name, it->second.isPressed,
-                    letterX + charIndex * (charWidth + 8), letterY,
-                    fontSize);
-                charIndex++;
-                if (charIndex == 6) { // Break after F6
-                    letterY += charHeight;
-                    charIndex = 0;
-                }
-            }
-        }
-
-        // Navigation keys
-        letterY += charHeight + 15;
-        charIndex = 0;
-        DrawText("Navigation:", letterX, letterY, 20, DARKGRAY);
-        letterY += 30;
-
-        const int navKeys[] = { KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_HOME, KEY_END, KEY_PAGE_UP, KEY_PAGE_DOWN, KEY_INSERT, KEY_DELETE };
-        for (int i = 0; i < 10; i++) {
-            auto it = keyboardMap.find(navKeys[i]);
-            if (it != keyboardMap.end()) {
-                DrawInputStatus(it->second.name, it->second.isPressed,
-                    letterX + charIndex * (charWidth + 20), letterY,
-                    fontSize);
-                charIndex++;
-                if (charIndex == 5) { // Break after 5 keys
-                    letterY += charHeight;
-                    charIndex = 0;
-                }
-            }
-        }
-
-        // Modifier keys
-        letterY += charHeight + 15;
-        charIndex = 0;
-        DrawText("Modifiers:", letterX, letterY, 20, DARKGRAY);
-        letterY += 30;
-
-        const int modKeys[] = { KEY_LEFT_SHIFT, KEY_RIGHT_SHIFT, KEY_LEFT_CONTROL, KEY_RIGHT_CONTROL, KEY_LEFT_ALT, KEY_RIGHT_ALT, KEY_LEFT_SUPER, KEY_RIGHT_SUPER };
-        for (int i = 0; i < 8; i++) {
-            auto it = keyboardMap.find(modKeys[i]);
-            if (it != keyboardMap.end()) {
-                DrawInputStatus(it->second.name, it->second.isPressed,
-                    letterX + charIndex * (charWidth + 35), letterY,
-                    fontSize);
-                charIndex++;
-                if (charIndex == 4) { // Break after 4 keys
-                    letterY += charHeight;
-                    charIndex = 0;
-                }
-            }
-        }
-
-        // Panel for mouse
-        DrawRectangle(10, 630, otherPanelWidth, mousePanelHeight, Fade(LIGHTGRAY, 0.5f));
-        DrawRectangleLines(10, 630, otherPanelWidth, mousePanelHeight, DARKGRAY);
-        DrawText("MOUSE", 20, 640, 24, BLACK);
-
-        // Draw mouse buttons status
-        int mouseButtonX = 20;
-        int mouseButtonY = 680;
-        int mouseButtonSpacing = 25;
-
-        // Get mouse map
-        const auto& mouseMap = inputHandler.GetMouseMap();
-
-        for (const auto& button : mouseMap) {
-            DrawInputStatus(button.second.name, button.second.isPressed,
-                mouseButtonX, mouseButtonY, fontSize);
-            mouseButtonY += mouseButtonSpacing;
-        }
-
-        // Mouse wheel
-        DrawInputStatus("Wheel Up", inputHandler.IsMouseWheelUp(), 220, 680, fontSize);
-        DrawInputStatus("Wheel Down", inputHandler.IsMouseWheelDown(), 220, 705, fontSize);
-
-        // Panel for gamepad
-        DrawRectangle(970, 40, otherPanelWidth, gamepadPanelHeight, Fade(LIGHTGRAY, 0.5f));
-        DrawRectangleLines(970, 40, otherPanelWidth, gamepadPanelHeight, DARKGRAY);
-
-        if (inputHandler.IsGamepadAvailable()) {
-            DrawText(TextFormat("GAMEPAD: %s", inputHandler.GetGamepadName()), 980, 50, 24, BLACK);
-
-            // Draw gamepad buttons status
-            int gamepadButtonX = 980;
-            int gamepadButtonY = 90;
-
-            // Get gamepad map
-            const auto& gamepadMap = inputHandler.GetGamepadMap();
-
-            for (const auto& button : gamepadMap) {
-                DrawInputStatus(button.second.name, button.second.isPressed,
-                    gamepadButtonX, gamepadButtonY, fontSize);
-                gamepadButtonY += 20;
-
-                // Create a second column after certain number of items
-                if (gamepadButtonY > 250) {
-                    gamepadButtonX = 1180;
-                    gamepadButtonY = 90;
-                }
-            }
-
-            // Draw analog sticks status
-            float leftX = inputHandler.GetGamepadAxisLeftX();
-            float leftY = inputHandler.GetGamepadAxisLeftY();
-            float rightX = inputHandler.GetGamepadAxisRightX();
-            float rightY = inputHandler.GetGamepadAxisRightY();
-
-            DrawText(TextFormat("Left Stick: (%.2f, %.2f)", leftX, leftY), 980, 270, fontSize, DARKGRAY);
-            DrawText(TextFormat("Right Stick: (%.2f, %.2f)", rightX, rightY), 980, 300, fontSize, DARKGRAY);
-
-            // Visual representation of sticks
-            DrawCircle(1030, 370, 30, LIGHTGRAY);
-            DrawCircle(1030 + leftX * 25, 370 + leftY * 25, 5, GREEN);
-
-            DrawCircle(1130, 370, 30, LIGHTGRAY);
-            DrawCircle(1130 + rightX * 25, 370 + rightY * 25, 5, GREEN);
-
-            // Visual representation of Xbox controller (simple outline)
-            int controllerX = 1050;
-            int controllerY = 440;
-
-            // Draw a simple controller outline
-            DrawRectangle(controllerX - 50, controllerY, 100, 60, Fade(DARKGRAY, 0.2f));
-            DrawRectangleLines(controllerX - 50, controllerY, 100, 60, DARKGRAY);
-
-            // Draw buttons lit up when pressed
-            // A button
-            Color aColor = gamepadMap.at(GAMEPAD_BUTTON_RIGHT_FACE_DOWN).isPressed ? GREEN : Fade(DARKGRAY, 0.5f);
-            DrawCircle(controllerX + 20, controllerY + 30, 5, aColor);
-
-            // B button
-            Color bColor = gamepadMap.at(GAMEPAD_BUTTON_RIGHT_FACE_RIGHT).isPressed ? GREEN : Fade(DARKGRAY, 0.5f);
-            DrawCircle(controllerX + 30, controllerY + 20, 5, bColor);
-
-            // X button
-            Color xColor = gamepadMap.at(GAMEPAD_BUTTON_RIGHT_FACE_LEFT).isPressed ? GREEN : Fade(DARKGRAY, 0.5f);
-            DrawCircle(controllerX + 10, controllerY + 20, 5, xColor);
-
-            // Y button
-            Color yColor = gamepadMap.at(GAMEPAD_BUTTON_RIGHT_FACE_UP).isPressed ? GREEN : Fade(DARKGRAY, 0.5f);
-            DrawCircle(controllerX + 20, controllerY + 10, 5, yColor);
-
-            // D-pad
-            Color dpadUpColor = gamepadMap.at(GAMEPAD_BUTTON_LEFT_FACE_UP).isPressed ? GREEN : Fade(DARKGRAY, 0.5f);
-            Color dpadRightColor = gamepadMap.at(GAMEPAD_BUTTON_LEFT_FACE_RIGHT).isPressed ? GREEN : Fade(DARKGRAY, 0.5f);
-            Color dpadDownColor = gamepadMap.at(GAMEPAD_BUTTON_LEFT_FACE_DOWN).isPressed ? GREEN : Fade(DARKGRAY, 0.5f);
-            Color dpadLeftColor = gamepadMap.at(GAMEPAD_BUTTON_LEFT_FACE_LEFT).isPressed ? GREEN : Fade(DARKGRAY, 0.5f);
-
-            DrawRectangle(controllerX - 30, controllerY + 20, 10, 5, dpadUpColor);
-            DrawRectangle(controllerX - 15, controllerY + 35, 5, 10, dpadRightColor);
-            DrawRectangle(controllerX - 30, controllerY + 45, 10, 5, dpadDownColor);
-            DrawRectangle(controllerX - 45, controllerY + 35, 5, 10, dpadLeftColor);
-
-            // Add TRIGGERS & SHOULDERS section
-            DrawText("TRIGGERS & SHOULDERS", 980, 570, 24, BLACK);
-
-            // Left Shoulder indicator
-            Color lShoulderColor = gamepadMap.at(GAMEPAD_BUTTON_LEFT_TRIGGER_1).isPressed ? GREEN : Fade(DARKGRAY, 0.5f);
-            DrawRectangle(1000, 620, 40, 20, lShoulderColor);
-            DrawText("LB", 1010, 622, fontSize, BLACK);
-
-            // Right Shoulder indicator
-            Color rShoulderColor = gamepadMap.at(GAMEPAD_BUTTON_RIGHT_TRIGGER_1).isPressed ? GREEN : Fade(DARKGRAY, 0.5f);
-            DrawRectangle(1310, 620, 40, 20, rShoulderColor);
-            DrawText("RB", 1320, 622, fontSize, BLACK);
-
-            // Left Trigger gradient indicator
-            DrawText("LT", 1000, 650, fontSize, BLACK);
-            DrawRectangle(1000, 670, 150, 25, LIGHTGRAY);
-            if (inputHandler.GetLeftTrigger() > 0) {
-                DrawRectangle(1000, 670, (int)(inputHandler.GetLeftTrigger() * 150), 25, GREEN);
-            }
-
-            // Right Trigger gradient indicator
-            DrawText("RT", 1325, 650, fontSize, BLACK);
-            DrawRectangle(1200, 670, 150, 25, LIGHTGRAY);
-            if (inputHandler.GetRightTrigger() > 0) {
-                DrawRectangle(1200 + (int)((1 - inputHandler.GetRightTrigger()) * 150), 670,
-                    (int)(inputHandler.GetRightTrigger() * 150), 25, GREEN);
-            }
-        }
-        else {
-            DrawText("NO GAMEPAD DETECTED", 980, 50, 24, RED);
-        }
-
-        EndDrawing();
+    // Initialize the window
+    if (FAILED(InitializeWindow(hInstance, SW_SHOW, g_hwnd)))
+    {
+        MessageBox(NULL, "Window Initialization Failed!", "Error", MB_ICONERROR | MB_OK);
+        return 1;
     }
 
-    CloseWindow();
-    return 0;
+    // Initialize DirectX
+    if (FAILED(InitializeDirectX(g_hwnd)))
+    {
+        MessageBox(NULL, "DirectX Initialization Failed!", "Error", MB_ICONERROR | MB_OK);
+        return 1;
+    }
+
+    // Initialize input handler
+    g_Input.Initialize(g_hwnd);
+
+    // Show the window
+    ShowWindow(g_hwnd, SW_SHOW);
+    UpdateWindow(g_hwnd);
+
+    // Main message loop
+    MSG msg = {};
+
+    // Setup timing
+    LARGE_INTEGER frequency;
+    LARGE_INTEGER lastTime;
+    LARGE_INTEGER currentTime;
+
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&lastTime);
+
+    // Main application loop
+    while (g_Running)
+    {
+        // Process all Windows messages
+        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+        {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+
+            if (msg.message == WM_QUIT)
+            {
+                g_Running = false;
+                break;
+            }
+        }
+
+        // Calculate delta time
+        QueryPerformanceCounter(&currentTime);
+        float deltaTime = static_cast<float>(currentTime.QuadPart - lastTime.QuadPart) / static_cast<float>(frequency.QuadPart);
+        lastTime = currentTime;
+
+        // Update input
+        g_Input.Update();
+
+        // Check for escape key to exit
+        if (g_Input.IsKeyDown(KeyCode::ESCAPE))
+        {
+            g_Running = false;
+        }
+
+        // Render
+        Render();
+    }
+
+    // Clean up
+    CleanupDirectX();
+
+    return static_cast<int>(msg.wParam);
+}
+
+// Initialize the window
+HRESULT InitializeWindow(HINSTANCE hInstance, int nCmdShow, HWND& hWnd)
+{
+    // Register window class
+    WNDCLASSEX wcex = {};
+    wcex.cbSize = sizeof(WNDCLASSEX);
+    wcex.style = CS_HREDRAW | CS_VREDRAW;
+    wcex.lpfnWndProc = WndProc;
+    wcex.hInstance = hInstance;
+    wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
+    wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+    wcex.lpszClassName = "DirectXInputTestWindowClass";
+
+    if (!RegisterClassEx(&wcex))
+    {
+        return E_FAIL;
+    }
+
+    // Create window
+    RECT rc = { 0, 0, 800, 600 };
+    AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
+
+    hWnd = CreateWindow(
+        "DirectXInputTestWindowClass",
+        "DirectX Input Handler Test",
+        WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT, CW_USEDEFAULT,
+        rc.right - rc.left, rc.bottom - rc.top,
+        NULL,
+        NULL,
+        hInstance,
+        NULL
+    );
+
+    if (!hWnd)
+    {
+        return E_FAIL;
+    }
+
+    return S_OK;
+}
+
+// Initialize DirectX
+HRESULT InitializeDirectX(HWND hWnd)
+{
+    HRESULT hr = S_OK;
+
+    // Get window size
+    RECT rc;
+    GetClientRect(hWnd, &rc);
+    UINT width = rc.right - rc.left;
+    UINT height = rc.bottom - rc.top;
+
+    // Create device and swap chain
+    DXGI_SWAP_CHAIN_DESC sd = {};
+    sd.BufferCount = 1;
+    sd.BufferDesc.Width = width;
+    sd.BufferDesc.Height = height;
+    sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    sd.BufferDesc.RefreshRate.Numerator = 60;
+    sd.BufferDesc.RefreshRate.Denominator = 1;
+    sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    sd.OutputWindow = hWnd;
+    sd.SampleDesc.Count = 1;
+    sd.SampleDesc.Quality = 0;
+    sd.Windowed = TRUE;
+
+    UINT createDeviceFlags = 0;
+#ifdef _DEBUG
+    createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
+
+    D3D_FEATURE_LEVEL featureLevels[] =
+    {
+        D3D_FEATURE_LEVEL_11_1,
+        D3D_FEATURE_LEVEL_11_0,
+        D3D_FEATURE_LEVEL_10_1,
+        D3D_FEATURE_LEVEL_10_0,
+    };
+    UINT numFeatureLevels = ARRAYSIZE(featureLevels);
+
+    D3D_FEATURE_LEVEL featureLevel;
+
+    hr = D3D11CreateDeviceAndSwapChain(
+        NULL,
+        D3D_DRIVER_TYPE_HARDWARE,
+        NULL,
+        createDeviceFlags,
+        featureLevels,
+        numFeatureLevels,
+        D3D11_SDK_VERSION,
+        &sd,
+        &g_pSwapChain,
+        &g_pDevice,
+        &featureLevel,
+        &g_pDeviceContext
+    );
+
+    if (FAILED(hr))
+    {
+        return hr;
+    }
+
+    // Create render target view
+    ID3D11Texture2D* pBackBuffer = NULL;
+    hr = g_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&pBackBuffer);
+
+    if (FAILED(hr))
+    {
+        return hr;
+    }
+
+    hr = g_pDevice->CreateRenderTargetView(pBackBuffer, NULL, &g_pRenderTargetView);
+    pBackBuffer->Release();
+
+    if (FAILED(hr))
+    {
+        return hr;
+    }
+
+    // Set render target
+    g_pDeviceContext->OMSetRenderTargets(1, &g_pRenderTargetView, NULL);
+
+    // Set viewport
+    D3D11_VIEWPORT vp;
+    vp.Width = (FLOAT)width;
+    vp.Height = (FLOAT)height;
+    vp.MinDepth = 0.0f;
+    vp.MaxDepth = 1.0f;
+    vp.TopLeftX = 0;
+    vp.TopLeftY = 0;
+    g_pDeviceContext->RSSetViewports(1, &vp);
+
+    return S_OK;
+}
+
+// Render the scene
+void Render()
+{
+    if (!g_pDeviceContext || !g_pRenderTargetView || !g_pSwapChain)
+        return;
+
+    // Clear the render target
+    float clearColor[4] = { 0.0f, 0.1f, 0.2f, 1.0f }; // Dark blue background
+    g_pDeviceContext->ClearRenderTargetView(g_pRenderTargetView, clearColor);
+
+    // Get window dimensions
+    RECT rc;
+    GetClientRect(g_hwnd, &rc);
+    int windowWidth = rc.right - rc.left;
+    int windowHeight = rc.bottom - rc.top;
+
+    // In a real application, we would render text using DirectX
+    // This would be done using sprites, textures, and shaders
+    // For this example, we'll just present the swap chain
+
+    // Present the scene
+    g_pSwapChain->Present(1, 0);
+
+    // Print input state to console (for this example)
+    // In a real DirectX application, you would render this on screen
+    std::cout << "\x1B[2J\x1B[H"; // Clear console
+
+    std::cout << "DirectX Input Handler Test" << std::endl;
+    std::cout << "-------------------------" << std::endl;
+    std::cout << "Press ESC to exit" << std::endl;
+    std::cout << std::endl;
+
+    // Display mouse state
+    const MouseState& mouse = g_Input.GetMouseState();
+    std::cout << "Mouse Position: (" << mouse.x << ", " << mouse.y << ")" << std::endl;
+    std::cout << "Mouse Delta: (" << mouse.deltaX << ", " << mouse.deltaY << ")" << std::endl;
+    std::cout << "Mouse Wheel: " << mouse.wheelDelta << std::endl;
+    std::cout << "Mouse Buttons:" << std::endl;
+    std::cout << "  Left: " << (mouse.buttons[MouseButton::LEFT] ? "Down" : "Up") << std::endl;
+    std::cout << "  Right: " << (mouse.buttons[MouseButton::RIGHT] ? "Down" : "Up") << std::endl;
+    std::cout << "  Middle: " << (mouse.buttons[MouseButton::MIDDLE] ? "Down" : "Up") << std::endl;
+    std::cout << std::endl;
+
+    // Display keyboard state - show pressed keys
+    std::cout << "Keyboard State:" << std::endl;
+
+    bool keysPressed = false;
+    std::cout << "Pressed keys: ";
+    for (int key = 0; key <= 255; key++) {
+        if (g_Input.IsKeyDown(key)) {
+            std::cout << key << " (" << g_Input.GetKeyName(key) << ") ";
+            keysPressed = true;
+        }
+    }
+    std::cout << std::endl;
+
+    // Check function keys
+    for (int key = VK_F1; key <= VK_F12; key++)
+    {
+        if (g_Input.IsKeyDown(key))
+        {
+            std::cout << g_Input.GetKeyName(key) << " ";
+            keysPressed = true;
+        }
+    }
+
+    // Check for special keys
+    const int specialKeys[] = {
+        VK_SHIFT, VK_CONTROL, VK_MENU, VK_LWIN, VK_RWIN, VK_TAB, VK_ESCAPE,
+        VK_SPACE, VK_RETURN, VK_BACK, VK_DELETE, VK_UP, VK_DOWN, VK_LEFT, VK_RIGHT,
+        VK_F1, VK_F2, VK_F3, VK_F4, VK_F5, VK_F6, VK_F7, VK_F8, VK_F9, VK_F10, VK_F11, VK_F12
+    };
+
+    for (int key : specialKeys) {
+        if (g_Input.IsKeyDown(key)) {
+            std::cout << g_Input.GetKeyName(key) << " ";
+            keysPressed = true;
+        }
+    }
+
+
+    if (!keysPressed)
+    {
+        std::cout << "None";
+    }
+
+    std::cout << std::endl << std::endl;
+
+    // Display gamepad state
+    std::cout << "Gamepad State:" << std::endl;
+
+    if (g_Input.IsGamepadAvailable())
+    {
+        const GamepadState& gamepad = g_Input.GetGamepadState();
+        std::cout << "  Connected: " << g_Input.GetGamepadName() << std::endl;
+
+        // Analog sticks
+        std::cout << "  Left Stick: ("
+            << std::fixed << std::setprecision(2) << gamepad.leftStickX << ", "
+            << std::fixed << std::setprecision(2) << gamepad.leftStickY << ")" << std::endl;
+
+        std::cout << "  Right Stick: ("
+            << std::fixed << std::setprecision(2) << gamepad.rightStickX << ", "
+            << std::fixed << std::setprecision(2) << gamepad.rightStickY << ")" << std::endl;
+
+        // Triggers
+        std::cout << "  Left Trigger: "
+            << std::fixed << std::setprecision(2) << gamepad.leftTrigger << std::endl;
+
+        std::cout << "  Right Trigger: "
+            << std::fixed << std::setprecision(2) << gamepad.rightTrigger << std::endl;
+
+        // Buttons
+        std::cout << "  Buttons:" << std::endl;
+        std::cout << "    A: " << (gamepad.buttons[GamepadButton::A] ? "Down" : "Up") << std::endl;
+        std::cout << "    B: " << (gamepad.buttons[GamepadButton::B] ? "Down" : "Up") << std::endl;
+        std::cout << "    X: " << (gamepad.buttons[GamepadButton::X] ? "Down" : "Up") << std::endl;
+        std::cout << "    Y: " << (gamepad.buttons[GamepadButton::Y] ? "Down" : "Up") << std::endl;
+        std::cout << "    Left Shoulder: " << (gamepad.buttons[GamepadButton::LEFT_SHOULDER] ? "Down" : "Up") << std::endl;
+        std::cout << "    Right Shoulder: " << (gamepad.buttons[GamepadButton::RIGHT_SHOULDER] ? "Down" : "Up") << std::endl;
+        std::cout << "    D-Pad Up: " << (gamepad.buttons[GamepadButton::DPAD_UP] ? "Down" : "Up") << std::endl;
+        std::cout << "    D-Pad Right: " << (gamepad.buttons[GamepadButton::DPAD_RIGHT] ? "Down" : "Up") << std::endl;
+        std::cout << "    D-Pad Down: " << (gamepad.buttons[GamepadButton::DPAD_DOWN] ? "Down" : "Up") << std::endl;
+        std::cout << "    D-Pad Left: " << (gamepad.buttons[GamepadButton::DPAD_LEFT] ? "Down" : "Up") << std::endl;
+    }
+    else
+    {
+        std::cout << "  No gamepad detected" << std::endl;
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60 FPS
+}
+
+// Clean up DirectX objects
+void CleanupDirectX()
+{
+    if (g_pDeviceContext) g_pDeviceContext->ClearState();
+
+    if (g_pRenderTargetView) g_pRenderTargetView->Release();
+    if (g_pSwapChain) g_pSwapChain->Release();
+    if (g_pDeviceContext) g_pDeviceContext->Release();
+    if (g_pDevice) g_pDevice->Release();
+}
+
+// Window procedure
+LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    // Pass input messages to the input handler
+    g_Input.ProcessMessage(hwnd, message, wParam, lParam);
+
+    switch (message)
+    {
+    case WM_SIZE:
+        // Handle window resize
+        if (g_pDevice != NULL && wParam != SIZE_MINIMIZED)
+        {
+            if (g_pRenderTargetView) g_pRenderTargetView->Release();
+
+            UINT width = LOWORD(lParam);
+            UINT height = HIWORD(lParam);
+
+            // Resize the swap chain
+            g_pSwapChain->ResizeBuffers(1, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
+
+            // Re-create the render target view
+            ID3D11Texture2D* pBackBuffer = NULL;
+            g_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&pBackBuffer);
+            g_pDevice->CreateRenderTargetView(pBackBuffer, NULL, &g_pRenderTargetView);
+            pBackBuffer->Release();
+
+            // Reset render target
+            g_pDeviceContext->OMSetRenderTargets(1, &g_pRenderTargetView, NULL);
+
+            // Set viewport
+            D3D11_VIEWPORT vp;
+            vp.Width = (FLOAT)width;
+            vp.Height = (FLOAT)height;
+            vp.MinDepth = 0.0f;
+            vp.MaxDepth = 1.0f;
+            vp.TopLeftX = 0;
+            vp.TopLeftY = 0;
+            g_pDeviceContext->RSSetViewports(1, &vp);
+        }
+        return 0;
+
+    case WM_DESTROY:
+        PostQuitMessage(0);
+        return 0;
+
+    case WM_CLOSE:
+        g_Running = false;
+        return 0;
+    }
+
+    return DefWindowProc(hwnd, message, wParam, lParam);
 }

@@ -41,9 +41,9 @@ void PropertiesWindow::LoadProperties(Object* obj) {
             bool conversionSuccess = true;
 
             buffer = RoundString(std::to_string(vec2.x));
-            strcpy(xText, buffer.c_str());
+            strcpy_s(xText, 16, buffer.c_str());
             buffer = RoundString(std::to_string(vec2.y));
-            strcpy(yText, buffer.c_str());
+            strcpy_s(yText, 16, buffer.c_str());
 
             ImGui::SetNextItemWidth(width);
             if (!ImGui::InputText(("##" + property.first + "X").c_str(), xText, 16, ImGuiInputTextFlags_CharsDecimal))
@@ -72,7 +72,7 @@ void PropertiesWindow::LoadProperties(Object* obj) {
         else if (property.second.DataType == "float") {
             char* text = new char[8];
 
-            strcpy(text, RoundString(property.second.Data, 2).c_str());
+            strcpy_s(text, 8, RoundString(property.second.Data, 2).c_str());
 
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
             if (ImGui::InputText(("##" + property.first).c_str(), text, 8, ImGuiInputTextFlags_CharsDecimal)) {
@@ -80,6 +80,21 @@ void PropertiesWindow::LoadProperties(Object* obj) {
             }
 
             delete[] text;
+        }
+        else if (property.second.DataType == "bool" || property.second.DataType == "boolean") {
+            bool checked;
+
+            if (property.second.Data == "true")
+                checked = true;
+            else
+                checked = false;
+
+            if (ImGui::Checkbox(("##" + property.first).c_str(), &checked)) {
+                if (checked)
+                    property.second.Data = "true";
+                else
+                    property.second.Data = "false";
+            }
         }
         else if (property.second.DataType == "const_Vector2") {
             Vector2 vec2 = StringToVector2(property.second.Data);

@@ -48,6 +48,12 @@ int NavigatorWindow::Render(Renderer* renderer, Game* game, float scale) {
             if (ImGui::MenuItem("Add Item...")) {
                 ObjectWindow::Toggle(true);
             }
+            if (ImGui::MenuItem("Duplicate")) {
+                Object* clone = new Object(game->GetSelectedObjects()[0], renderer, game->GetPhysicsWorld());
+                game->GetSelectedObjects()[0]->parent->AddAfterChild(game->GetSelectedObjects()[0], clone);
+                game->DeselectObjects();
+                game->SelectObject(clone);
+            }
             if (ImGui::MenuItem("Delete")) {
                 game->GetGameObject()->DeleteChild(game->GetSelectedObjects()[0], true);
                 game->DeselectObjects();

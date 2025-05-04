@@ -18,8 +18,10 @@ target_include_directories(lua PUBLIC ${LUA_SRC_DIR})
 
 # Add subdirectories for each of the libraries
 add_subdirectory(third_party_libs/box2d)
+include_directories(third_party_libs/box2d/include)
 add_subdirectory(third_party_libs/raylib)
 add_subdirectory(third_party_libs/imgui)
+add_subdirectory(src/Components)
 add_subdirectory(src/Core)
 add_subdirectory(src/UI)
 
@@ -96,10 +98,14 @@ target_include_directories(GameEngine PRIVATE
     ${SRC_DIR} 
     ${XAUDIO2_INCLUDE_DIR}
 	third_party_libs/raylib/src
+    ${CMAKE_SOURCE_DIR}/src/Core
+    ${CMAKE_SOURCE_DIR}/src/UI
+    ${CMAKE_SOURCE_DIR}/src/Components
 )
 
 # Link libraries to your game engine executable
 target_link_libraries(GameEngine PRIVATE 
+    components
 	core
 	ui
     box2d
@@ -115,11 +121,16 @@ target_link_libraries(GameEngine PRIVATE
 # -------------------------------
 
 # Audio Test Executable
+# Gather all .cpp files
+file(GLOB_RECURSE TEST_SRC "${SRC_DIR}/*.cpp")
+
+# Remove main.cpp
+list(FILTER TEST_SRC EXCLUDE REGEX ".*/main\\.cpp$")
+list(FILTER TEST_SRC EXCLUDE REGEX ".*_test\\.cpp$")
+
 add_executable(AudioTest 
     src/audio_test.cpp
-    src/AudioManager.cpp
-    src/AudioLuaAPI.cpp
-    src/SoundResource.cpp
+    ${TEST_SRC} ${IMGUI_SRC}
 )
 
 # Include directories for AudioTest
@@ -130,19 +141,29 @@ target_include_directories(AudioTest PRIVATE
     ${LUA_SRC_DIR} 
     ${SRC_DIR} 
     ${XAUDIO2_INCLUDE_DIR}
+    third_party_libs/raylib/src
+    ${CMAKE_SOURCE_DIR}/src/Core
+    ${CMAKE_SOURCE_DIR}/src/UI
+    ${CMAKE_SOURCE_DIR}/src/Components
 )
 
 # Link libraries to AudioTest
 target_link_libraries(AudioTest PRIVATE 
+    components
+    core
+	ui
+    box2d
+	d3d11
+	imgui
     lua
     ${XAUDIO2_LIBRARY}
-	raylib
+    raylib
 )
 
 # Physics Test Executable
 add_executable(PhysicsTest 
     src/physics_test.cpp
-    src/PhysicsWorld.cpp
+    src/Components/PhysicsWorld.cpp
 )
 
 # Include directories for PhysicsTest
@@ -152,28 +173,50 @@ target_include_directories(PhysicsTest PRIVATE
     ${SOL2_INCLUDE_DIR}
     ${LUA_SRC_DIR} 
     ${SRC_DIR} 
+    ${CMAKE_SOURCE_DIR}/src/Core
+    ${CMAKE_SOURCE_DIR}/src/UI
+    ${CMAKE_SOURCE_DIR}/src/Components
 )
 
 # Link libraries to PhysicsTest
 target_link_libraries(PhysicsTest PRIVATE 
     box2d
     raylib
+    core
+    ui
+    components
 )
 
 # Input Test Executable
 add_executable(InputTest 
     src/input_test.cpp
-    src/InputHandler.cpp
+    ${TEST_SRC} ${IMGUI_SRC}
 )
 
 # Include directories for InputTest
 target_include_directories(InputTest PRIVATE
-    ${SRC_DIR}
+    ${IMGUI_DIR}
+    third_party_libs/box2d
+    ${SOL2_INCLUDE_DIR}
+    ${LUA_SRC_DIR} 
+    ${SRC_DIR} 
+    ${XAUDIO2_INCLUDE_DIR}
     third_party_libs/raylib/src
+    ${CMAKE_SOURCE_DIR}/src/Core
+    ${CMAKE_SOURCE_DIR}/src/UI
+    ${CMAKE_SOURCE_DIR}/src/Components
 )
 
 # Link libraries to InputTest
 target_link_libraries(InputTest PRIVATE 
+    components
+    core
+	ui
+    box2d
+	d3d11
+	imgui
+    lua
+    ${XAUDIO2_LIBRARY}
     raylib
 )
 
@@ -191,10 +234,14 @@ target_include_directories(RenderTest PRIVATE
     ${SRC_DIR} 
     ${XAUDIO2_INCLUDE_DIR}
     third_party_libs/raylib/src
+    ${CMAKE_SOURCE_DIR}/src/Core
+    ${CMAKE_SOURCE_DIR}/src/UI
+    ${CMAKE_SOURCE_DIR}/src/Components
 )
 
 # Link libraries to RenderTest
 target_link_libraries(RenderTest PRIVATE 
+    components
     core
     ui
     imgui

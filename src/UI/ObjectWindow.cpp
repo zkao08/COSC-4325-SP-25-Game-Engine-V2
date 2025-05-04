@@ -14,7 +14,9 @@ const std::map<std::string, std::map<std::string, PropertyData>> classList{
                     {"Position", {"Vector2", "0,0"}},
                     {"Rotation", {"float", "0.0"}},
                     {"Size", {"Vector2", "1,1"}},
-                    {"Texture", {"string", GetProjectRoot() + "/assets/Square.png"}},
+                    {"Texture", {"string", GetProjectRoot() + "\\assets\\Square.png"}},
+                    {"Static", {"bool", "true"}},
+                    {"Collidable", {"bool", "true"}},
                 }
             },
             {"Folder_Contains objects.",
@@ -55,7 +57,7 @@ void ObjectWindow::Render(Renderer* renderer, Game* game, float scale) {
             ClassInfo info = ParseText(item.first);
             ImGui::BeginGroup();
             if (ImGui::ButtonEx(info.name.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 30))) {
-                Object* obj = new Object(renderer, info.name, item.second);
+                Object* obj = new Object(renderer, info.name, item.second, game->GetPhysicsWorld());
 
                 if (game->GetSelectedObjects().size() > 0)
                     game->GetSelectedObjects()[0]->AddChild(obj);

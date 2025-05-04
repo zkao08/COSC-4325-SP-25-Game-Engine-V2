@@ -14,18 +14,18 @@
 #include <memory>
 #include <map>
 
-const ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-const float clear_color_with_alpha[4] = { clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w };
-static DirectX::XMVECTORF32 floatingVector = { 32.0f / 255.0f, 32.0f / 255.0f, 32.0f / 255.0f, 1.0f };
+static DirectX::XMVECTORF32 floatingVector = { 32.0f / 255.0f, 32.0f / 255.0f, 32.0f / 255.0f, 0.0f };
 
 static std::map<char*, ID3D11ShaderResourceView*> cachedTextures;
 
 Renderer::Renderer(Application* application) : m_Application(application) {}
 
 Renderer::~Renderer() {
-	ImGui_ImplDX11_Shutdown();
-	ImGui_ImplWin32_Shutdown();
-	ImGui::DestroyContext();
+	if (m_Application->m_DevMode) {
+		ImGui_ImplDX11_Shutdown();
+		ImGui_ImplWin32_Shutdown();
+		ImGui::DestroyContext();
+	}
 }
 
 void Renderer::Create()
@@ -42,15 +42,17 @@ void Renderer::Create()
 	SetViewport(window_width, window_height);
 
 	// Setup imgui
-	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
-	ImGuiIO& io = ImGui::GetIO();
-	io.WantCaptureMouse = true;
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
-	ImGui::StyleColorsDark(); // Dark theme
-	ImGui_ImplDX11_Init(m_Device.Get(), m_DeviceContext.Get());
-	ImGui_ImplWin32_Init(m_Application->GetWindow()->GetHwnd());
+	if (m_Application->m_DevMode) {
+		IMGUI_CHECKVERSION();
+		ImGui::CreateContext();
+		ImGuiIO& io = ImGui::GetIO();
+		io.WantCaptureMouse = true;
+		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
+		ImGui::StyleColorsDark(); // Dark theme
+		ImGui_ImplDX11_Init(m_Device.Get(), m_DeviceContext.Get());
+		ImGui_ImplWin32_Init(m_Application->GetWindow()->GetHwnd());
+	}
 }
 
 void Renderer::CreateDeviceAndContext()
@@ -193,7 +195,7 @@ void Renderer::CreateRenderTargetAndDepthStencilView(int width, int height)
 
 void Renderer::CreateBlendState() {
 	D3D11_BLEND_DESC blendDesc = {};
-	blendDesc.AlphaToCoverageEnable = TRUE; // Fun fact: Setting this to FALSE punches a hole through the viewport.
+	blendDesc.AlphaToCoverageEnable = FALSE;
 	blendDesc.IndependentBlendEnable = FALSE;
 
 	D3D11_RENDER_TARGET_BLEND_DESC& rtBlendDesc = blendDesc.RenderTarget[0];
@@ -233,15 +235,19 @@ void Renderer::Clear()
 	// Bind the render target view to the pipeline's output merger stage
 	m_DeviceContext->OMSetRenderTargets(1, m_RenderTargetView.GetAddressOf(), m_DepthStencilView.Get());
 
-	ImGui_ImplDX11_NewFrame();
-	ImGui_ImplWin32_NewFrame();
-	ImGui::NewFrame();
+	if (m_Application->m_DevMode) {
+		ImGui_ImplDX11_NewFrame();
+		ImGui_ImplWin32_NewFrame();
+		ImGui::NewFrame();
+	}
 }
 
 void Renderer::Present()
 {
-	ImGui::Render();
-	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+	if (m_Application->m_DevMode) {
+		ImGui::Render();
+		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+	}
 
 	// Use IDXGISwapChain1::Present1 for presenting instead
 	// This is a requirement for using variable refresh rate displays
@@ -377,8 +383,13 @@ bool Renderer::CreateImageButton(char* id, char* path, ImVec2 size) {
 	return pressed;
 }
 
+float Renderer::GetScaleFactor() {
+	return savedScaleFactor;
+}
+
 float Renderer::GetScaleFactor(float width, float height) {
-	return min(((float)(GetSystemMetrics(SM_CXSCREEN) * 2) / width), ((float)(GetSystemMetrics(SM_CYSCREEN) * 2) / height));
+	savedScaleFactor = min(((float)(GetSystemMetrics(SM_CXSCREEN) * 2) / width), ((float)(GetSystemMetrics(SM_CYSCREEN) * 2) / height));
+	return savedScaleFactor;
 }
 
 ComPtr<ID3D11Device> Renderer::GetDevice() {

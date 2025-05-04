@@ -1,27 +1,49 @@
 #include "Object.h"
 
-#include <iostream>
-
 float LimitRotation(float rotation);
 
 Object::Object(std::string new_name) {
 	this->properties["Name"].Data = new_name;
 }
 
-Object::Object(Renderer* renderer, std::string new_name) {
+Object::Object(Object* target_object, Renderer* renderer, PhysicsWorld* physics_world) {
+	this->properties = target_object->properties;
+	if (renderer != nullptr && this->properties.find("Texture") != this->properties.end()) {
+		Vector2 position = StringToVector2(this->properties["Position"].Data);
+		Vector2 size = StringToVector2(this->properties["Size"].Data);
+		float rotation = std::stof(RoundString(this->properties["Position"].Data, 2));
+
+		std::wstring wStr(this->properties["Texture"].Data.begin(), this->properties["Texture"].Data.end());
+		this->shape = std::make_unique<Rect>(renderer);
+		this->shape->Create(wStr, position.x, position.y, size.x, size.y, rotation);
+		
+		this->CreatePhysicsBody(physics_world, renderer->GetScaleFactor());
+	}
+	for (int i = 0; i < target_object->children.size(); i++) {
+		Object* child = new Object(target_object->children[i], renderer, physics_world);
+		this->AddChild(child);
+	}
+}
+
+Object::Object(Renderer* renderer, std::string new_name, PhysicsWorld* physics_world) {
 	this->properties["Name"].Data = new_name;
 	this->shape = std::make_unique<Rect>(renderer);
 	this->shape->Create();
+
+	this->CreatePhysicsBody(physics_world, renderer->GetScaleFactor());
 }
 
-Object::Object(Renderer* renderer, std::string new_name, std::map<std::string, PropertyData> new_properties) {
+Object::Object(Renderer* renderer, std::string new_name, std::map<std::string, PropertyData> new_properties, PhysicsWorld* physics_world) {
 	this->properties = new_properties;
 	this->properties["Name"].Data = new_name;
-	if (this->properties.find("Position") != this->properties.end()) {
+
+	if (this->properties.find("Texture") != this->properties.end()) {
 		std::wstring wStr(this->properties["Texture"].Data.begin(), this->properties["Texture"].Data.end());
 		this->shape = std::make_unique<Rect>(renderer);
 		this->shape->Create(wStr);
 	}
+
+	this->CreatePhysicsBody(physics_world, renderer->GetScaleFactor());
 }
 
 Object::~Object() {
@@ -31,6 +53,31 @@ Object::~Object() {
 	}
 
 	children.clear();
+}
+
+void Object::CreatePhysicsBody(PhysicsWorld* physics_world, float scaleFactor) {
+	if (physics_world == nullptr) {
+		std::cout << "Cannot create physics body as the physics world is null." << std::endl;
+		return;
+	}
+	else if (this->properties["Collidable"].Data == "false")
+		return;
+
+	Vector2 position = StringToVector2(this->properties["Position"].Data);
+	Vector2 size = StringToVector2(this->properties["Size"].Data);
+	float rotation = std::stof(RoundString(this->properties["Rotation"].Data, 2));
+
+	PhysicsShapeParams physicsShapeParams;
+	physicsShapeParams.shapeType = ShapeType::Box;
+	physicsShapeParams.bodyType = this->properties["Static"].Data == "false" ? PhysicsBodyType::Dynamic : PhysicsBodyType::Static;
+	physicsShapeParams.x = position.x;
+	physicsShapeParams.y = position.y;
+	physicsShapeParams.rotation = rotation;
+	physicsShapeParams.width = size.x * scaleFactor;
+	physicsShapeParams.height = size.y * scaleFactor;
+	physicsShapeParams.friction = 0.5f;
+
+	physicsBody = physics_world->CreateShape(physicsShapeParams);
 }
 
 void Object::AddChild(Object* child) {
@@ -52,23 +99,42 @@ void Object::AddAfterChild(Object* child_target, Object* child) {
 	children = newChildren;
 }
 
-void Object::Update() {
+void Object::Update(bool dev_mode) {
 	if (this->properties.find("Parent") != this->properties.end() && this->parent != nullptr) {
 		this->properties["Parent"].Data = this->parent->properties["Name"].Data;
 	}
-	if (this->properties.find("Rotation") != this->properties.end()) {
-		float num = std::stof(RoundString(this->properties["Rotation"].Data));
-		num = LimitRotation(num);
-		this->properties["Rotation"].Data = RoundString(std::to_string(num));
+	if (dev_mode) {
+		if (this->properties.find("Rotation") != this->properties.end()) {
+			float num = std::stof(RoundString(this->properties["Rotation"].Data));
+			num = LimitRotation(num);
+			this->properties["Rotation"].Data = RoundString(std::to_string(num));
+		}
+		if (this->shape.get() != nullptr) {
+			shape->SetTransform(StringToVector2(this->properties["Position"].Data), StringToVector2(this->properties["Size"].Data), std::stof(RoundString(this->properties["Rotation"].Data)));
+			shape->LoadTexture(StringToWString(this->properties["Texture"].Data));
+			shape->Render();
+		}
 	}
-	if (this->shape.get() != nullptr) {
-		shape->SetTransform(StringToVector2(this->properties["Position"].Data), StringToVector2(this->properties["Size"].Data), std::stof(RoundString(this->properties["Rotation"].Data)));
-		shape->SetTexture(this->properties["Texture"].Data);
-		shape->Render();
+	else {
+		/*if (this->properties.find("Rotation") != this->properties.end()) {
+			b2Rot rotation = b2Body_GetRotation(this->physicsBody);
+			float radians = atan2f(rotation.s, rotation.c) * (M_PI / 180);
+			this->properties["Rotation"].Data = std::to_string(radians);
+		}*/
+		if (this->shape.get() != nullptr) {
+			b2Vec2 position = b2Body_GetPosition(this->physicsBody);
+			b2Rot rotation = b2Body_GetRotation(this->physicsBody);
+			float radians = atan2f(rotation.s, rotation.c) * (360 / M_PI) / 2;
+			this->properties["Position"].Data = std::to_string(position.x) + "," + std::to_string(position.y);
+			this->properties["Rotation"].Data = std::to_string(radians);
+			shape->SetTransform(StringToVector2(this->properties["Position"].Data), StringToVector2(this->properties["Size"].Data), std::stof(RoundString(this->properties["Rotation"].Data)));
+			shape->LoadTexture(StringToWString(this->properties["Texture"].Data));
+			shape->Render();
+		}
 	}
 
 	for (int i = 0; i < children.size(); i++) {
-		children[i]->Update();
+		children[i]->Update(dev_mode);
 	}
 }
 

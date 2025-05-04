@@ -31,7 +31,6 @@ class Rect
 		ComPtr<ID3D11Buffer> m_IndexBuffer = nullptr;
 
 		// Texture buffer
-		void LoadTexture(std::wstring path);
 		ComPtr<ID3D11ShaderResourceView> m_DiffuseTexture = nullptr;
 
 		float lastPosX = -1.0f;
@@ -45,12 +44,13 @@ class Rect
 		virtual ~Rect() = default;
 
 		// Create the model
-		void Create(std::wstring path = GetProjectRootWString() + L"/assets/Square.png", float pos_x = 0.0f, float pos_y = 0.0f, float size_x = 1.0f, float size_y = 1.0f, float rotation = 0.0f);
+		void Create(std::wstring path = GetProjectRootWString() + L"\\assets\\Square.png", float pos_x = 0.0f, float pos_y = 0.0f, float size_x = 1.0f, float size_y = 1.0f, float rotation = 0.0f);
+
+		void LoadTexture(std::wstring path);
 
 		// Render the model
 		void Render();
 
 		void SetTransform(float pos_x = 0.0f, float pos_y = 0.0f, float size_x = 1.0f, float size_y = 1.0f, float rotation = 0.0f);
 		void SetTransform(Vector2 pos = Vector2(0, 0), Vector2 size = Vector2(1, 1), float rotation = 0.0f);
-		void SetTexture(std::string path);
 };
