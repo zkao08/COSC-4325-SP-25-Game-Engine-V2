@@ -154,7 +154,7 @@ int TestAudio()
     gAudioManager.SetMasterVolume(0.7f);
 
     // 3. Play background music with streaming (using 50% volume)
-    std::string bgmPath = "assets/audio/bgm/test_bgm.wav";
+    std::string bgmPath = "assets/audio/bgm/Darkling.wav";
     std::string bgmId = "bgm_test";
     std::cout << "Playing streaming BGM at 50% volume..." << std::endl;
 
