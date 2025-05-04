@@ -1,14 +1,8 @@
 // Updated relevant portions of GameEngine.cpp
 #include "GameEngine.h"
-#include "Application.h"
-#include "PhysicsWorld.h"
-#include "InputHandler.h"
-#include "AudioManager.h"
-#include "ResourceManager.h"
-#include "Timer.h"
-#include "DebugManager.h"
-#include <Windows.h>
-#include <iostream>
+
+Application* GameEngine::gApplication;
+std::unique_ptr<Application> GameEngine::gRuntime;
 
 GameEngine::GameEngine()
     : m_Running(false),
@@ -43,7 +37,11 @@ bool GameEngine::Initialize()
 
         // Initialize subsystems
         // Initialize app and renderer
-        //TODO: replace with actual renderer initialization
+        gApplication = new Application("GameEngine", nullptr, true);
+        if (gApplication->Initialize())
+        {
+            gDebugManager.LogStartupMessage("Rendering system initialized successfully");
+        }
         //gDebugManager.LogStartupMessage("Initializing renderer...");
 
         // Initialize physics
@@ -147,7 +145,7 @@ int GameEngine::Run(bool debug)
         gPhysicsSystem.Step(deltaTime);
 
         // Render frame
-        //gRenderer.Render();
+        gApplication->Render(deltaTime);
 
         // Run resource management
         if (resourceManagementTimer >= RESOURCE_MANAGEMENT_INTERVAL)
@@ -164,7 +162,7 @@ int GameEngine::Run(bool debug)
 
         // Sleep to limit frame rate 
         //TODO: replace with actual frame rate governance
-        std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60 FPS
+        std::this_thread::sleep_for(std::chrono::milliseconds(10)); // ~60 FPS
     }
 
     std::cout << "Game loop ended" << std::endl;
@@ -192,6 +190,7 @@ void GameEngine::Shutdown()
     }
 
     // Shutdown other subsystems
+    delete gApplication;
     gAudioManager.shutDown();
     gInputSystem.shutDown();
     gPhysicsSystem.shutDown();
@@ -203,6 +202,25 @@ void GameEngine::Shutdown()
 void GameEngine::Update(float deltaTime)
 {
     // Update game logic for game objects
+    if (gRuntime != nullptr)
+        gRuntime->Render(deltaTime);
+}
+
+void GameEngine::CreateRuntime(std::string title, Object* gameObject)
+{
+    if (gRuntime.get() != nullptr) {
+        DestroyRuntime();
+    }
+
+    gRuntime = std::make_unique<Application>(title, gameObject, false);
+}
+
+void GameEngine::DestroyRuntime() {
+    if (gRuntime != nullptr) {
+        gRuntime.reset();
+        gRuntime.release();
+        gRuntime = nullptr;
+    }
 }
 
 void GameEngine::EnableDebug(bool enable)

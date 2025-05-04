@@ -74,7 +74,7 @@ int Application::Render(float deltaTime) {
 		this->ComputeModelViewProjectionMatrix();
 
 		if (m_DevMode) {
-			m_Game->GetGameObject()->Update(true);
+			m_Game->GetGameObject()->Update(m_DevMode);
 			m_Renderer->Clear();
 
 			Dock::SetDockingBehavior();
