@@ -16,7 +16,7 @@ GameEngine::~GameEngine()
 	// Destructor
 }
 
-bool GameEngine::Initialize()
+bool GameEngine::Initialize(bool editor)
 {
     std::cout << "Initializing Game Engine..." << std::endl;
 
@@ -37,7 +37,7 @@ bool GameEngine::Initialize()
 
         // Initialize subsystems
         // Initialize app and renderer
-        gApplication = new Application("GameEngine", nullptr, true);
+        gApplication = new Application("GameEngine", nullptr, editor);
         if (gApplication->Initialize())
         {
             gDebugManager.LogStartupMessage("Rendering system initialized successfully");
@@ -96,6 +96,11 @@ bool GameEngine::Initialize()
         std::cerr << "Error during engine initialization: " << e.what() << std::endl;
         Shutdown();
         return false;
+    }
+
+    if (!editor)
+    {
+        //TODO: load the game
     }
 }
 
@@ -160,9 +165,19 @@ int GameEngine::Run(bool debug)
             gDebugManager.Update(deltaTime, gInputSystem);
         }
 
-        // Sleep to limit frame rate 
-        //TODO: replace with actual frame rate governance
-        std::this_thread::sleep_for(std::chrono::milliseconds(10)); // ~60 FPS
+        // Frame limiting - sleep if we're running too fast
+        float frameProcessTime = timer.DeltaTime();  // Time taken to process this frame
+		float sleepTime = (1 / 60.0f) - frameProcessTime; // Target 60 FPS
+
+        if (sleepTime > 0.0f)
+        {
+            // Convert to milliseconds, ensuring we don't sleep for less than 1ms
+            int sleepMs = static_cast<int>(sleepTime * 1000.0f);
+            if (sleepMs > 0)
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(sleepMs));
+            }
+        }
     }
 
     std::cout << "Game loop ended" << std::endl;

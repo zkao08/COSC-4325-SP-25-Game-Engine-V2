@@ -222,31 +222,35 @@ target_link_libraries(InputTest PRIVATE
     raylib
 )
 
-# Render Test Executable
-add_executable(RenderTest 
+# Level Editor Executable
+add_executable(LevelEditor
     src/render_test.cpp
+    ${TEST_SRC} ${IMGUI_SRC}
 )
 
-# Include directories for RenderTest
-target_include_directories(RenderTest PRIVATE
-    ${IMGUI_DIR}
-    third_party_libs/box2d
-    ${SOL2_INCLUDE_DIR}
-    ${LUA_SRC_DIR} 
-    ${SRC_DIR} 
-    ${XAUDIO2_INCLUDE_DIR}
-    third_party_libs/raylib/src
+# Include directories for Level Editor
+target_include_directories(LevelEditor PRIVATE
     ${CMAKE_SOURCE_DIR}/src/Core
     ${CMAKE_SOURCE_DIR}/src/UI
     ${CMAKE_SOURCE_DIR}/src/Components
+    ${IMGUI_DIR}
+    third_party_libs/box2d
+    ${LUA_SRC_DIR} 
+    ${SOL2_INCLUDE_DIR}
+    ${SRC_DIR} 
+    ${XAUDIO2_INCLUDE_DIR}
+	third_party_libs/raylib/src
 )
 
-# Link libraries to RenderTest
-target_link_libraries(RenderTest PRIVATE 
-    components
+# Link libraries to Level Editor
+target_link_libraries(LevelEditor PRIVATE 
     core
     ui
-    imgui
-    raylib
-    d3d11
+    components
+    box2d
+	d3d11
+	imgui
+    lua
+    ${XAUDIO2_LIBRARY}
+	raylib
 )

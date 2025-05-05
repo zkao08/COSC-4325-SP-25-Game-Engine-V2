@@ -5,7 +5,7 @@
 int main(int argc, char* argv[])
 {
 	GameEngine engine;
-	engine.Initialize();
+	engine.Initialize(false);
 	engine.Run(false); //run in debug mode
 	engine.Shutdown();
 }
