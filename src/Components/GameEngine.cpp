@@ -1,9 +1,13 @@
-// Updated relevant portions of GameEngine.cpp
+/*
+* Main game engine implementation
+*/
+
 #include "GameEngine.h"
 
 Application* GameEngine::gApplication;
 std::unique_ptr<Application> GameEngine::gRuntime;
 
+// Empty constructor
 GameEngine::GameEngine()
     : m_Running(false),
     m_DebugMode(false)
@@ -11,11 +15,17 @@ GameEngine::GameEngine()
     // Empty constructor
 }
 
+// Empty destructor
 GameEngine::~GameEngine()
 {
 	// Destructor
 }
 
+/// <summary>
+/// Initialize the game engine and its subsystems.
+/// </summary>
+/// <param name="editor">TRUE if LEVEL EDITOR, FALSE if RUNTIME GAME ENGINE</param>
+/// <returns></returns>
 bool GameEngine::Initialize(bool editor)
 {
     std::cout << "Initializing Game Engine..." << std::endl;
@@ -98,12 +108,18 @@ bool GameEngine::Initialize(bool editor)
         return false;
     }
 
+    // If runtime game engine, load a game level
     if (!editor)
     {
         //TODO: load the game
     }
 }
 
+/// <summary>
+/// Main game engine loop
+/// </summary>
+/// <param name="debug">TRUE if DEBUG MODE with debug console, FALSE if no debug</param>
+/// <returns></returns>
 int GameEngine::Run(bool debug)
 {
     if (!m_Running)
@@ -156,6 +172,7 @@ int GameEngine::Run(bool debug)
         if (resourceManagementTimer >= RESOURCE_MANAGEMENT_INTERVAL)
         {
             gResourceManager.PerformMaintenance();
+			gAudioManager.PerformMaintenance();
             resourceManagementTimer = 0.0f;
         }
 
@@ -165,7 +182,7 @@ int GameEngine::Run(bool debug)
             gDebugManager.Update(deltaTime, gInputSystem);
         }
 
-        // Frame limiting - sleep if we're running too fast
+        // Frame limiting
         float frameProcessTime = timer.DeltaTime();  // Time taken to process this frame
 		float sleepTime = (1 / 60.0f) - frameProcessTime; // Target 60 FPS
 
@@ -184,6 +201,9 @@ int GameEngine::Run(bool debug)
     return 0;
 }
 
+/// <summary>
+/// Shut down the game engine and its subsystems
+/// </summary>
 void GameEngine::Shutdown()
 {
     std::cout << "Shutting down Game Engine..." << std::endl;
@@ -214,6 +234,10 @@ void GameEngine::Shutdown()
     std::cout << "Game Engine shutdown complete" << std::endl;
 }
 
+/// <summary>
+/// Game logic update function
+/// </summary>
+/// <param name="deltaTime"></param>
 void GameEngine::Update(float deltaTime)
 {
     // Update game logic for game objects
@@ -222,6 +246,11 @@ void GameEngine::Update(float deltaTime)
     }
 }
 
+/// <summary>
+/// Create a runtime window for the game engine.
+/// </summary>
+/// <param name="title"></param>
+/// <param name="gameObject"></param>
 void GameEngine::CreateRuntime(std::string title, Object* gameObject)
 {
     if (gRuntime.get() != nullptr) {
@@ -234,6 +263,9 @@ void GameEngine::CreateRuntime(std::string title, Object* gameObject)
     InputHandler::GetInstance().startUp(hwnd);
 }
 
+/// <summary>
+/// Destroy the runtime window.
+/// </summary>
 void GameEngine::DestroyRuntime() {
     if (gRuntime != nullptr) {
         AudioManager::GetInstance().StopAllSounds();
@@ -243,6 +275,10 @@ void GameEngine::DestroyRuntime() {
     }
 }
 
+/// <summary>
+/// Set the debug mode of the game engine.
+/// </summary>
+/// <param name="enable"></param>
 void GameEngine::EnableDebug(bool enable)
 {
     m_DebugMode = enable;

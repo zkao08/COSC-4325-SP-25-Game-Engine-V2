@@ -1,4 +1,4 @@
-// Updated GameEngine.h
+// GameEngine.h
 #pragma once
 
 #include "Application.h"
