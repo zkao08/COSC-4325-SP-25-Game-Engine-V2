@@ -342,6 +342,7 @@ void Object::ExecuteScript(std::string file_path, Object* game, HWND hwnd) {
 
 	InputLuaAPI::Initialize(lua);
 	AudioLuaAPI::Initialize(lua);
+	PhysicsLuaAPI::Initialize(lua);
 
 	try {
 		lua.script_file(file_path);
