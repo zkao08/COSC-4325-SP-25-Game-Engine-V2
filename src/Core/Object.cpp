@@ -57,6 +57,9 @@ Object::Object(Renderer* renderer, std::string new_name, std::map<std::string, P
 }
 
 Object::~Object() {
+	if (b2Body_IsValid(this->physicsBody))
+		PhysicsWorld::GetInstance().DestroyObject(this->physicsBody);
+
 	for (int i = 0; i < this->children->size(); i++) {
 		if (!this->children->at(i)->markedDeleted)
 			delete this->children->at(i);
@@ -141,7 +144,7 @@ void Object::AddAfterChild(Object* child_target, Object* child) {
 	delete oldChildren;
 }
 
-void Object::Update(bool dev_mode, Object* game, HWND hwnd) {
+void Object::Update(bool dev_mode, Object* game, HWND hwnd, Camera* camera) {
 	if (!enabled || markedDeleted)
 		return;
 
@@ -183,13 +186,13 @@ void Object::Update(bool dev_mode, Object* game, HWND hwnd) {
 		}
 
 		if (!ranScript) {
-			std::thread scriptThread(&Object::ExecuteScript, this, this->properties["Script"].Data, game, hwnd);
+			std::thread scriptThread(&Object::ExecuteScript, this, this->properties["Script"].Data, game, hwnd, camera);
 			scriptThread.detach();
 		}
 	}
 
 	for (int i = 0; i < children->size(); i++) {
-		children->at(i)->Update(dev_mode, game, hwnd);
+		children->at(i)->Update(dev_mode, game, hwnd, camera);
 	}
 }
 
@@ -311,7 +314,7 @@ Object* Object::IsDescendantRecursive(Object* object_to_find, Object* object_to_
 	return obj;
 }
 
-void Object::ExecuteScript(std::string file_path, Object* game, HWND hwnd) {
+void Object::ExecuteScript(std::string file_path, Object* game, HWND hwnd, Camera* camera) {
 	if (!enabled || markedDeleted)
 		return;
 
@@ -337,11 +340,20 @@ void Object::ExecuteScript(std::string file_path, Object* game, HWND hwnd) {
 		"GetProperty", &Object::GetProperty,
 		"SetProperty", &Object::SetProperty,
 		"GetPhysicsBodyId", &Object::GetPhysicsBodyId,
+		"GetPositionX", &Object::GetPositionX,
+		"GetPositionY", &Object::GetPositionY,
 		"Delete", &Object::Delete,
 		"enabled", &Object::enabled
 	);
 
+	lua.new_usertype<Camera>("Camera",
+		"Set", &Camera::Set,
+		"FocusOnObject", &Camera::FocusOnObject
+	);
+
 	lua.set("script", this);
+	if (camera != nullptr)
+		lua.set("camera", camera);
 	if (game != nullptr)
 		lua.set("game", game);
 
@@ -358,6 +370,17 @@ void Object::ExecuteScript(std::string file_path, Object* game, HWND hwnd) {
 	}
 
 	scriptRunning = false;
+}
+
+float Object::GetPositionX() {
+	Vector2 position = StringToVector2(this->GetProperty("Position"));
+	std::cout << -position.x << std::endl;
+	return -position.x;
+}
+
+float Object::GetPositionY() {
+	Vector2 position = StringToVector2(this->GetProperty("Position"));
+	return -position.y;
 }
 
 float LimitRotation(float rotation) {

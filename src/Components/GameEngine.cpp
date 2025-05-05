@@ -221,6 +221,7 @@ void GameEngine::CreateRuntime(std::string title, Object* gameObject)
 
 void GameEngine::DestroyRuntime() {
     if (gRuntime != nullptr) {
+        AudioManager::GetInstance().StopAllSounds();
         gRuntime.reset();
         gRuntime.release();
         gRuntime = nullptr;

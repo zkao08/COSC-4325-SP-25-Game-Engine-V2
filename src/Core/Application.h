@@ -35,6 +35,7 @@
 class Window;
 class Renderer;
 class Game;
+class Camera;
 
 class Application
 {

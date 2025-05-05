@@ -27,16 +27,6 @@ const std::map<std::string, std::map<std::string, PropertyData>> classList{
             {"Parent", {"const_char", "null"}}
         }
     },
-    {"Sound_Plays audio.",
-        {
-            {"Name", {"char", "Sound"}},
-            {"Type", {"const_char", "Sound"}},
-            {"Parent", {"const_char", "null"}},
-            {"Sound", {"string", GetProjectRoot() + "\\assets\\test_sfx.wav"}},
-            {"Playing", {"bool", "true"}},
-            {"Loop", {"bool", "false"}},
-        }
-    },
     {"Script_Runs Lua code.",
         {
             {"Name", {"char", "Script"}},

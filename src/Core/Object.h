@@ -15,6 +15,7 @@
 #include "Rect.h"
 #include "Vector2.h"
 #include "Utility.h"
+#include "Camera.h"
 
 #include <sol/sol.hpp>
 #include <math.h>
@@ -32,6 +33,8 @@ struct PropertyData {
 	std::string Data;
 };
 
+class Camera;
+
 class Object {
 private:
 	Object* DeleteChildRecursive(Object* object, std::vector<Object*>* list, bool recursive = false);
@@ -39,7 +42,7 @@ private:
 	void CleanChildren();
 	void CleanChildrenRecursive(Object* object);
 	Object* IsDescendantRecursive(Object* object_to_find, Object* Object_to_search);
-	void ExecuteScript(std::string file_path = "", Object* game = nullptr, HWND hwnd = nullptr);
+	void ExecuteScript(std::string file_path = "", Object* game = nullptr, HWND hwnd = nullptr, Camera* camera = nullptr);
 
 	b2BodyId physicsBody;
 
@@ -81,5 +84,8 @@ public:
 
 	bool IsDescendant(Object* object);
 
-	void Update(bool dev_mode = false, Object* game = nullptr, HWND hwnd = nullptr);
+	float GetPositionX();
+	float GetPositionY();
+
+	void Update(bool dev_mode = false, Object* game = nullptr, HWND hwnd = nullptr, Camera* camera = nullptr);
 };
