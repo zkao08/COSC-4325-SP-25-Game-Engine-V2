@@ -26,6 +26,34 @@ void Camera::Move(float delta_x, float delta_y, float delta_z) {
 	m_View = DirectX::XMMatrixTranslation(m_x, m_y, m_z);
 }
 
+void Camera::Set(float x, float y, float z) {
+	m_x = x;
+	m_y = y;
+	m_z = z;
+
+	if (m_z < MIN_ZOOM)
+		m_z = MIN_ZOOM;
+	if (m_z > MAX_ZOOM)
+		m_z = MAX_ZOOM;
+
+	m_View = DirectX::XMMatrixTranslation(m_x, m_y, m_z);
+}
+
+void Camera::FocusOnObject(Object* object) {
+	focusedObject = object;
+}
+
+void Camera::UpdateObjectPosition() {
+	if (focusedObject != nullptr && focusedObject->GetProperty("Position") != "") {
+		Vector2 position = StringToVector2(focusedObject->GetProperty("Position"));
+		m_x = -position.x;
+		m_y = -position.y;
+
+		m_View = DirectX::XMMatrixTranslation(m_x, m_y, m_z);
+		CalculateProjection();
+	}
+}
+
 void Camera::Reset() {
 	m_x = 0;
 	m_y = 0;

@@ -4,26 +4,19 @@
 
 Game::Game(Object* game_object, Renderer* renderer, bool dev_mode) {
 	devMode = dev_mode;
-	physicsWorld = new PhysicsWorld();
-	physicsWorld->startUp(0, -9.8);
 
 	if (game_object != nullptr)
-		gameObject = new Object(game_object, renderer, physicsWorld, dev_mode);
+		gameObject = new Object(game_object, renderer, dev_mode);
 	else
 		gameObject = new Object("Game", dev_mode);
 }
 
 Game::~Game() {
 	delete gameObject;
-	delete physicsWorld;
 }
 
 Object* Game::GetGameObject() {
 	return gameObject;
-}
-
-PhysicsWorld* Game::GetPhysicsWorld() {
-	return physicsWorld;
 }
 
 std::vector<Object*> Game::GetSelectedObjects() {

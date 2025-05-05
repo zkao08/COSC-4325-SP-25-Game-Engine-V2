@@ -17,6 +17,7 @@ const std::map<std::string, std::map<std::string, PropertyData>> classList{
             {"Texture", {"string", GetProjectRoot() + "\\assets\\Square.png"}},
             {"Static", {"bool", "true"}},
             {"Collidable", {"bool", "true"}},
+            {"Upright", {"bool", "false"}},
         }
     },
     {"Folder_Contains objects.",
@@ -24,16 +25,6 @@ const std::map<std::string, std::map<std::string, PropertyData>> classList{
             {"Name", {"char", "Folder"}},
             {"Type", {"const_char", "Folder"}},
             {"Parent", {"const_char", "null"}}
-        }
-    },
-    {"Sound_Plays audio.",
-        {
-            {"Name", {"char", "Sound"}},
-            {"Type", {"const_char", "Sound"}},
-            {"Parent", {"const_char", "null"}},
-            {"Sound", {"string", GetProjectRoot() + "\\assets\\test_sfx.wav"}},
-            {"Playing", {"bool", "true"}},
-            {"Loop", {"bool", "false"}},
         }
     },
     {"Script_Runs Lua code.",
@@ -76,7 +67,7 @@ void ObjectWindow::Render(Renderer* renderer, Game* game, float scale) {
             ClassInfo info = ParseText(item.first);
             ImGui::BeginGroup();
             if (ImGui::ButtonEx(info.name.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 30))) {
-                Object* obj = new Object(renderer, info.name, item.second, game->GetPhysicsWorld(), game->devMode);
+                Object* obj = new Object(renderer, info.name, item.second, game->devMode);
 
                 if (game->GetSelectedObjects().size() > 0)
                     game->GetSelectedObjects()[0]->AddChild(obj);

@@ -15,6 +15,7 @@
 #include "Rect.h"
 #include "Vector2.h"
 #include "Utility.h"
+#include "Camera.h"
 
 #include <sol/sol.hpp>
 #include <math.h>
@@ -32,6 +33,8 @@ struct PropertyData {
 	std::string Data;
 };
 
+class Camera;
+
 class Object {
 private:
 	Object* DeleteChildRecursive(Object* object, std::vector<Object*>* list, bool recursive = false);
@@ -39,7 +42,9 @@ private:
 	void CleanChildren();
 	void CleanChildrenRecursive(Object* object);
 	Object* IsDescendantRecursive(Object* object_to_find, Object* Object_to_search);
-	void ExecuteScript(std::string file_path = "", Object* game = nullptr, HWND hwnd = nullptr);
+	void ExecuteScript(std::string file_path = "", Object* game = nullptr, HWND hwnd = nullptr, Camera* camera = nullptr);
+
+	b2BodyId physicsBody;
 
 	bool devMode = false;
 	bool ranScript = false;
@@ -47,7 +52,6 @@ public:
 	Object* parent = nullptr;
 	std::vector<Object*>* children;
 	std::unique_ptr<Rect> shape = nullptr;
-	b2BodyId physicsBody;
 	bool enabled = true;
 	bool markedDeleted = false;
 
@@ -58,18 +62,19 @@ public:
 	};
 
 	Object(std::string new_name, bool dev_mode = false);
-	Object(Object* target_object, Renderer* renderer = nullptr, PhysicsWorld* physics_world = nullptr, bool dev_mode = false);
-	Object(Renderer* renderer, std::string new_name, PhysicsWorld* physics_world = nullptr, bool dev_mode = false);
-	Object(Renderer* renderer, std::string new_name, std::map<std::string, PropertyData>, PhysicsWorld* physics_world = nullptr, bool dev_mode = false);
+	Object(Object* target_object, Renderer* renderer = nullptr, bool dev_mode = false);
+	Object(Renderer* renderer, std::string new_name, bool dev_mode = false);
+	Object(Renderer* renderer, std::string new_name, std::map<std::string, PropertyData>, bool dev_mode = false);
 	~Object();
 
 	std::string GetProperty(std::string property);
 	void SetProperty(std::string property, std::string value);
 	void Delete();
 
-	void CreatePhysicsBody(PhysicsWorld* physics_world = nullptr, float scaleFactor = 1.0f);
+	void CreatePhysicsBody(float scaleFactor = 1.0f);
 
 	Object* GetParent();
+	b2BodyId GetPhysicsBodyId();
 
 	void AddChild(Object* child);
 	void AddAfterChild(Object* child_target, Object* child);
@@ -79,5 +84,8 @@ public:
 
 	bool IsDescendant(Object* object);
 
-	void Update(bool dev_mode = false, Object* game = nullptr, HWND hwnd = nullptr);
+	float GetPositionX();
+	float GetPositionY();
+
+	void Update(bool dev_mode = false, Object* game = nullptr, HWND hwnd = nullptr, Camera* camera = nullptr);
 };

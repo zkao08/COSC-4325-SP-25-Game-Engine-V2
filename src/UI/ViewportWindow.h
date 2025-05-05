@@ -15,6 +15,8 @@
 
 #include <d3d11.h>
 
+class Camera;
+
 class ViewportWindow {
     private:
         static ImVec2 size;

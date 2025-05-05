@@ -1,9 +1,12 @@
 #pragma once
 
 #include "Vector3.h"
+#include "Object.h"
 
 #include <DirectXMath.h>
 #include <algorithm>
+
+class Object;
 
 // Perspective orbital camera
 class Camera
@@ -13,6 +16,11 @@ public:
 	virtual ~Camera() = default;
 
 	void Move(float delta_x, float delta_y, float z);
+	void Set(float x, float y, float z);
+
+	void Camera::FocusOnObject(Object* object = nullptr);
+
+	void Camera::UpdateObjectPosition();
 
 	void Reset();
 
@@ -36,6 +44,8 @@ private:
 
 	// View matrix
 	DirectX::XMMATRIX m_View;
+
+	Object* focusedObject = nullptr;
 
 	float m_x = 0.0f;
 	float m_y = 0.0f;

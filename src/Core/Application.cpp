@@ -100,8 +100,8 @@ int Application::Render(float deltaTime) {
 		}
 		else {
 			m_Renderer->Clear();
-			m_Game->GetGameObject()->Update(false, m_Game->GetGameObject(), m_Window->GetHwnd());
-			m_Game->GetPhysicsWorld()->Step(deltaTime);
+			m_Game->GetGameObject()->Update(false, m_Game->GetGameObject(), m_Window->GetHwnd(), m_Camera.get());
+			m_Camera->UpdateObjectPosition();
 		}
 
 		// Display the rendered scene
@@ -122,6 +122,7 @@ LRESULT Application::HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 		if (m_DevMode)
 			PostQuitMessage(0);
 		else {
+			AudioManager::GetInstance().StopAllSounds();
 			m_Game->SetAllEnabled(false);
 			m_Running = false;
 		}
@@ -171,7 +172,7 @@ void Application::OnResized(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 }
 
 void Application::OnMouseMove(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, float delta_z) {
-	if (m_DevMode && !ViewportWindow::IsHovered())
+	if ((m_DevMode && !ViewportWindow::IsHovered()) || !m_DevMode)
 		return;
 
 	static int previous_mouse_x = 0;
@@ -224,8 +225,6 @@ void Application::OnMouseDown(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	float y;
 
 	MouseToWorldCoordinates(x, y);
-
-	std::cout << x << " " << y << std::endl;
 }
 
 void Application::OnKeyDown(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
