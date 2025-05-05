@@ -101,7 +101,6 @@ int Application::Render(float deltaTime) {
 		else {
 			m_Renderer->Clear();
 			m_Game->GetGameObject()->Update(false, m_Game->GetGameObject(), m_Window->GetHwnd());
-			m_Game->GetPhysicsWorld()->Step(deltaTime);
 		}
 
 		// Display the rendered scene

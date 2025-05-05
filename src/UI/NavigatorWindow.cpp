@@ -49,7 +49,7 @@ int NavigatorWindow::Render(Renderer* renderer, Game* game, float scale) {
                 ObjectWindow::Toggle(true);
             }
             if (ImGui::MenuItem("Duplicate")) {
-                Object* clone = new Object(game->GetSelectedObjects()[0], renderer, game->GetPhysicsWorld(), game->devMode);
+                Object* clone = new Object(game->GetSelectedObjects()[0], renderer, game->devMode);
                 game->GetSelectedObjects()[0]->parent->AddAfterChild(game->GetSelectedObjects()[0], clone);
                 game->DeselectObjects();
                 game->SelectObject(clone);

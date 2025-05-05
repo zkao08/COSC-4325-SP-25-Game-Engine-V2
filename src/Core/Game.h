@@ -16,7 +16,6 @@ class Game {
 	private:
 		std::vector<Object*> selectedObjects;
 		Object* gameObject;
-		PhysicsWorld* physicsWorld;
 		void SetEnabledRecursive(Object* object, bool runtime_state);
 	public:
 		bool enabled = true;
@@ -26,7 +25,6 @@ class Game {
 		~Game();
 
 		Object* GetGameObject();
-		PhysicsWorld* GetPhysicsWorld();
 		std::vector<Object*> GetSelectedObjects();
 
 		void SelectObject(Object* object);

@@ -10,7 +10,7 @@ Object::Object(std::string new_name, bool dev_mode) {
 	this->children = new std::vector<Object*>;
 }
 
-Object::Object(Object* target_object, Renderer* renderer, PhysicsWorld* physics_world, bool dev_mode) {
+Object::Object(Object* target_object, Renderer* renderer, bool dev_mode) {
 	devMode = dev_mode;
 	this->properties = target_object->properties;
 	this->children = new std::vector<Object*>;
@@ -23,25 +23,25 @@ Object::Object(Object* target_object, Renderer* renderer, PhysicsWorld* physics_
 		this->shape = std::make_unique<Rect>(renderer);
 		this->shape->Create(wStr, position.x, position.y, size.x, size.y, rotation);
 
-		this->CreatePhysicsBody(physics_world, renderer->GetScaleFactor());
+		this->CreatePhysicsBody(renderer->GetScaleFactor());
 	}
 	for (int i = 0; i < target_object->children->size(); i++) {
-		Object* child = new Object(target_object->children->at(i), renderer, physics_world, dev_mode);
+		Object* child = new Object(target_object->children->at(i), renderer, dev_mode);
 		this->AddChild(child);
 	}
 }
 
-Object::Object(Renderer* renderer, std::string new_name, PhysicsWorld* physics_world, bool dev_mode) {
+Object::Object(Renderer* renderer, std::string new_name, bool dev_mode) {
 	devMode = dev_mode;
 	this->properties["Name"].Data = new_name;
 	this->children = new std::vector<Object*>;
 	this->shape = std::make_unique<Rect>(renderer);
 	this->shape->Create();
 
-	this->CreatePhysicsBody(physics_world, renderer->GetScaleFactor());
+	this->CreatePhysicsBody(renderer->GetScaleFactor());
 }
 
-Object::Object(Renderer* renderer, std::string new_name, std::map<std::string, PropertyData> new_properties, PhysicsWorld* physics_world, bool dev_mode) {
+Object::Object(Renderer* renderer, std::string new_name, std::map<std::string, PropertyData> new_properties, bool dev_mode) {
 	devMode = dev_mode;
 	this->properties = new_properties;
 	this->properties["Name"].Data = new_name;
@@ -53,7 +53,7 @@ Object::Object(Renderer* renderer, std::string new_name, std::map<std::string, P
 		this->shape->Create(wStr);
 	}
 
-	this->CreatePhysicsBody(physics_world, renderer->GetScaleFactor());
+	this->CreatePhysicsBody(renderer->GetScaleFactor());
 }
 
 Object::~Object() {
@@ -86,12 +86,8 @@ void Object::Delete() {
 		this->GetParent()->DeleteChild(this);
 }
 
-void Object::CreatePhysicsBody(PhysicsWorld* physics_world, float scaleFactor) {
-	if (physics_world == nullptr) {
-		std::cout << "Cannot create physics body as the physics world is null." << std::endl;
-		return;
-	}
-	if (!enabled || markedDeleted || this->properties.find("Collidable") == this->properties.end() || this->properties["Collidable"].Data == "false")
+void Object::CreatePhysicsBody(float scaleFactor) {
+	if (!enabled || devMode || markedDeleted || this->properties.find("Collidable") == this->properties.end() || this->properties["Collidable"].Data == "false")
 		return;
 
 	Vector2 position = StringToVector2(this->properties["Position"].Data);
@@ -108,11 +104,15 @@ void Object::CreatePhysicsBody(PhysicsWorld* physics_world, float scaleFactor) {
 	physicsShapeParams.height = size.y * scaleFactor;
 	physicsShapeParams.friction = 0.5f;
 
-	physicsBody = physics_world->CreateShape(physicsShapeParams);
+	physicsBody = PhysicsWorld::GetInstance().CreateShape(physicsShapeParams);
 }
 
 Object* Object::GetParent() {
 	return this->parent;
+}
+
+b2BodyId Object::GetPhysicsBodyId() {
+	return physicsBody;
 }
 
 void Object::AddChild(Object* child) {
@@ -172,6 +172,9 @@ void Object::Update(bool dev_mode, Object* game, HWND hwnd) {
 					b2Body_SetType(this->physicsBody, b2BodyType::b2_staticBody);
 				else if (b2Body_GetType(this->physicsBody) != b2BodyType::b2_dynamicBody)
 					b2Body_SetType(this->physicsBody, b2BodyType::b2_dynamicBody);
+
+				//if (this->properties["Upright"].Data == "true")
+					//b2Body_SetAngularVelocity(this->physicsBody, 0.0f);
 
 			}
 			shape->SetTransform(StringToVector2(this->properties["Position"].Data), StringToVector2(this->properties["Size"].Data), std::stof(RoundString(this->properties["Rotation"].Data)));
@@ -316,6 +319,7 @@ void Object::ExecuteScript(std::string file_path, Object* game, HWND hwnd) {
 
 	lua.open_libraries(sol::lib::base);
 	lua.open_libraries(sol::lib::os);
+	lua.open_libraries(sol::lib::coroutine);
 
 	if (this->properties.find("Script") == this->properties.end() || this->properties["Script"].Data == "")
 		return;
@@ -332,6 +336,7 @@ void Object::ExecuteScript(std::string file_path, Object* game, HWND hwnd) {
 		"GetParent", &Object::GetParent,
 		"GetProperty", &Object::GetProperty,
 		"SetProperty", &Object::SetProperty,
+		"GetPhysicsBodyId", &Object::GetPhysicsBodyId,
 		"Delete", &Object::Delete,
 		"enabled", &Object::enabled
 	);
