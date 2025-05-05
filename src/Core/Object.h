@@ -9,6 +9,7 @@
 #include "PhysicsWorld.h"
 #include "InputHandler.h"
 #include "AudioLuaAPI.h"
+#include "InputLuaAPI.h"
 #include "Renderer.h"
 #include "Rect.h"
 #include "Vector2.h"
