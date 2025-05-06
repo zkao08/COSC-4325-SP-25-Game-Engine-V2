@@ -7,13 +7,11 @@
 #include <memory>
 #include "Application.h"
 
-int main()
+// Launch the game engine in editor mode
+int main(int argc, char* argv[])
 {
-    int status = 0;
-
-    // Initialize the GUI and renderer
-    std::unique_ptr<Application> app = std::make_unique<Application>();
-    status = app->Execute();
-
-    return status;
+	GameEngine engine;
+	engine.Initialize(true); //run in editor mode
+	engine.Run(true); //run in debug mode
+	engine.Shutdown();
 }

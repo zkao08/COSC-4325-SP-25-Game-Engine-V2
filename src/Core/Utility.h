@@ -1,3 +1,6 @@
+// Utility class
+// Helper file with common methods for multiple code files to use.
+
 #pragma once
 
 #include <Windows.h>
@@ -9,6 +12,7 @@
 #include "Vector2.h"
 
 namespace {
+    // Converts string to char*
     std::unique_ptr<char> StringToChar(std::string str) {
         std::unique_ptr<char> charStr(new char[128]);
 
@@ -17,6 +21,7 @@ namespace {
         return charStr;
     }
 
+    // Converts string to wstring
     std::wstring StringToWString(const std::string& str)
     {
         if (str.empty())
@@ -30,6 +35,7 @@ namespace {
         return conversion;
     }
 
+    // Converts wstring to string
     std::string WStringToString(const std::wstring& str)
     {
         if (str.empty())
@@ -44,6 +50,7 @@ namespace {
         return conversion;
     }
 
+    // Converts string to Vector2
     Vector2 StringToVector2(std::string text) {
         Vector2 vec2;
         std::string buffer;
@@ -64,14 +71,17 @@ namespace {
         return vec2;
     }
 
+    // Converts Vector2 to string
     std::string Vector2ToString(Vector2 vec2) {
         return std::to_string(vec2.x) + ',' + std::to_string(vec2.y);
     }
 
+    // Rounds float to a provided precision
     float RoundFloat(float num, float precision = 0.001) {
         return std::round((num / precision) * precision);
     }
 
+    // Rounds a string decimal number to a provided amount of places after the decimal
     std::string RoundString(std::string str, int place = 3) {
         std::string buffer;
         int currentPlace = 0;
@@ -94,6 +104,7 @@ namespace {
         return buffer;
     }
 
+    // Gets the resolution of the system
     void GetResolution(int& x, int& y)
     {
         RECT desktop;
@@ -106,6 +117,7 @@ namespace {
         y = desktop.bottom;
     }
 
+    // Gets the full file path location of the project as a string
     std::string GetProjectRoot()
     {
         // Get current working directory
@@ -125,6 +137,7 @@ namespace {
         return strPath;
     }
 
+    // Gets the full file path location of the project as a wstring
     std::wstring GetProjectRootWString()
     {
         // Get current working directory

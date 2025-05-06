@@ -1,17 +1,7 @@
+// Shader class
+// Handles compiled shaders used to determine how objects are visually rendered.
+
 #include "Shader.h"
-
-#include "Renderer.h"
-#include <d3d11.h>
-
-#include <Windows.h>
-#include <DirectXMath.h>
-
-#include "PixelShader.hlsl.h"
-#include "VertexShader.hlsl.h"
-
-// This include is requires for using DirectX smart pointers (ComPtr)
-#include <wrl\client.h>
-using Microsoft::WRL::ComPtr;
 
 namespace
 {
@@ -25,12 +15,14 @@ Shader::Shader(Renderer* renderer) {
 	m_Renderer = renderer;
 }
 
+// Initialize shader
 void Shader::Load() {
 	this->LoadVertexShader();
 	this->LoadPixelShader();
 	this->CreateWorldViewProjectionConstantBuffer();
 }
 
+// Update shader
 void Shader::Use() {
 	ComPtr<ID3D11DeviceContext> context = m_Renderer->GetContext();
 
@@ -48,6 +40,8 @@ void Shader::Use() {
 	context->VSSetConstantBuffers(constant_buffer_slot, 1, m_ModelViewProjectionConstantBuffer.GetAddressOf());
 }
 
+// Load vertex shader
+// Handles how shapes are rendered.
 void Shader::LoadVertexShader() {
 	ComPtr<ID3D11Device> device = m_Renderer->GetDevice();
 
@@ -65,11 +59,15 @@ void Shader::LoadVertexShader() {
 	DX::Check(device->CreateInputLayout(layout, number_elements, g_VertexShader, sizeof(g_VertexShader), m_VertexLayout.ReleaseAndGetAddressOf()));
 }
 
+// Load pixel shader
+// Handles how colors are rendered.
 void Shader::LoadPixelShader() {
 	ComPtr<ID3D11Device> device = m_Renderer->GetDevice();
 	device->CreatePixelShader(g_PixelShader, sizeof(g_PixelShader), nullptr, m_PixelShader.ReleaseAndGetAddressOf());
 }
 
+
+// Initialize projection
 void Shader::CreateWorldViewProjectionConstantBuffer()
 {
 	ComPtr<ID3D11Device> device = m_Renderer->GetDevice();
@@ -83,6 +81,7 @@ void Shader::CreateWorldViewProjectionConstantBuffer()
 	DX::Check(device->CreateBuffer(&bd, nullptr, m_ModelViewProjectionConstantBuffer.ReleaseAndGetAddressOf()));
 }
 
+// Update projection
 void Shader::UpdateModelViewProjectionBuffer(const DirectX::XMMATRIX& matrix)
 {
 	ModelViewProjectionBuffer buffer = {};

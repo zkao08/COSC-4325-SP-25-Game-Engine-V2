@@ -1,6 +1,6 @@
 // Vector2 Data Type Class
 // Represents 3D coordinates.
-// This isn't strictly used for 3D, and may be used for other applications that require 3 values.
+// This isn't strictly used for actual 3D, and may be used for other applications that require 3 values.
 
 #pragma once
 

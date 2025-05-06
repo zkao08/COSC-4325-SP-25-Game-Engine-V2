@@ -1,3 +1,6 @@
+// Rect class
+// Creates a visual shape/texture for rendering.
+
 #include "Rect.h"
 #include "Renderer.h"
 #include "Vertex.h"
@@ -13,6 +16,7 @@
 
 Rect::Rect(Renderer* renderer) : m_Renderer(renderer) {}
 
+// Creates the class
 void Rect::Create(std::wstring texture_path, float pos_x, float pos_y, float size_x, float size_y, float rotation)
 {
 	this->CreateVertexBuffer(pos_x, pos_y, size_x, size_y);
@@ -20,6 +24,7 @@ void Rect::Create(std::wstring texture_path, float pos_x, float pos_y, float siz
 	this->LoadTexture(texture_path);
 }
 
+// Creates DirectX vertexes
 void Rect::CreateVertexBuffer(float pos_x, float pos_y, float size_x, float size_y, float rotation)
 {
 	ComPtr<ID3D11Device> device = m_Renderer->GetDevice();
@@ -72,6 +77,7 @@ void Rect::CreateVertexBuffer(float pos_x, float pos_y, float size_x, float size
 }
 
 
+// Creates index buffer for rendering optimization
 void Rect::CreateIndexBuffer()
 {
 	ComPtr<ID3D11Device> device = m_Renderer->GetDevice();
@@ -97,6 +103,7 @@ void Rect::CreateIndexBuffer()
 	DX::Check(device->CreateBuffer(&index_buffer_desc, &index_subdata, m_IndexBuffer.ReleaseAndGetAddressOf()));
 }
 
+// Loads texture from image file path
 void Rect::LoadTexture(std::wstring path)
 {
 	if (path == lastTexture)
@@ -119,6 +126,7 @@ void Rect::LoadTexture(std::wstring path)
 	DX::Check(DirectX::CreateWICTextureFromFile(device.Get(), context.Get(), path.c_str(), resource.ReleaseAndGetAddressOf(), m_DiffuseTexture.ReleaseAndGetAddressOf()));
 }
 
+// Updates state
 void Rect::Render()
 {
 	ComPtr<ID3D11DeviceContext> context = m_Renderer->GetContext();
@@ -149,10 +157,12 @@ void Rect::Render()
 	context->DrawIndexed(m_IndexCount, 0, 0);
 }
 
+// Sets shape's transform in the game world
 void Rect::SetTransform(float pos_x, float pos_y, float size_x, float size_y, float rotation) {
 	CreateVertexBuffer(pos_x, pos_y, size_x, size_y, rotation);
 }
 
+// Sets shape's transform in the game world
 void Rect::SetTransform(Vector2 pos, Vector2 size, float rotation) {
 	CreateVertexBuffer(pos.x, pos.y, size.x, size.y, rotation);
 }

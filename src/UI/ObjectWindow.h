@@ -1,5 +1,5 @@
-// ObjectWindow UI Header
-// Creates object creation popup window.
+// ObjectWindow GUI
+// Creates and renders object creation popup subwindow.
 
 #pragma once
 

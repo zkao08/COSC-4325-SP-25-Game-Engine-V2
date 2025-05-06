@@ -1,5 +1,9 @@
+// PropertiesWindow GUI
+// Creates and renders the Properties subwindow.
+
 #include "PropertiesWindow.h"
 
+// Renders the GUI
 int PropertiesWindow::Render(Game* game, float scale) {
     char* searchText = "";
 
@@ -23,6 +27,7 @@ int PropertiesWindow::Render(Game* game, float scale) {
     return 1;
 }
 
+// Loads object property data into the GUI
 void PropertiesWindow::LoadProperties(Object* obj) {
     if (obj == nullptr) {
         ImGui::Text("No object selected.");

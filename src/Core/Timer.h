@@ -1,3 +1,6 @@
+// Timer class
+// Calculates delta time used for measuring and limiting frame rates.
+
 #pragma once
 
 #include <cstdint>

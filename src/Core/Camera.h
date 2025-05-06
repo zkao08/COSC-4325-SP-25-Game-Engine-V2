@@ -1,3 +1,6 @@
+// Camera class
+// Defines a point in the game world to render.
+
 #pragma once
 
 #include "Vector3.h"
@@ -8,61 +11,59 @@
 
 class Object;
 
-// Perspective orbital camera
-class Camera
-{
-public:
-	Camera(int width, int height);
-	virtual ~Camera() = default;
+class Camera {
+	private:
+		// Projection matrix
+		DirectX::XMMATRIX m_Projection;
 
-	void Move(float delta_x, float delta_y, float z);
-	void Set(float x, float y, float z);
+		// View matrix
+		DirectX::XMMATRIX m_View;
 
-	void Camera::FocusOnObject(Object* object = nullptr);
+		// Object that camera follows
+		Object* focusedObject = nullptr;
 
-	void Camera::UpdateObjectPosition();
+		// Variables
+		float m_x = 0.0f;
+		float m_y = 0.0f;
+		float m_z = 0.0f;
 
-	void Reset();
+		float m_PitchRadians = 0.0f;
+		float m_YawRadians = 0.0f;
+		float m_FieldOfViewDegrees = 50.0f;
+		float m_AspectRatio = 0.0f;
 
-	// Update aspect ratio
-	void UpdateAspectRatio(int width, int height);
+		// Get camera projection
+		void CalculateProjection();
+	public:
+		// Constructor and Destructor
+		Camera(int width, int height);
+		virtual ~Camera() = default;
 
-	// Set field of view
-	void UpdateFov(float fov);
+		// Transform methods
+		void Move(float delta_x, float delta_y, float z);
+		void Set(float x, float y, float z);
 
-	Vector3 GetPosition();
+		// Set camera to focus on object
+		void Camera::FocusOnObject(Object* object = nullptr);
 
-	// Get projection matrix
-	inline DirectX::XMMATRIX GetProjection() const { return m_Projection; }
+		// Set camera position to focused object position
+		void Camera::UpdateObjectPosition();
 
-	// Get view matrix
-	inline DirectX::XMMATRIX GetView() const { return m_View; }
+		// Reset camera position
+		void Reset();
 
-private:
-	// Projection matrix
-	DirectX::XMMATRIX m_Projection;
+		// Update aspect ratio
+		void UpdateAspectRatio(int width, int height);
 
-	// View matrix
-	DirectX::XMMATRIX m_View;
+		// Set field of view
+		void UpdateFov(float fov);
 
-	Object* focusedObject = nullptr;
+		// Get camera world position
+		Vector3 GetPosition();
 
-	float m_x = 0.0f;
-	float m_y = 0.0f;
-	float m_z = 0.0f;
+		// Get projection matrix
+		inline DirectX::XMMATRIX GetProjection() const { return m_Projection; }
 
-	// Camera pitch in radians
-	float m_PitchRadians = 0.0f;
-
-	// Camera yaw in radians
-	float m_YawRadians = 0.0f;
-
-	// Camera field of view in degrees
-	float m_FieldOfViewDegrees = 50.0f;
-
-	// Aspect ratio
-	float m_AspectRatio = 0.0f;
-
-	// Recalculates the projection based on the new window size
-	void CalculateProjection();
+		// Get view matrix
+		inline DirectX::XMMATRIX GetView() const { return m_View; }
 };

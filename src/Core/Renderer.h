@@ -1,88 +1,89 @@
-#pragma once
+// Renderer class
+// Handles rendering the game world using DirectX 11
 
-#include <d3d11_1.h>
-#include <exception>
+#pragma once
 
 #include "imgui.h"
 #include "imgui_internal.h"
 
-// This include is requires for using DirectX smart pointers (ComPtr)
+#include <d3d11_1.h>
+#include <exception>
+
 #include <wrl\client.h>
 using Microsoft::WRL::ComPtr;
 
 class Application;
 
-namespace DX
-{
-	// Throw if the function result has failed. For ease of error handling
-	inline void Check(HRESULT hr)
-	{
-#ifdef _DEBUG
-		if (FAILED(hr))
-		{
-			throw std::exception();
-		}
-#endif
+namespace DX {
+	// Throw if the function result has failed. For ease of error handling.
+	inline void Check(HRESULT hr) {
+	#ifdef _DEBUG
+			if (FAILED(hr))
+				throw std::exception();
+	#endif
 	}
 }
 
-class Renderer
-{
-	Application* m_Application = nullptr;
+class Renderer {
+	private:
+		Application* m_Application = nullptr;
+		// Device and device context
+		ComPtr<ID3D11Device> m_Device = nullptr;
+		ComPtr<ID3D11DeviceContext> m_DeviceContext = nullptr;
+		void CreateDeviceAndContext();
 
-public:
-	float savedScaleFactor = 1.0f;
+		// Swapchain
+		ComPtr<IDXGISwapChain> m_SwapChain = nullptr;
+		ComPtr<IDXGISwapChain1> m_SwapChain1 = nullptr;
+		void CreateSwapChain(int width, int height);
 
-	Renderer(Application* application);
-	~Renderer();
+		// Render target and depth stencil view
+		ComPtr<ID3D11RenderTargetView> m_RenderTargetView = nullptr;
+		ComPtr<ID3D11DepthStencilView> m_DepthStencilView = nullptr;
+		void CreateRenderTargetAndDepthStencilView(int width, int height);
 
-	// Creates the rendering device and context
-	void Create();
+		// Render blend state
+		ComPtr<ID3D11BlendState> m_BlendState = nullptr;
+		void CreateBlendState();
 
-	// Clear the buffers
-	void Clear();
+		// Render sampler state
+		ComPtr<ID3D11SamplerState> m_SamplerState = nullptr;
+		void CreateSamplerState();
 
-	// Display the rendered scene
-	void Present();
+		// Viewport
+		void SetViewport(int width, int height);
+	public:
+		float savedScaleFactor = 1.0f;
 
-	// Resizing
-	void Resize(int width, int height);
+		Renderer(Application* application);
+		~Renderer();
 
-	bool LoadTextureFromMemory(const void* data, size_t data_size, ID3D11ShaderResourceView** out_srv, int* out_width, int* out_height);
-	bool LoadTextureFromFile(const char* file_name, ID3D11ShaderResourceView** out_srv, int* out_width, int* out_height);
+		// Creates the rendering device and context
+		void Create();
 
-	bool CreateImageButton(char* id, char* path, ImVec2 size);
+		// Clear the buffers
+		void Clear();
 
-	float GetScaleFactor();
-	float GetScaleFactor(float width, float height);
+		// Display the rendered scene
+		void Present();
 
-	ComPtr<ID3D11Device> GetDevice();
-	ComPtr<ID3D11DeviceContext> GetContext();
-	ComPtr<ID3D11BlendState> GetBlendState();
-	ComPtr<ID3D11SamplerState> GetSamplerState();
+		// Resizing
+		void Resize(int width, int height);
 
-private:
-	// Device and device context
-	ComPtr<ID3D11Device> m_Device = nullptr;
-	ComPtr<ID3D11DeviceContext> m_DeviceContext = nullptr;
-	void CreateDeviceAndContext();
+		// Loads textures into a DirectX-compatible format
+		bool LoadTextureFromMemory(const void* data, size_t data_size, ID3D11ShaderResourceView** out_srv, int* out_width, int* out_height);
+		bool LoadTextureFromFile(const char* file_name, ID3D11ShaderResourceView** out_srv, int* out_width, int* out_height);
 
-	// Swapchain
-	ComPtr<IDXGISwapChain> m_SwapChain = nullptr;
-	ComPtr<IDXGISwapChain1> m_SwapChain1 = nullptr;
-	void CreateSwapChain(int width, int height);
+		// Creates an imgui image button
+		bool CreateImageButton(char* id, char* path, ImVec2 size);
 
-	// Render target and depth stencil view
-	ComPtr<ID3D11RenderTargetView> m_RenderTargetView = nullptr;
-	ComPtr<ID3D11DepthStencilView> m_DepthStencilView = nullptr;
-	void CreateRenderTargetAndDepthStencilView(int width, int height);
+		// Get scale factor
+		float GetScaleFactor();
+		float GetScaleFactor(float width, float height);
 
-	ComPtr<ID3D11BlendState> m_BlendState = nullptr;
-	void CreateBlendState();
-
-	ComPtr<ID3D11SamplerState> m_SamplerState = nullptr;
-	void CreateSamplerState();
-
-	// Viewport
-	void SetViewport(int width, int height);
+		// Get DirectX components
+		ComPtr<ID3D11Device> GetDevice();
+		ComPtr<ID3D11DeviceContext> GetContext();
+		ComPtr<ID3D11BlendState> GetBlendState();
+		ComPtr<ID3D11SamplerState> GetSamplerState();
 };

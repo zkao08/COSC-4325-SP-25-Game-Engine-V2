@@ -1,22 +1,24 @@
+// Shader class
+// Handles compiled shaders used to determine how objects are visually rendered.
+
 #pragma once
 
 #include "Renderer.h"
-#include <d3d11.h>
-#include <DirectXMath.h>
-
-#include <Windows.h>
 
 #include "PixelShader.hlsl.h"
 #include "VertexShader.hlsl.h"
 
-// This include is requires for using DirectX smart pointers (ComPtr)
+#include <Windows.h>
+#include <d3d11.h>
+#include <DirectXMath.h>
+
 #include <wrl\client.h>
 using Microsoft::WRL::ComPtr;
 
 class Shader {
 	private:
+		// Components
 		ComPtr<ID3D11Buffer> m_ModelViewProjectionConstantBuffer = nullptr;
-
 		ComPtr<ID3D11VertexShader> m_VertexShader = nullptr;
 		ComPtr<ID3D11InputLayout> m_VertexLayout = nullptr;
 		ComPtr<ID3D11PixelShader> m_PixelShader = nullptr;

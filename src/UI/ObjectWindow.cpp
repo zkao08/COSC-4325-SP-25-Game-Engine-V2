@@ -1,10 +1,14 @@
+// ObjectWindow GUI
+// Creates and renders object creation popup subwindow.
+
 #include "ObjectWindow.h"
 #include "Utility.h"
 
-#include <iostream>
-
+// Window visibility state
 static bool enabled = false;
 
+// Preset properties for specific types of objects
+// Makes objects distinct and give them certain functionality.
 const std::map<std::string, std::map<std::string, PropertyData>> classList{
     {"Sprite_Object that renders a texture.",
         {
@@ -45,6 +49,7 @@ struct ClassInfo {
 
 ClassInfo ParseText(std::string);
 
+// Render GUI
 void ObjectWindow::Render(Renderer* renderer, Game* game, float scale) {
     if (enabled) {
         char* searchText = "";
@@ -88,6 +93,7 @@ void ObjectWindow::Render(Renderer* renderer, Game* game, float scale) {
     }
 }
 
+// Separates property map key into name and description
 ClassInfo ParseText(std::string str) {
     ClassInfo info;
     std::string buffer;
@@ -106,10 +112,12 @@ ClassInfo ParseText(std::string str) {
     return info;
 }
 
+// Changes window visibility
 void ObjectWindow::Toggle(bool toggle) {
     enabled = toggle;
 }
 
+// Toggles window visibility
 void ObjectWindow::Toggle() {
     enabled = !enabled;
 }

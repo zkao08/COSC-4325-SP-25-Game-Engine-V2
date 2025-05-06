@@ -1,7 +1,9 @@
+// Vertex Data Type Class
+// Defines vertex points when creating shapes for rendering.
+
 #pragma once
 
-struct VertexPosition
-{
+struct VertexPosition {
 	VertexPosition(float x, float y, float z) : x(x), y(y), z(z) {}
 
 	float x = 0;
@@ -9,16 +11,14 @@ struct VertexPosition
 	float z = 0;
 };
 
-struct VertexTextureUV
-{
+struct VertexTextureUV {
 	VertexTextureUV(float u, float v) : u(u), v(v) {}
 
 	float u = 0;
 	float v = 0;
 };
 
-struct Vertex
-{
+struct Vertex {
 	VertexPosition position;
 	VertexTextureUV texture;
 };

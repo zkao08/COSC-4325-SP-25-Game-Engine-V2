@@ -1,34 +1,39 @@
+// RenderTarget class
+// Configures rendering result and sets it to an image
+
 #pragma once
 
 #include "Renderer.h"
 
-class RenderTarget
-{
-	Renderer* m_Renderer = nullptr;
-	ComPtr<ID3D11Device> m_Device = nullptr;
-	ComPtr<ID3D11DeviceContext> m_DeviceContext = nullptr;
+#include <DirectXColors.h>
 
-public:
-	RenderTarget(Renderer* renderer);
-	virtual ~RenderTarget() = default;
+class RenderTarget {
+	private:
+		// Components
+		Renderer* m_Renderer = nullptr;
+		ComPtr<ID3D11Device> m_Device = nullptr;
+		ComPtr<ID3D11DeviceContext> m_DeviceContext = nullptr;
 
-	void Create(int width, int height);
-	void Use();
+		// Render texture
+		ComPtr<ID3D11Texture2D> m_Texture = nullptr;
+		void CreateRenderTexture(int width, int height);
 
-	ID3D11ShaderResourceView* GetTexture() const { return m_TextureShaderResource.Get(); }
+		// Render target and depth stencil
+		ComPtr<ID3D11RenderTargetView> m_TextureRenderTargetView = nullptr;
+		ComPtr<ID3D11DepthStencilView> m_TextureDepthStencilView = nullptr;
+		void CreateRenderTargetAndDepthStencilView(int width, int height);
 
-private:
+		// Shader resource view
+		ComPtr<ID3D11ShaderResourceView> m_TextureShaderResource = nullptr;
+		void CreateShaderResource();
+	public:
+		RenderTarget(Renderer* renderer);
+		virtual ~RenderTarget() = default;
 
-	// Render texture
-	ComPtr<ID3D11Texture2D> m_Texture = nullptr;
-	void CreateRenderTexture(int width, int height);
+		// Initializer and updater
+		void Create(int width, int height);
+		void Use();
 
-	// Render target and depth stencil
-	ComPtr<ID3D11RenderTargetView> m_TextureRenderTargetView = nullptr;
-	ComPtr<ID3D11DepthStencilView> m_TextureDepthStencilView = nullptr;
-	void CreateRenderTargetAndDepthStencilView(int width, int height);
-
-	// Shader resource view
-	ComPtr<ID3D11ShaderResourceView> m_TextureShaderResource = nullptr;
-	void CreateShaderResource();
+		// Get render texture
+		ID3D11ShaderResourceView* GetTexture() const { return m_TextureShaderResource.Get(); }
 };

@@ -1,5 +1,5 @@
-// NavigatorWindow UI Header
-// Creates Navigator subwindow and adds functionality.
+// NavigatorWindow GUI
+// Creates and renders Navigator subwindow.
 
 #pragma once
 
@@ -19,8 +19,11 @@ class Object;
 
 class NavigatorWindow {
     private:
+        // Object being held. Used when moving objects around the Navigator.
         static Object* heldObject;
     public:
+        // Render window
         static int Render(Renderer* renderer, Game* game, float scale);
+        // Render object buttons
         static void GenerateItemTreeNodes(Object* item, Game* game, int id = 0);
 };

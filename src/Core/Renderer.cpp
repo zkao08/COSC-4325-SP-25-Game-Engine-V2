@@ -1,3 +1,6 @@
+// Renderer class
+// Handles rendering the game world using DirectX 11
+
 #include "Renderer.h"
 #include "Application.h"
 #include "Window.h"
@@ -14,8 +17,11 @@
 #include <memory>
 #include <map>
 
+// World background color (RGBA)
 static DirectX::XMVECTORF32 floatingVector = { 32.0f / 255.0f, 32.0f / 255.0f, 32.0f / 255.0f, 0.0f };
 
+// Loaded textures to be reused
+// Loading new textures every time will result in a severe memory leak, thus caching textures are necessary.
 static std::map<char*, ID3D11ShaderResourceView*> cachedTextures;
 
 Renderer::Renderer(Application* application) : m_Application(application) {}
@@ -28,6 +34,7 @@ Renderer::~Renderer() {
 	}
 }
 
+// Initializes renderer, setting up DirectX and imgui
 void Renderer::Create()
 {
 	int window_width, window_height;
@@ -55,6 +62,7 @@ void Renderer::Create()
 	}
 }
 
+// Creates device and context for DirectX
 void Renderer::CreateDeviceAndContext()
 {
 	// Look for Direct3D 11 feature
@@ -91,9 +99,10 @@ void Renderer::CreateDeviceAndContext()
 	}
 }
 
+// Creates swap chain for DirectX
 void Renderer::CreateSwapChain(int width, int height)
 {
-	// Query the device until we get the DXGIFactory
+	// Query the device until DXGIFactory is received
 	ComPtr<IDXGIDevice> dxgiDevice = nullptr;
 	DX::Check(m_Device.As(&dxgiDevice));
 
@@ -107,7 +116,7 @@ void Renderer::CreateSwapChain(int width, int height)
 	ComPtr<IDXGIFactory2> dxgiFactory2 = nullptr;
 	DX::Check(dxgiFactory.As(&dxgiFactory2));
 
-	// If we can support IDXGIFactory2 then use it to create the swap chain, otherwise fallback to IDXIFactory
+	// If IDXGIFactory2 is supported, then use it to create the swap chain, otherwise fallback to IDXIFactory
 	if (dxgiFactory2 != nullptr)
 	{
 		// DirectX 11.1
@@ -122,7 +131,7 @@ void Renderer::CreateSwapChain(int width, int height)
 		swapchain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 		swapchain_desc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
 
-		// CreateSwapChainForHwnd is the prefered way of creating the swap chain
+		// CreateSwapChainForHwnd is the preferred way of creating the swap chain
 		DX::Check(dxgiFactory2->CreateSwapChainForHwnd(m_Device.Get(), m_Application->GetWindow()->GetHwnd(), &swapchain_desc, nullptr, nullptr, &m_SwapChain1));
 		DX::Check(m_SwapChain1.As(&m_SwapChain));
 	}
@@ -145,11 +154,12 @@ void Renderer::CreateSwapChain(int width, int height)
 		swapchain_desc.OutputWindow = m_Application->GetWindow()->GetHwnd();
 		swapchain_desc.Windowed = TRUE;
 
-		// Creates the swapchain
+		// Create the swapchain
 		DX::Check(dxgiFactory->CreateSwapChain(m_Device.Get(), &swapchain_desc, &m_SwapChain));
 	}
 }
 
+// Creates sampler state for DirectX
 void Renderer::CreateSamplerState() {
 	D3D11_SAMPLER_DESC samplerDesc;
 	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
@@ -165,6 +175,7 @@ void Renderer::CreateSamplerState() {
 	DX::Check(m_Device->CreateSamplerState(&samplerDesc, &m_SamplerState));
 }
 
+// Creates render target and depth stencil view for DirectX
 void Renderer::CreateRenderTargetAndDepthStencilView(int width, int height)
 {
 	// Create the render target view
@@ -193,9 +204,11 @@ void Renderer::CreateRenderTargetAndDepthStencilView(int width, int height)
 	m_DeviceContext->OMSetRenderTargets(1, m_RenderTargetView.GetAddressOf(), m_DepthStencilView.Get());
 }
 
+// Creates blend state for DirectX
+// Enables alpha transparency support on images
 void Renderer::CreateBlendState() {
 	D3D11_BLEND_DESC blendDesc = {};
-	blendDesc.AlphaToCoverageEnable = FALSE;
+	blendDesc.AlphaToCoverageEnable = TRUE;
 	blendDesc.IndependentBlendEnable = FALSE;
 
 	D3D11_RENDER_TARGET_BLEND_DESC& rtBlendDesc = blendDesc.RenderTarget[0];
@@ -211,6 +224,7 @@ void Renderer::CreateBlendState() {
 	DX::Check(m_Device->CreateBlendState(&blendDesc, m_BlendState.ReleaseAndGetAddressOf()));
 }
 
+// Edits viewport properties based on provided width and height
 void Renderer::SetViewport(int width, int height)
 {
 	// Describe the viewport
@@ -226,6 +240,7 @@ void Renderer::SetViewport(int width, int height)
 	m_DeviceContext->RSSetViewports(1, &viewport);
 }
 
+// Clears frame for DirectX
 void Renderer::Clear()
 {
 	// Clear the render target view to the chosen colour
@@ -242,6 +257,7 @@ void Renderer::Clear()
 	}
 }
 
+// Shows frame for DirectX
 void Renderer::Present()
 {
 	if (m_Application->m_DevMode) {
@@ -266,6 +282,7 @@ void Renderer::Present()
 	}
 }
 
+// Resizes viewport to keep game world size consistent
 void Renderer::Resize(int width, int height)
 {
 	// Can only resize if width or height has a positive value to avoid crashing
@@ -383,26 +400,35 @@ bool Renderer::CreateImageButton(char* id, char* path, ImVec2 size) {
 	return pressed;
 }
 
+// Gets the already-calculated scale factor
+// Used to keep the rendering and physics world consistent with each other.
 float Renderer::GetScaleFactor() {
 	return savedScaleFactor;
 }
 
+// Calculates the scale factor
+// Used to keep the rendering and physics world consistent with each other.
 float Renderer::GetScaleFactor(float width, float height) {
 	savedScaleFactor = min(((float)(GetSystemMetrics(SM_CXSCREEN) * 2) / width), ((float)(GetSystemMetrics(SM_CYSCREEN) * 2) / height));
 	return savedScaleFactor;
 }
 
+// Gets the DirectX device
 ComPtr<ID3D11Device> Renderer::GetDevice() {
 	return m_Device;
 }
+
+// Gets the DirectX context
 ComPtr<ID3D11DeviceContext> Renderer::GetContext() {
 	return m_DeviceContext;
 }
 
+// Gets the DirectX blend state
 ComPtr<ID3D11BlendState> Renderer::GetBlendState() {
 	return m_BlendState;
 }
 
+// Gets the DirectX sampler state
 ComPtr<ID3D11SamplerState> Renderer::GetSamplerState() {
 	return m_SamplerState;
 }

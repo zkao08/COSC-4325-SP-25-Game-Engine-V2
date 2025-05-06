@@ -1,3 +1,6 @@
+// Rect class
+// Creates a visual shape/texture for rendering.
+
 #pragma once
 
 #include "Vector2.h"
@@ -8,15 +11,14 @@
 #include <DirectXMath.h>
 #include "Utility.h"
 
-// This include is requires for using DirectX smart pointers (ComPtr)
 #include <wrl\client.h>
 using Microsoft::WRL::ComPtr;
 
 class Renderer;
 
-class Rect
-{
+class Rect {
 	private:
+		// Renderer class
 		Renderer* m_Renderer = nullptr;
 
 		// Number of indices to draw
@@ -33,6 +35,7 @@ class Rect
 		// Texture buffer
 		ComPtr<ID3D11ShaderResourceView> m_DiffuseTexture = nullptr;
 
+		// Transform state
 		float lastPosX = -1.0f;
 		float lastPosY = -1.0f;
 		float lastSizeX = -1.0f;
@@ -43,12 +46,13 @@ class Rect
 		Rect(Renderer* renderer);
 		virtual ~Rect() = default;
 
-		// Create the model
+		// Create the shape
 		void Create(std::wstring path = GetProjectRootWString() + L"\\assets\\Square.png", float pos_x = 0.0f, float pos_y = 0.0f, float size_x = 1.0f, float size_y = 1.0f, float rotation = 0.0f);
 
+		// Load texture onto shape
 		void LoadTexture(std::wstring path);
 
-		// Render the model
+		// Render the shape
 		void Render();
 
 		void SetTransform(float pos_x = 0.0f, float pos_y = 0.0f, float size_x = 1.0f, float size_y = 1.0f, float rotation = 0.0f);

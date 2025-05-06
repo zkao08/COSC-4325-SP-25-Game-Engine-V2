@@ -1,12 +1,17 @@
+// RasterState class
+// Handles toggling wireframe visibility in the viewport.
+
 #include "RasterState.h"
 #include "Renderer.h"
 
+// Initializes raster state for wireframe toggling
 RasterState::RasterState(Renderer* renderer) : m_Renderer(renderer)
 {
 	CreateRasterStateSolid();
 	CreateRasterStateWireframe();
 }
 
+// Updates raster state for wireframe toggling
 void RasterState::Use()
 {
 	ComPtr<ID3D11DeviceContext> context = m_Renderer->GetContext();
@@ -21,11 +26,13 @@ void RasterState::Use()
 	}
 }
 
+// Method for toggling wireframe
 void RasterState::ToggleWireframe()
 {
 	m_RenderWireframe = !m_RenderWireframe;
 }
 
+// Create normal rendering state
 void RasterState::CreateRasterStateSolid()
 {
 	D3D11_RASTERIZER_DESC rasterizerState = {};
@@ -44,6 +51,7 @@ void RasterState::CreateRasterStateSolid()
 	DX::Check(device->CreateRasterizerState(&rasterizerState, m_RasterStateSolid.ReleaseAndGetAddressOf()));
 }
 
+// Create wireframe rendering state
 void RasterState::CreateRasterStateWireframe()
 {
 	D3D11_RASTERIZER_DESC rasterizerState = {};

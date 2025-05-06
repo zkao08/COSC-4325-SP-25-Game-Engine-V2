@@ -1,5 +1,5 @@
-// ViewportWindow UI Header
-// Creates Viewport subwindow and adds functionality.
+// ViewportWindow GUI
+// Creates and renders the Viewport subwindow.
 
 #pragma once
 
@@ -23,8 +23,12 @@ class ViewportWindow {
         static ImVec2 position;
         static ImVec2 regionAvail;
     public:
+        // Renders GUI
         static int Render(Renderer* renderer, float scale, ImTextureID texture, Camera* camera);
+        // Gets the subwindow's size
         static ImVec2 GetSize();
+        // Returns whether the viewport is focused by the user
         static bool IsFocused();
+        // Returns whether viewport is hovered by the user
         static bool IsHovered();
 };

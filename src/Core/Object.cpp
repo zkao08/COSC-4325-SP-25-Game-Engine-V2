@@ -1,15 +1,20 @@
+// Object class
+// Represents all types of objects in the game.
+
 #include "Object.h"
 
 float LimitRotation(float rotation);
 
 bool scriptRunning = false;
 
+// Creates a bare object. Mainly used for folders
 Object::Object(std::string new_name, bool dev_mode) {
 	devMode = dev_mode;
 	this->properties["Name"].Data = new_name;
 	this->children = new std::vector<Object*>;
 }
 
+// Creates a copy of the provided object
 Object::Object(Object* target_object, Renderer* renderer, bool dev_mode) {
 	devMode = dev_mode;
 	this->properties = target_object->properties;
@@ -31,6 +36,7 @@ Object::Object(Object* target_object, Renderer* renderer, bool dev_mode) {
 	}
 }
 
+// Creates a bare object with a rendered shape
 Object::Object(Renderer* renderer, std::string new_name, bool dev_mode) {
 	devMode = dev_mode;
 	this->properties["Name"].Data = new_name;
@@ -41,6 +47,7 @@ Object::Object(Renderer* renderer, std::string new_name, bool dev_mode) {
 	this->CreatePhysicsBody(renderer->GetScaleFactor());
 }
 
+// Creates an object with set properties
 Object::Object(Renderer* renderer, std::string new_name, std::map<std::string, PropertyData> new_properties, bool dev_mode) {
 	devMode = dev_mode;
 	this->properties = new_properties;
@@ -56,6 +63,7 @@ Object::Object(Renderer* renderer, std::string new_name, std::map<std::string, P
 	this->CreatePhysicsBody(renderer->GetScaleFactor());
 }
 
+// Destroys the object and its children
 Object::~Object() {
 	if (b2Body_IsValid(this->physicsBody))
 		PhysicsWorld::GetInstance().DestroyObject(this->physicsBody);
@@ -68,6 +76,7 @@ Object::~Object() {
 	delete children;
 }
 
+// Gets the property of an object
 std::string Object::GetProperty(std::string property) {
 	if (!enabled || markedDeleted || this->properties.find(property) == this->properties.end())
 		return "";
@@ -75,6 +84,7 @@ std::string Object::GetProperty(std::string property) {
 	return this->properties[property].Data;
 }
 
+// Sets the property of an object
 void Object::SetProperty(std::string property, std::string value) {
 	if (!enabled || markedDeleted || this->properties.find(property) == this->properties.end())
 		return;
@@ -82,6 +92,7 @@ void Object::SetProperty(std::string property, std::string value) {
 	this->properties[property].Data = value;
 }
 
+// Deletes the object. Mainly used to bind to Lua.
 void Object::Delete() {
 	if (this->GetParent() == nullptr)
 		delete this;
@@ -89,6 +100,7 @@ void Object::Delete() {
 		this->GetParent()->DeleteChild(this);
 }
 
+// Creates a body for the object to enable physics capabilities
 void Object::CreatePhysicsBody(float scaleFactor) {
 	if (!enabled || devMode || markedDeleted || this->properties.find("Collidable") == this->properties.end() || this->properties["Collidable"].Data == "false")
 		return;
@@ -110,14 +122,17 @@ void Object::CreatePhysicsBody(float scaleFactor) {
 	physicsBody = PhysicsWorld::GetInstance().CreateShape(physicsShapeParams);
 }
 
+// Gets the object's parent
 Object* Object::GetParent() {
 	return this->parent;
 }
 
+// Gets the object's physical body
 b2BodyId Object::GetPhysicsBodyId() {
 	return physicsBody;
 }
 
+// Adds a child object into the object
 void Object::AddChild(Object* child) {
 	if (!enabled || markedDeleted)
 		return;
@@ -125,6 +140,7 @@ void Object::AddChild(Object* child) {
 	children->push_back(child);
 }
 
+// Adds a child object into the object after a provided target child object.
 void Object::AddAfterChild(Object* child_target, Object* child) {
 	if (!enabled || markedDeleted)
 		return;
@@ -144,6 +160,7 @@ void Object::AddAfterChild(Object* child_target, Object* child) {
 	delete oldChildren;
 }
 
+// Expected to be called in a loop to update the object's state
 void Object::Update(bool dev_mode, Object* game, HWND hwnd, Camera* camera) {
 	if (!enabled || markedDeleted)
 		return;
@@ -176,9 +193,6 @@ void Object::Update(bool dev_mode, Object* game, HWND hwnd, Camera* camera) {
 				else if (b2Body_GetType(this->physicsBody) != b2BodyType::b2_dynamicBody)
 					b2Body_SetType(this->physicsBody, b2BodyType::b2_dynamicBody);
 
-				//if (this->properties["Upright"].Data == "true")
-					//b2Body_SetAngularVelocity(this->physicsBody, 0.0f);
-
 			}
 			shape->SetTransform(StringToVector2(this->properties["Position"].Data), StringToVector2(this->properties["Size"].Data), std::stof(RoundString(this->properties["Rotation"].Data)));
 			shape->LoadTexture(StringToWString(this->properties["Texture"].Data));
@@ -196,6 +210,7 @@ void Object::Update(bool dev_mode, Object* game, HWND hwnd, Camera* camera) {
 	}
 }
 
+// Finds a child of the object by name if it exists
 Object* Object::GetChild(std::string name, bool recursive) {
 	if (!enabled || markedDeleted)
 		return nullptr;
@@ -203,6 +218,7 @@ Object* Object::GetChild(std::string name, bool recursive) {
 	return GetChildRecursive(name, this->children, recursive);
 }
 
+// Recursive function for GetChild()
 Object* Object::GetChildRecursive(std::string name, std::vector<Object*>* list, bool recursive) {
 	Object* obj = nullptr;
 
@@ -218,6 +234,7 @@ Object* Object::GetChildRecursive(std::string name, std::vector<Object*>* list, 
 	return obj;
 }
 
+// Deletes a child in the object
 void Object::DeleteChild(Object* object, bool recursive) {
 	if (!enabled || markedDeleted)
 		return;
@@ -226,6 +243,7 @@ void Object::DeleteChild(Object* object, bool recursive) {
 	CleanChildren();
 }
 
+// Recursive function for DeleteChild()
 Object* Object::DeleteChildRecursive(Object* object, std::vector<Object*>* list, bool recursive) {
 	for (int i = 0; i < list->size(); i++) {
 		if (!list->at(i)->markedDeleted && list->at(i) == object) {
@@ -242,6 +260,7 @@ Object* Object::DeleteChildRecursive(Object* object, std::vector<Object*>* list,
 	return object;
 }
 
+// Unparents a child object
 // Note that this is not the same as DeleteChild(). This removes it from the parent object, but does not delete it. Mainly used to transfer objects.
 void Object::RemoveChild(Object* child) {
 	if (!enabled || markedDeleted)
@@ -257,6 +276,7 @@ void Object::RemoveChild(Object* child) {
 	child->parent = nullptr;
 }
 
+// Updates the object's children to delete objects marked as deleted
 void Object::CleanChildren() {
 	if (!enabled || markedDeleted)
 		return;
@@ -277,6 +297,7 @@ void Object::CleanChildren() {
 	delete oldList;
 }
 
+// Recursive function for CleanChildren()
 void Object::CleanChildrenRecursive(Object* object) {
 	std::vector<Object*>* newList = new std::vector<Object*>;
 	std::vector<Object*>* oldList = object->children;
@@ -294,6 +315,7 @@ void Object::CleanChildrenRecursive(Object* object) {
 	delete oldList;
 }
 
+// Returns whether the provided object is a descendant of the current object
 bool Object::IsDescendant(Object* object) {
 	if (!enabled || markedDeleted)
 		return false;
@@ -301,6 +323,7 @@ bool Object::IsDescendant(Object* object) {
 	return (IsDescendantRecursive(object, this) != nullptr);
 }
 
+// Recursive function for IsDescendant()
 Object* Object::IsDescendantRecursive(Object* object_to_find, Object* object_to_search) {
 	Object* obj = nullptr;
 
@@ -314,6 +337,7 @@ Object* Object::IsDescendantRecursive(Object* object_to_find, Object* object_to_
 	return obj;
 }
 
+// Runs Lua code and binds C++ methods for Lua to use
 void Object::ExecuteScript(std::string file_path, Object* game, HWND hwnd, Camera* camera) {
 	if (!enabled || markedDeleted)
 		return;
@@ -372,17 +396,20 @@ void Object::ExecuteScript(std::string file_path, Object* game, HWND hwnd, Camer
 	scriptRunning = false;
 }
 
+// Gets the X position of the object. Mainly used to bind to Lua.
 float Object::GetPositionX() {
 	Vector2 position = StringToVector2(this->GetProperty("Position"));
 	std::cout << -position.x << std::endl;
 	return -position.x;
 }
 
+// Gets the Y position of the object. Mainly used to bind to Lua.
 float Object::GetPositionY() {
 	Vector2 position = StringToVector2(this->GetProperty("Position"));
 	return -position.y;
 }
 
+// Limits a number to be within 0-360
 float LimitRotation(float rotation) {
 	if (rotation > 360)
 		rotation = LimitRotation(rotation - 360);

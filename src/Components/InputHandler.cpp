@@ -480,7 +480,7 @@ bool InputHandler::IsKeyDown(int keyCode) const
     auto it = m_KeyboardMap.find(keyCode);
     if (it != m_KeyboardMap.end())
     {
-        return it->second.down;
+        return it->second.down && !it->second.downPrevious;
     }
     return false;
 }

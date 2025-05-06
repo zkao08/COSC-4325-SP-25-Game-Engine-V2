@@ -1,5 +1,5 @@
-// Object Class
-// Base class for all objects.
+// Object class
+// Represents all types of objects in the game.
 
 #pragma once
 
@@ -36,56 +36,75 @@ struct PropertyData {
 class Camera;
 
 class Object {
-private:
-	Object* DeleteChildRecursive(Object* object, std::vector<Object*>* list, bool recursive = false);
-	Object* GetChildRecursive(std::string name, std::vector<Object*>* list, bool recursive = false);
-	void CleanChildren();
-	void CleanChildrenRecursive(Object* object);
-	Object* IsDescendantRecursive(Object* object_to_find, Object* Object_to_search);
-	void ExecuteScript(std::string file_path = "", Object* game = nullptr, HWND hwnd = nullptr, Camera* camera = nullptr);
+	private:
+		// Object child methods
+		Object* DeleteChildRecursive(Object* object, std::vector<Object*>* list, bool recursive = false);
+		Object* GetChildRecursive(std::string name, std::vector<Object*>* list, bool recursive = false);
+		void CleanChildren();
+		void CleanChildrenRecursive(Object* object);
+		Object* IsDescendantRecursive(Object* object_to_find, Object* Object_to_search);
 
-	b2BodyId physicsBody;
+		// Run Lua scripts
+		void ExecuteScript(std::string file_path = "", Object* game = nullptr, HWND hwnd = nullptr, Camera* camera = nullptr);
 
-	bool devMode = false;
-	bool ranScript = false;
-public:
-	Object* parent = nullptr;
-	std::vector<Object*>* children;
-	std::unique_ptr<Rect> shape = nullptr;
-	bool enabled = true;
-	bool markedDeleted = false;
+		// Object physics body
+		b2BodyId physicsBody;
 
-	std::map<std::string, PropertyData> properties{
-		{"Name", {"char", "Object"}},
-		{"Type", {"const_char", "Object"}},
-		{"Parent", {"const_char", "null"}}
-	};
+		// States
+		bool devMode = false;
+		bool ranScript = false;
+	public:
+		// Objects
+		Object* parent = nullptr;
+		std::vector<Object*>* children;
+		std::unique_ptr<Rect> shape = nullptr;
 
-	Object(std::string new_name, bool dev_mode = false);
-	Object(Object* target_object, Renderer* renderer = nullptr, bool dev_mode = false);
-	Object(Renderer* renderer, std::string new_name, bool dev_mode = false);
-	Object(Renderer* renderer, std::string new_name, std::map<std::string, PropertyData>, bool dev_mode = false);
-	~Object();
+		// States
+		bool enabled = true;
+		bool markedDeleted = false;
 
-	std::string GetProperty(std::string property);
-	void SetProperty(std::string property, std::string value);
-	void Delete();
+		// Properties
+		std::map<std::string, PropertyData> properties{
+			{"Name", {"char", "Object"}},
+			{"Type", {"const_char", "Object"}},
+			{"Parent", {"const_char", "null"}}
+		};
 
-	void CreatePhysicsBody(float scaleFactor = 1.0f);
+		// Constructors and Destructor
+		Object(std::string new_name, bool dev_mode = false);
+		Object(Object* target_object, Renderer* renderer = nullptr, bool dev_mode = false);
+		Object(Renderer* renderer, std::string new_name, bool dev_mode = false);
+		Object(Renderer* renderer, std::string new_name, std::map<std::string, PropertyData>, bool dev_mode = false);
+		~Object();
 
-	Object* GetParent();
-	b2BodyId GetPhysicsBodyId();
+		// Property methods
+		std::string GetProperty(std::string property);
+		void SetProperty(std::string property, std::string value);
 
-	void AddChild(Object* child);
-	void AddAfterChild(Object* child_target, Object* child);
-	Object* GetChild(std::string name, bool recursive = false);
-	void DeleteChild(Object* child, bool recursive = false);
-	void RemoveChild(Object* child);
+		// Object deletion
+		void Delete();
 
-	bool IsDescendant(Object* object);
+		// Physics body creation
+		void CreatePhysicsBody(float scaleFactor = 1.0f);
 
-	float GetPositionX();
-	float GetPositionY();
+		// Object getters
+		Object* GetParent();
+		b2BodyId GetPhysicsBodyId();
 
-	void Update(bool dev_mode = false, Object* game = nullptr, HWND hwnd = nullptr, Camera* camera = nullptr);
+		// Object child methods
+		void AddChild(Object* child);
+		void AddAfterChild(Object* child_target, Object* child);
+		Object* GetChild(std::string name, bool recursive = false);
+		void DeleteChild(Object* child, bool recursive = false);
+		void RemoveChild(Object* child);
+
+		// Checks whether provided object is a descendant
+		bool IsDescendant(Object* object);
+
+		// Get object positions
+		float GetPositionX();
+		float GetPositionY();
+
+		// Updates object state
+		void Update(bool dev_mode = false, Object* game = nullptr, HWND hwnd = nullptr, Camera* camera = nullptr);
 };

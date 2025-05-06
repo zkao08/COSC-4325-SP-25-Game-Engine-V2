@@ -21,22 +21,22 @@ class Window {
 		Window(Application* application);
 		virtual ~Window();
 
-		// Create the window
+		// Creates the window
 		bool Create(const std::string title, int width, int height, bool fullscreen);
 
 		// Destroys the window
 		void Destroy();
 
-		// Get window size
+		// Gets window size
 		void GetSize(int* width, int* height);
 		void GetSize(int& width, int& height);
 
-		// Get native window handle
+		// Gets native window handle
 		inline HWND GetHwnd() const { return m_Hwnd; }
 
-		// Get application
+		// Gets application
 		inline Application* GetApplication() const { return m_Application; }
 
-		// Set title
+		// Sets title
 		void SetTitle(const std::string& title);
 };

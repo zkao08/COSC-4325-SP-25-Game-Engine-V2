@@ -1,5 +1,5 @@
-// PropertiesWindow UI Header
-// Creates Properties subwindow and adds functionality.
+// PropertiesWindow GUI
+// Creates and renders the Properties subwindow.
 
 #pragma once
 
@@ -15,6 +15,8 @@
 
 class PropertiesWindow {
     public:
+        // Renders the GUI
         static int Render(Game* game, float scale);
+        // Loads object property data into the GUI
         static void LoadProperties(Object* entity);
 };

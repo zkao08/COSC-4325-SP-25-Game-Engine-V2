@@ -1,3 +1,6 @@
+// Application Class
+// Handles creating and rendering the game engine level editor and runtime.
+
 #include "Application.h"
 
 const int TARGET_RESOLUTION_X = 1920;
@@ -6,6 +9,7 @@ const int TARGET_RESOLUTION_Y = 1080;
 static int scaledResolutionX;
 static int scaledResolutionY;
 
+// Create the application, also creating the classes needed for it to function.
 Application::Application(std::string title, Object* game_object, bool dev_mode) {
 	GetResolution(scaledResolutionX, scaledResolutionY);
 
@@ -45,12 +49,14 @@ Application::Application(std::string title, Object* game_object, bool dev_mode) 
 	m_Game = std::make_unique<Game>(game_object, m_Renderer.get(), dev_mode);
 }
 
+// Set the application's scale factor based on the system's set resolution to make the rendering and physics world consistent.
 int Application::Initialize() {
 	scaleFactor = m_Renderer->GetScaleFactor((float)scaledResolutionX, (float)scaledResolutionY);
 
 	return 1;
 }
 
+// Renders and updates the engine GUI and game world. Expected to be called every frame.
 int Application::Render(float deltaTime) {
 	if (!m_Running)
 		return NONE;
@@ -68,14 +74,17 @@ int Application::Render(float deltaTime) {
 		DispatchMessageW(&msg);
 	}
 	else {
+		// Renders shaders and raster state
 		m_Shader->Use();
 		m_RasterState->Use();
 
 		// Binds the render-to-texture render target to the pipeline
 		m_RenderTarget->Use();
+
 		// Update the model view projection constant buffer
 		this->ComputeModelViewProjectionMatrix();
 
+		// If the level editor is running, show GUI as well as the game world. Otherwise, only render the game world.
 		if (m_DevMode) {
 			m_Game->GetGameObject()->Update(m_DevMode);
 			m_Renderer->Clear();
@@ -111,6 +120,7 @@ int Application::Render(float deltaTime) {
 	return status;
 }
 
+// Detects and handles operating system events
 LRESULT Application::HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 	if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam))
@@ -140,10 +150,6 @@ LRESULT Application::HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 		this->OnMouseScroll(hwnd, msg, wParam, lParam);
 		return 0;
 
-	case WM_LBUTTONDOWN:
-		this->OnMouseDown(hwnd, msg, wParam, lParam);
-		return 0;
-
 	case WM_KEYDOWN:
 		this->OnKeyDown(hwnd, msg, wParam, lParam);
 		return 0;
@@ -152,6 +158,7 @@ LRESULT Application::HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
+// Ensures the game world looks consistent regardless of the window's size
 void Application::OnResized(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	// Window resized is called upon window creation, so ignore if the window has not finished being created
 	if (!m_WindowCreated)
@@ -171,6 +178,7 @@ void Application::OnResized(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	m_CameraPlane->UpdateAspectRatio(window_width, window_height);
 }
 
+// Enables functionality for navigating the Viewport using the mouse
 void Application::OnMouseMove(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, float delta_z) {
 	if ((m_DevMode && !ViewportWindow::IsHovered()) || !m_DevMode)
 		return;
@@ -201,6 +209,7 @@ void Application::OnMouseMove(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,
 	m_MouseY = mouse_y;
 }
 
+// Controls the camera's zoom
 void Application::OnMouseScroll(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	if (m_DevMode && !ViewportWindow::IsHovered())
 		return;
@@ -214,19 +223,7 @@ void Application::OnMouseScroll(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 	this->OnMouseMove(hwnd, msg, wParam, lParam, delta_z);
 }
 
-void Application::OnMouseDown(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-	if (m_DevMode && !ViewportWindow::IsHovered())
-		return;
-
-	int mouse_x = static_cast<int>(GET_X_LPARAM(lParam));
-	int mouse_y = static_cast<int>(GET_Y_LPARAM(lParam));
-
-	float x;
-	float y;
-
-	MouseToWorldCoordinates(x, y);
-}
-
+// Detects keyboard inputs to reset camera position or toggle wireframe mode
 void Application::OnKeyDown(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	if (m_DevMode && !ViewportWindow::IsFocused())
 		return;
@@ -239,6 +236,7 @@ void Application::OnKeyDown(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 		m_RasterState->ToggleWireframe();
 }
 
+// Calculates the application's current frame rate.
 void Application::CalculateFrameStats(float delta_time) {
 	static float time = 0.0f;
 
@@ -256,6 +254,7 @@ void Application::CalculateFrameStats(float delta_time) {
 	}
 }
 
+// Compute the matrix to properly render the camera's position in relation to the game world
 void Application::ComputeModelViewProjectionMatrix()
 {
 	DirectX::XMMATRIX matrix = DirectX::XMMatrixIdentity();
@@ -267,6 +266,7 @@ void Application::ComputeModelViewProjectionMatrix()
 	m_ProjectionMatrix = matrix;
 }
 
+// Compute the matrix to properly render the camera's position in relation to the game world
 void Application::ComputePlaneViewProjectionMatrix()
 {
 	DirectX::XMMATRIX matrix = DirectX::XMMatrixIdentity();
@@ -278,6 +278,7 @@ void Application::ComputePlaneViewProjectionMatrix()
 	m_Shader->UpdateModelViewProjectionBuffer(matrix);
 }
 
+// Uses the RenderTarget class to convert rendered scene into a texture (allows showing render in ImGui window)
 void Application::RenderToTexture()
 {
 	// Binds the render-to-texture render target to the pipeline
@@ -285,9 +286,9 @@ void Application::RenderToTexture()
 
 	// Update the model view projection constant buffer
 	this->ComputeModelViewProjectionMatrix();
-	//this->ComputePlaneViewProjectionMatrix();
 }
 
+// Gets the desktop's set resolution
 void Application::GetResolution(int& x, int& y)
 {
 	RECT desktop;
@@ -298,60 +299,4 @@ void Application::GetResolution(int& x, int& y)
 
 	x = desktop.right;
 	y = desktop.bottom;
-}
-
-void Application::MouseToWorldCoordinates(float& world_x, float& world_y) {
-	int screenWidth;
-	int screenHeight;
-
-	//m_Window->GetSize(screenWidth, screenHeight);
-
-	ImVec2 size = ViewportWindow::GetSize();
-	screenWidth = size.x;
-	screenHeight = size.y;
-
-	float mousex = (m_MouseX - size.x) - (m_Camera->GetPosition().x - size.x / 2);
-	float mousey = (m_MouseY - size.y) - (m_Camera->GetPosition().y - size.y / 2);
-
-	MouseToWorldCoordinates(mousex, mousey, m_Window->GetHwnd(), screenWidth, screenHeight, m_ProjectionMatrix, m_Camera->GetProjection(), world_x, world_y);
-}
-
-void Application::MouseToWorldCoordinates(int mouse_x, int mouse_y, HWND window, int screen_width, int screen_height, const DirectX::XMMATRIX& projection_matrix, const DirectX::XMMATRIX& view_matrix, float& world_x, float& world_y) {
-	RECT mainRect;
-	GetClientRect(window, &mainRect);
-	int mainWindowWidth = mainRect.right - mainRect.left;
-	int mainWindowHeight = mainRect.bottom - mainRect.top;
-
-	POINT mousePos;
-	GetCursorPos(&mousePos);
-	ScreenToClient(window, &mousePos);
-	mouse_x = mousePos.x;
-	mouse_y = mousePos.y;
-
-	mouse_x -= ViewportWindow::GetSize().x;
-	mouse_y -= ViewportWindow::GetSize().y;
-
-	// Normalize mouse coordinates
-	float normalizedX = (2.0f * mouse_x) / screen_width - 1.0f;
-	float normalizedY = 1.0f - (2.0f * mouse_y) / screen_height; // Invert Y
-
-	// Create NDC vector
-	DirectX::XMFLOAT4 mouseNDC(normalizedX, normalizedY, 0.0f, 1.0f);
-
-	// Inverse projection matrix
-	DirectX::XMMATRIX inverseProjection = DirectX::XMMatrixInverse(nullptr, projection_matrix);
-
-	// Inverse view matrix
-	DirectX::XMMATRIX inverseView = DirectX::XMMatrixInverse(nullptr, view_matrix);
-
-	// Transform to clip space
-	DirectX::XMVECTOR clipSpace = DirectX::XMLoadFloat4(&mouseNDC);
-
-	// Transform to world coordinates
-	DirectX::XMVECTOR worldSpace = DirectX::XMVector3Transform(clipSpace, inverseProjection);
-	worldSpace = DirectX::XMVector3Transform(worldSpace, inverseView);
-
-	// Extract world coordinates
-	world_x = DirectX::XMVectorGetX(worldSpace);
-	world_y = DirectX::XMVectorGetY(worldSpace);
 }

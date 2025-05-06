@@ -1,3 +1,6 @@
+// Application Class
+// Handles creating and rendering the game engine level editor and runtime.
+
 #pragma once
 
 #define NOMINMAX
@@ -37,60 +40,61 @@ class Renderer;
 class Game;
 class Camera;
 
-class Application
-{
-private:
-	std::unique_ptr<Window> m_Window = nullptr;
-	std::unique_ptr<Renderer> m_Renderer = nullptr;
-	std::unique_ptr<Shader> m_Shader = nullptr;
-	std::unique_ptr<Camera> m_Camera = nullptr;
-	std::unique_ptr<Camera> m_CameraPlane = nullptr;
-	std::unique_ptr<RasterState> m_RasterState = nullptr;
-	std::unique_ptr<RenderTarget> m_RenderTarget = nullptr;
-	std::unique_ptr<Game> m_Game = nullptr;
-	Timer m_Timer;
+class Application {
+	private:
+		// Components
+		std::unique_ptr<Window> m_Window = nullptr;
+		std::unique_ptr<Renderer> m_Renderer = nullptr;
+		std::unique_ptr<Shader> m_Shader = nullptr;
+		std::unique_ptr<Camera> m_Camera = nullptr;
+		std::unique_ptr<Camera> m_CameraPlane = nullptr;
+		std::unique_ptr<RasterState> m_RasterState = nullptr;
+		std::unique_ptr<RenderTarget> m_RenderTarget = nullptr;
+		std::unique_ptr<Game> m_Game = nullptr;
 
-	bool m_Running = true;
-	bool m_WindowCreated = false;
-	std::string m_ApplicationTitle = "App";
+		// States
+		bool m_Running = true;
+		bool m_WindowCreated = false;
+		std::string m_ApplicationTitle = "App";
 
-	void OnResized(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
-	void OnMouseMove(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, float delta_z = 0.0f);
-	void OnMouseScroll(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
-	void OnMouseDown(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
-	void OnKeyDown(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+		// System events
+		void OnResized(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+		void OnMouseMove(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, float delta_z = 0.0f);
+		void OnMouseScroll(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+		void OnKeyDown(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-	void ComputePlaneViewProjectionMatrix();
-	void ComputeModelViewProjectionMatrix();
+		// Projection matrix calculations
+		void ComputePlaneViewProjectionMatrix();
+		void ComputeModelViewProjectionMatrix();
 
-	void RenderToTexture();
+		// Renders world into texture
+		void RenderToTexture();
 
-	// Calculate frame stats
-	void CalculateFrameStats(float delta_time);
-	int m_FrameCount = 0;
+		// Frame stats
+		void CalculateFrameStats(float delta_time);
+		int m_FrameCount = 0;
 
-	void MouseToWorldCoordinates(int mouse_x, int mouse_y, HWND window, int screen_width, int screen_height, const DirectX::XMMATRIX& projection_matrix, const DirectX::XMMATRIX& view_matrix, float& world_x, float& world_y);
+	public:
+		// Variables
+		bool m_DevMode;
+		float scaleFactor = 0.0f;
 
-public:
-	bool m_DevMode;
-	float scaleFactor = 0.0f;
+		int m_MouseX;
+		int m_MouseY;
 
-	int m_MouseX;
-	int m_MouseY;
+		DirectX::XMMATRIX m_ProjectionMatrix;
 
-	DirectX::XMMATRIX m_ProjectionMatrix;
+		// Constructor and Destructor
+		Application(std::string title = "App", Object* game_object = nullptr, bool dev_mode = false);
+		virtual ~Application() = default;
 
-	Application(std::string title = "App", Object* game_object = nullptr, bool dev_mode = false);
-	virtual ~Application() = default;
+		int Initialize();
+		int Render(float deltaTime = 0.0f);
 
-	int Initialize();
-	int Render(float deltaTime = 0.0f);
+		// System events
+		LRESULT HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-	LRESULT HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
-	// Get window
-	inline Window* GetWindow() const { return m_Window.get(); }
-	void GetResolution(int& x, int& y);
-
-	void MouseToWorldCoordinates(float& world_x, float& world_y);
+		// Get window properties
+		inline Window* GetWindow() const { return m_Window.get(); }
+		void GetResolution(int& x, int& y);
 };

@@ -1,15 +1,19 @@
-#include "RenderTarget.h"
-#include <DirectXColors.h>
+// RenderTarget class
+// Configures rendering result and sets it to an image
 
-// Modifies the background color
+#include "RenderTarget.h"
+
+// Rendered result background color
 static DirectX::XMVECTORF32 floatingVector = { 32.0f / 255.0f, 32.0f / 255.0f, 32.0f / 255.0f, 0.0f };
 
+// Initialize render target
 RenderTarget::RenderTarget(Renderer* renderer) : m_Renderer(renderer)
 {
 	m_Device = m_Renderer->GetDevice();
 	m_DeviceContext = m_Renderer->GetContext();
 }
 
+// Create render target
 void RenderTarget::Create(int width, int height)
 {
 	CreateRenderTexture(width, height);
@@ -17,10 +21,10 @@ void RenderTarget::Create(int width, int height)
 	CreateShaderResource();
 }
 
+// Update render target
 void RenderTarget::Use()
 {
 	// Clear the render target view to the chosen colour
-	//m_DeviceContext->ClearRenderTargetView(m_TextureRenderTargetView.Get(), reinterpret_cast<const float*>(&DirectX::Colors::DarkGray));
 	m_DeviceContext->ClearRenderTargetView(m_TextureRenderTargetView.Get(), reinterpret_cast<const float*>(&floatingVector));
 	m_DeviceContext->ClearDepthStencilView(m_TextureDepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
@@ -28,6 +32,7 @@ void RenderTarget::Use()
 	m_DeviceContext->OMSetRenderTargets(1, m_TextureRenderTargetView.GetAddressOf(), m_TextureDepthStencilView.Get());
 }
 
+// Create texture from render result
 void RenderTarget::CreateRenderTexture(int width, int height)
 {
 	D3D11_TEXTURE2D_DESC texture_desc = {};
@@ -46,6 +51,7 @@ void RenderTarget::CreateRenderTexture(int width, int height)
 	DX::Check(m_Device->CreateTexture2D(&texture_desc, 0, m_Texture.ReleaseAndGetAddressOf()));
 }
 
+// Create target and depth stencil view
 void RenderTarget::CreateRenderTargetAndDepthStencilView(int width, int height)
 {
 	// Create the render target view.
@@ -73,6 +79,7 @@ void RenderTarget::CreateRenderTargetAndDepthStencilView(int width, int height)
 	DX::Check(m_Device->CreateDepthStencilView(texture.Get(), nullptr, m_TextureDepthStencilView.ReleaseAndGetAddressOf()));
 }
 
+// Create shader resource
 void RenderTarget::CreateShaderResource()
 {
 	D3D11_SHADER_RESOURCE_VIEW_DESC view_desc = {};

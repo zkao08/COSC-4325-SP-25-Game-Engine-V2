@@ -1,10 +1,14 @@
+// NavigatorWindow GUI
+// Creates and renders Navigator subwindow.
+
 #include "NavigatorWindow.h"
 
 Object* NavigatorWindow::heldObject;
 
-const std::string REFRESH_PATH = GetProjectRoot() + "/assets/Refresh.png";
+// File path to the Add (+) icon
 const std::string ADD_PATH = GetProjectRoot() + "/assets/Add.png";
 
+// Renders the GUI
 int NavigatorWindow::Render(Renderer* renderer, Game* game, float scale) {
     char* searchText = "";
     static bool rightClicked = false;
@@ -20,10 +24,6 @@ int NavigatorWindow::Render(Renderer* renderer, Game* game, float scale) {
     else if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsWindowHovered()) {
         rightClicked = false;
         game->DeselectObjects();
-    }
-
-    if (renderer->CreateImageButton("Refresh", const_cast<char*>(REFRESH_PATH.c_str()), ImVec2(24, 24))) {
-        // No implementation yet.
     }
 
     ImGui::SameLine();
@@ -75,6 +75,7 @@ int NavigatorWindow::Render(Renderer* renderer, Game* game, float scale) {
     return 1;
 }
 
+// Renders the object buttons that exist in the game world
 void NavigatorWindow::GenerateItemTreeNodes(Object* item, Game* game, int id) {
     std::string fullId = item->properties["Name"].Data + "##" + std::to_string(id);
 

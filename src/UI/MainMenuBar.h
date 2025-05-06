@@ -1,5 +1,5 @@
-// MainMenuBar UI Header
-// Creates top-level menu bar and adds functionality.
+// MainMenuBar GUI
+// Creates and renders the top menu bar in the level editor.
 
 #pragma once
 

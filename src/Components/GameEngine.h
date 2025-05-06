@@ -1,4 +1,4 @@
-// Updated GameEngine.h
+// GameEngine.h
 #pragma once
 
 #include "Application.h"
@@ -45,7 +45,7 @@ public:
     ~GameEngine();
 
     // Core lifecycle
-    bool Initialize();
+    bool Initialize(bool editor = true);
     int Run(bool debug = false);
     void Shutdown();
 
