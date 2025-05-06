@@ -47,17 +47,14 @@ PhysicsTest.exe - Runs a physics simulation test.
 - Demonstrates various physics shapes and properties
 
 LevelEditor.exe - Runs the level editor version of the game engine.
-- Opens the level editor interface with dockable windows
-- A debug console will display performance metrics and input processing
-- Create game objects, set properties, arrange scenes with the on screen buttons
+- Opens the level editor interface with dockable windows.
+- A debug console will display performance metrics and input processing.
+- Create game objects, set properties, arrange scenes with the on screen windows and buttons.
 - Game can be tested by selecting "Game > Run Game" in the top menu bar.
-- Select the plus icon (+) or right click the Navigator window and select "Add Object..." to create an object.
+- Select the plus icon (+) or right click anywhere in the Navigator window and select "Add Object..." to create an object.
 - Right click an object to create an object in it or delete it.
 - Select an object to view and edit its properties in the Properties window.
 - Middle mouse button to select and move objects in the Navigator, such as reordering or placing objects in other objects.
 - Middle mouse button to move the camera within the Viewport.
-- GUI windows can be dragged and docked by holding the window's title.
 - Type or paste the file's full file path into the Texture or Script property of the object. (image or Lua files only)
 - Use external text editor to type Lua code. (example code can be found in assets/Example/Player)
-- Press the R key to reset the camera to the center world coordinates.
-- Press the W key to toggle object wireframe visibility.
